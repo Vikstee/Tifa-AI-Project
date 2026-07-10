@@ -28,21 +28,19 @@ export async function POST(req: NextRequest) {
 
     let prompt = `Anda adalah TIFA (TelkomInfra Financial Assistant). 
 Buatkan respon dalam format JSON yang berisi:
-1. "subtitle": 1-2 kalimat singkat menyarankan bantuan (bahasa Indonesia). Jangan gunakan kata sapaan (Halo/Selamat pagi).
+1. "subtitle": 1 kalimat singkat menyarankan bantuan.
 2. "prompts": Array berisi persis 4 objek rekomendasi. Setiap objek memiliki:
    - "icon": satu emoji relevan
-   - "text": judul prompt singkat (maks 5-6 kata). Harus berupa pertanyaan/perintah yang bisa diklik user.
+   - "text": judul prompt singkat (maks 6 kata).
    - "desc": deskripsi singkat 3-5 kata
 
-Konteks pengguna:
-- Riwayat topik pengguna ini: ${historyTitles && historyTitles.length > 0 ? historyTitles.join(', ') : 'Belum ada riwayat'}.
-- Pertanyaan yang baru-baru ini / sering ditanyakan oleh semua user di database: ${recentQueries.length > 0 ? recentQueries.join(' | ') : 'Belum ada data'}.
+Konteks Database:
+Riwayat pencarian user akhir-akhir ini: ${recentQueries.length > 0 ? recentQueries.join(' | ') : 'Tampilkan status PO, Analisis cash flow, Laporan aging, Rekonsiliasi invoice'}.
 
-Tugas Anda:
-- Buat 4 prompts (kotak rekomendasi) berdasarkan "Pertanyaan yang baru-baru ini / sering ditanyakan" di atas agar relevan dengan apa yang dicari user akhir-akhir ini.
-- PASTIKAN prompt yang Anda rekomendasikan SESUAI DENGAN KEMAMPUAN ANDA (bisa dijawab karena datanya ada di database seperti projects, purchase_orders, cash_in, invoices, contracts). 
-- Jika tidak ada data riwayat, buat 4 prompt standar terkait status PO, Cash flow, AR Aging, dan Rekonsiliasi.
-HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
+Tugas Anda SANGAT KRITIKAL:
+- Anda WAJIB membuat 4 prompts yang isinya MENGAMBIL INSPIRASI LANGSUNG dari "Riwayat pencarian user akhir-akhir ini" di atas.
+- Jangan gunakan template default jika ada riwayat pencarian!
+- HANYA kembalikan valid JSON tanpa markdown.`;
 
     const result = await model.generateContent(prompt);
     let text = result.response.text();
