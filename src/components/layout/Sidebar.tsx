@@ -22,6 +22,7 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenProfile: () => void;
   isLoggedIn: boolean;
+  onRequireLogin?: () => void;
   userProfile: any;
   onDeleteConversation?: (id: string) => void;
   onShareConversation?: (id: string) => void;
@@ -38,6 +39,7 @@ export default function Sidebar({
   onNewChat,
   onOpenSettings,
   onOpenProfile,
+  onRequireLogin,
   isLoggedIn,
   userProfile,
   onDeleteConversation,
@@ -331,11 +333,13 @@ export default function Sidebar({
 
             {/* User profile */}
             <div
-              className={`flex items-center gap-2.5 px-2 py-2 rounded-xl ${isOpen ? '' : 'justify-center'}`}
+              className="flex items-center gap-3 p-3 rounded-xl transition-all"
             >
-              <div
-                className="w-8 h-8 rounded-full bg-telkom-red flex items-center justify-center flex-shrink-0 cursor-pointer"
-                onClick={isLoggedIn ? onOpenProfile : undefined}
+              <div 
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer ${
+                  isLoggedIn ? 'bg-primary' : 'bg-telkom-red'
+                }`}
+                onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
               >
                 <span className="text-white text-xs font-bold">
                   {isLoggedIn ? userProfile?.name?.substring(0, 2).toUpperCase() : '?'}
@@ -345,7 +349,7 @@ export default function Sidebar({
                 <>
                   <div
                     className="flex-1 min-w-0 cursor-pointer"
-                    onClick={isLoggedIn ? onOpenProfile : undefined}
+                    onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
                   >
                     <p
                       className={`text-sm font-medium truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}

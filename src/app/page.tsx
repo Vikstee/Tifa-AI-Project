@@ -185,6 +185,7 @@ export default function HomePage() {
         onNewChat={handleNewChat}
         onOpenSettings={() => setShowSettingsModal(true)}
         onOpenProfile={() => setShowProfileModal(true)}
+        onRequireLogin={() => setShowLoginModal(true)}
         isLoggedIn={!!authToken}
         userProfile={userProfile}
         onDeleteConversation={handleDeleteConversation}
