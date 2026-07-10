@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
-import { dbToolsDefinitions, lookupRecord, filterRecords, aggregateRecords, aggregateChartPython, predictCashflowPython } from '@/lib/dbTools';
+import { dbToolsDefinitions, lookupRecord, filterRecords, aggregateRecords, aggregateChartPython, predictCashflowPython, detectAnomalyPython } from '@/lib/dbTools';
 
 const apiKeyString = process.env.GEMINI_API_KEY || '';
 // Parse comma-separated API keys
@@ -55,7 +55,26 @@ export async function POST(req: NextRequest) {
     let parts: any[] = [];
     if (message) parts.push(message);
     if (files && files.length > 0) {
-      parts = [...parts, ...files];
+      // Instead of sending URL to Gemini directly (which fails), we use Python RAG parsing
+      for (const file of files) {
+        if (file.url) {
+          try {
+            const parseRes = await fetch(process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/parse_document` : 'http://localhost:4028/api/parse_document', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: file.url, name: file.name })
+            });
+            if (parseRes.ok) {
+              const parsedData = await parseRes.json();
+              if (parsedData.text) {
+                parts.push(parsedData.text);
+              }
+            }
+          } catch (err) {
+            console.error('Failed to parse document with Python:', err);
+          }
+        }
+      }
     }
 
     if (parts.length === 0) {
@@ -99,6 +118,8 @@ export async function POST(req: NextRequest) {
             funcRes = await aggregateChartPython(args.table, args.group_by, args.sum_col);
           } else if (call.name === 'predict_cashflow') {
             funcRes = await predictCashflowPython(args.months_ahead);
+          } else if (call.name === 'detect_anomaly') {
+            funcRes = await detectAnomalyPython(args.table, args.amount_col);
           }
 
           console.log(`[Tifa] Function response:`, funcRes);

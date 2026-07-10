@@ -211,5 +211,108 @@ def aggregate_chart():
     except Exception as e:
         return jsonify({"error": str(e)})
 
+@app.route('/api/parse_document', methods=['POST'])
+def parse_document():
+    import requests
+    import io
+    try:
+        data = request.json or {}
+        file_url = data.get('url', '')
+        file_name = data.get('name', '')
+        
+        if not file_url:
+            return jsonify({"error": "No URL provided"})
+            
+        res = requests.get(file_url)
+        if res.status_code != 200:
+            return jsonify({"error": f"Failed to download file: {res.status_code}"})
+            
+        text = f"--- Konten File: {file_name} ---\n"
+        
+        # Parse PDF
+        if file_name.lower().endswith('.pdf'):
+            import PyPDF2
+            pdf_file = io.BytesIO(res.content)
+            reader = PyPDF2.PdfReader(pdf_file)
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+                    
+        # Parse Excel / CSV
+        elif file_name.lower().endswith(('.xlsx', '.xls', '.csv')):
+            if file_name.lower().endswith('.csv'):
+                df = pd.read_csv(io.BytesIO(res.content))
+            else:
+                df = pd.read_excel(io.BytesIO(res.content))
+            text += df.to_string()
+            
+        else:
+            text += "Format file tidak didukung untuk ekstraksi teks secara native."
+            
+        # Limit text length to prevent huge context window bloat (limit to ~20000 chars)
+        if len(text) > 20000:
+            text = text[:20000] + "\n...[TEKS TERPOTONG KARENA TERLALU PANJANG]..."
+            
+        return jsonify({"text": text})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route('/api/detect_anomaly', methods=['POST'])
+def detect_anomaly():
+    if not supabase:
+        return jsonify({"error": "Supabase not configured"})
+    try:
+        data = request.json or {}
+        table = data.get('table', 'invoices')
+        amount_col = data.get('amount_col', 'amount')
+        
+        # Fetch data
+        res = supabase.table(table).select(f"id, client_name, {amount_col}, status").execute()
+        df = pd.DataFrame(res.data)
+        
+        if df.empty:
+            return jsonify({"anomalies": [], "message": "Tidak ada data."})
+            
+        df[amount_col] = pd.to_numeric(df[amount_col], errors='coerce').fillna(0)
+        
+        # Z-Score Anomaly Detection
+        mean = df[amount_col].mean()
+        std = df[amount_col].std()
+        
+        anomalies = []
+        for _, row in df.iterrows():
+            amt = float(row[amount_col])
+            # If standard deviation is 0, we can't compute z-score properly
+            if std > 0:
+                z_score = abs((amt - mean) / std)
+                # Threshold of 2.5 standard deviations
+                if z_score > 2.5:
+                    anomalies.append({
+                        "id": row['id'],
+                        "client": str(row.get('client_name', 'Unknown')),
+                        "amount": amt,
+                        "reason": f"Nilai transaksi terlalu ekstrem (Z-Score: {z_score:.2f}). Rata-rata adalah {mean:.2f}."
+                    })
+                    
+        # Detect exact duplicates
+        duplicates = df[df.duplicated(subset=['client_name', amount_col], keep=False)]
+        for _, row in duplicates.iterrows():
+            anomalies.append({
+                "id": row['id'],
+                "client": str(row.get('client_name', 'Unknown')),
+                "amount": float(row[amount_col]),
+                "reason": "Indikasi tagihan/pembayaran ganda (Duplicate Entry) untuk klien dengan nominal yang sama persis."
+            })
+            
+        return jsonify({
+            "total_data_analyzed": len(df),
+            "anomalies_found": len(anomalies),
+            "anomalies": anomalies,
+            "message": "Deteksi Anomali Statistik (Z-Score & Duplication) berhasil dijalankan oleh Python."
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 if __name__ == '__main__':
     app.run(port=5000)

@@ -95,6 +95,20 @@ export const predictCashflowPython = async (months_ahead: number) => {
   }
 };
 
+export const detectAnomalyPython = async (table: string, amount_col: string) => {
+  try {
+    const res = await fetch(process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/detect_anomaly` : 'http://localhost:4028/api/detect_anomaly', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table, amount_col })
+    });
+    return await res.json();
+  } catch (error: any) {
+    console.error('Error fetching python anomalies:', error);
+    return { error: error.message };
+  }
+};
+
 export const dbToolsDefinitions = [
   {
     name: 'lookupRecord',
@@ -200,6 +214,24 @@ export const dbToolsDefinitions = [
         }
       },
       required: ["months_ahead"]
+    }
+  },
+  {
+    name: "detect_anomaly",
+    description: "Meminta server Python untuk mendeteksi transaksi/invoice yang aneh atau janggal menggunakan statistik Z-score dan mendeteksi tagihan ganda (duplikat). Gunakan jika user meminta deteksi fraud/anomali.",
+    parameters: {
+      type: "object",
+      properties: {
+        table: {
+          type: "string",
+          description: "Nama tabel yang ingin diperiksa (contoh: invoices, purchase_orders)"
+        },
+        amount_col: {
+          type: "string",
+          description: "Kolom angka yang akan dicek anomalinya (contoh: amount, total_amount)"
+        }
+      },
+      required: ["table", "amount_col"]
     }
   }
 ];
