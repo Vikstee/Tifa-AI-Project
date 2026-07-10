@@ -42,51 +42,7 @@ const getRealData = async (reportType: string, period: string) => {
   ];
 };
 
-const getDummyAnalysis = (reportType: string) => {
-  if (reportType.includes('PO Outstanding')) {
-    return [
-      "RINGKASAN EKSEKUTIF",
-      "Laporan ini memberikan tinjauan menyeluruh terhadap status Purchase Order (PO) yang berstatus 'Outstanding' hingga akhir periode tinjauan. Dari analisis data, ditemukan 5 PO utama yang belum diselesaikan dengan total akumulasi kewajiban mencapai lebih dari Rp 750.000.000. Tingkat Outstanding ini mengindikasikan adanya potensi bottleneck pada rantai pasok (supply chain) atau penundaan penyelesaian administratif di pihak vendor maupun internal procurement.",
-      "",
-      "ANALISIS MENDALAM & TEMUAN KUNCI",
-      "1. Konsentrasi Kewajiban pada Vendor Utama: Vendor 'PT Solusi Pratama' menyumbang porsi kewajiban terbesar yakni Rp 320.000.000 (sekitar 42% dari total outstanding). Tingginya eksposur pada satu vendor ini menimbulkan risiko konsentrasi yang signifikan. Keterlambatan pengiriman atau penyelesaian kontrak dari vendor ini dapat berdampak langsung pada milestone proyek operasional.",
-      "2. Tren Jatuh Tempo (Aging Analysis): Dari 5 PO yang berstatus outstanding, seluruhnya memiliki tanggal jatuh tempo dalam kurun waktu 15 hingga 26 Oktober 2024. Hal ini menunjukkan adanya penumpukan tagihan (invoice stacking) pada pertengahan hingga akhir bulan, yang berpotensi memberikan tekanan arus kas (cash flow pressure) yang cukup tinggi dalam jendela waktu yang sempit.",
-      "3. Kesenjangan SLA (Service Level Agreement): Terdapat interval waktu rata-rata 14 hari antara tanggal penerbitan PO hingga tanggal jatuh tempo yang diekspektasikan. Namun, status 'Outstanding' yang berlarut-larut mengisyaratkan bahwa proses delivery barang/jasa atau verifikasi BAST (Berita Acara Serah Terima) membutuhkan waktu lebih lama dari estimasi awal.",
-      "",
-      "REKOMENDASI STRATEGIS (TINDAK LANJUT)",
-      "• Tindakan Segera (Short-term): Bentuk task force kecil antara tim Procurement, Finance, dan User (Operasional) untuk segera memvalidasi status BAST dari PT Solusi Pratama dan PT Sarana Berkat. Pastikan tidak ada dispute yang menghalangi proses invoicing.",
-      "• Mitigasi Risiko Arus Kas: Tim Treasury harus segera mengalokasikan pencadangan dana sebesar Rp 750.500.000 untuk mengantisipasi klaster penagihan pada periode 15-26 Oktober, demi menghindari penalty keterlambatan pembayaran.",
-      "• Perbaikan Proses (Long-term): Terapkan sistem Vendor Performance Management System (VPMS) secara ketat untuk mengevaluasi ketepatan waktu vendor. Vendor dengan SLA pengiriman yang konsisten meleset harus ditinjau ulang kontraknya, atau diberlakukan skema term of payment yang lebih ketat berbasis milestone."
-    ];
-  }
-  if (reportType.includes('Cash Flow')) {
-    return [
-      "RINGKASAN EKSEKUTIF",
-      "Laporan Arus Kas (Cash Flow) periode ini menunjukkan posisi likuiditas yang cukup tangguh, diawali dengan saldo kas (Opening Balance) sebesar Rp 1.500.000.000. Secara keseluruhan, perusahaan mencatat arus kas masuk yang solid dari klien utama, yang secara efektif menutupi seluruh kebutuhan modal kerja operasional jangka pendek, sehingga mempertahankan saldo kas akhir pada posisi yang sangat aman yakni Rp 1.775.000.000.",
-      "",
-      "ANALISIS LIKUIDITAS & KOMPONEN ARUS KAS",
-      "1. Analisis Arus Kas Masuk (Inflow): Pemasukan dominan pada periode ini bersumber dari pencairan piutang Telkomsel sebesar Rp 500.000.000. Realisasi penerimaan ini sangat krusial karena menyumbang 100% dari total cash inflow bulan ini. Ketergantungan pada satu klien besar (anchor client) menunjukkan stabilitas pendapatan, namun juga memunculkan risiko konsentrasi piutang (Account Receivable concentration risk).",
-      "2. Analisis Arus Kas Keluar (Outflow): Total cash outflow tercatat sebesar Rp 225.000.000. Dari jumlah tersebut, pengeluaran terbesar dialokasikan untuk pembayaran vendor (PT Maju Jaya) senilai Rp 150.000.000. Biaya operasional rutin hanya mengonsumsi Rp 75.000.000. Struktur pengeluaran ini sangat sehat, di mana rasio biaya operasional terhadap pemasukan berada pada angka 15%, jauh di bawah ambang batas kritis.",
-      "3. Analisis Posisi Kas Akhir (Ending Balance): Dengan saldo kas akhir Rp 1.775.000.000, perusahaan memiliki Cash Coverage Ratio yang sangat tinggi. Perusahaan memiliki ruang fiskal (fiscal space) yang cukup luas untuk berekspansi, melakukan investasi instrumen likuid jangka pendek, atau mempercepat pelunasan utang berbunga tinggi (jika ada).",
-      "",
-      "REKOMENDASI STRATEGIS (TINDAK LANJUT)",
-      "• Optimalisasi Dana Menganggur (Idle Cash Management): Dengan kelebihan likuiditas yang mencapai Rp 1,77 Miliar, sangat direkomendasikan agar tim Finance & Treasury menempatkan sekitar 40-50% dari dana idle tersebut ke dalam instrumen investasi jangka pendek berisiko rendah (seperti deposito on-call atau reksadana pasar uang) untuk mendapatkan tambahan yield (pendapatan bunga) tanpa mengorbankan likuiditas.",
-      "• Diversifikasi Sumber Pemasukan: Meskipun pembayaran dari Telkomsel sangat menopang arus kas, perusahaan perlu mengakselerasi penagihan (collection) dari klien-klien sekunder lainnya untuk menyeimbangkan rasio Account Receivables Turnover.",
-      "• Negosiasi Terms of Payment: Dengan posisi kas yang kuat, perusahaan memiliki daya tawar tinggi. Pertimbangkan untuk menawarkan pembayaran dipercepat (early payment) kepada vendor strategis dengan syarat mereka memberikan diskon (early payment discount) sebesar 2-3%."
-    ];
-  }
-  return [
-    "RINGKASAN EKSEKUTIF",
-    "Data menunjukkan stabilitas pada periode ini tanpa anomali yang signifikan. Seluruh indikator kinerja finansial berada dalam rentang toleransi yang ditetapkan.",
-    "",
-    "ANALISIS MENDALAM",
-    "Tidak ada lonjakan biaya atau penundaan penerimaan yang berisiko mengganggu operasional. Sistem pencatatan berjalan baik dan rekonsiliasi data antara sub-ledger dan general ledger menunjukkan kesesuaian 100%.",
-    "",
-    "REKOMENDASI STRATEGIS (TINDAK LANJUT)",
-    "• Lanjutkan prosedur pemantauan transaksi harian dengan disiplin kontrol yang ada.",
-    "• Lakukan audit internal secara berkala untuk memastikan kepatuhan prosedur tetap terjaga."
-  ];
-};
+// Removed getDummyAnalysis; we now fetch from Python backend!
 
 export const generatePDFReport = async (reportType: string, period: string): Promise<string> => {
   const { jsPDF } = await import('jspdf');
@@ -120,7 +76,24 @@ export const generatePDFReport = async (reportType: string, period: string): Pro
   });
 
   const finalY = (doc as any).lastAutoTable.finalY || 45;
-  const analysisLines = getDummyAnalysis(reportType);
+  
+  let analysisLines: string[] = [];
+  try {
+    const res = await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportType, period })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      analysisLines = data.analysis || ["Error: No analysis returned."];
+    } else {
+      analysisLines = ["Error fetching analysis from Python backend."];
+    }
+  } catch (e) {
+    analysisLines = ["Gagal memuat analisis dari server Python."];
+  }
+
   const pageHeight = doc.internal.pageSize.height;
   const pageWidth = doc.internal.pageSize.width;
   
@@ -261,7 +234,23 @@ export const generateExcelReport = async (reportType: string, period: string): P
   const XLSX = await import('xlsx');
   
   const data = await getRealData(reportType, period);
-  const analysisLines = getDummyAnalysis(reportType);
+  
+  let analysisLines: string[] = [];
+  try {
+    const res = await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportType, period })
+    });
+    if (res.ok) {
+      const respData = await res.json();
+      analysisLines = respData.analysis || ["Error: No analysis returned."];
+    } else {
+      analysisLines = ["Error fetching analysis from Python backend."];
+    }
+  } catch (e) {
+    analysisLines = ["Gagal memuat analisis dari server Python."];
+  }
   
   const worksheet = XLSX.utils.aoa_to_sheet([
     [`TelkomInfra - ${reportType}`],
@@ -297,6 +286,23 @@ export const generateWordReport = async (reportType: string, period: string): Pr
       ),
     });
   });
+
+  let analysisLines: string[] = [];
+  try {
+    const res = await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportType, period })
+    });
+    if (res.ok) {
+      const respData = await res.json();
+      analysisLines = respData.analysis || ["Error: No analysis returned."];
+    } else {
+      analysisLines = ["Error fetching analysis from Python backend."];
+    }
+  } catch (e) {
+    analysisLines = ["Gagal memuat analisis dari server Python."];
+  }
 
   const doc = new Document({
     sections: [
@@ -337,7 +343,7 @@ export const generateWordReport = async (reportType: string, period: string): Pr
             ],
             spacing: { before: 200, after: 200 },
           }),
-          ...getDummyAnalysis(reportType).map(line => 
+          ...analysisLines.map(line => 
             new Paragraph({
               children: [new TextRun({ text: line, size: 22, color: "444444" })],
               spacing: { after: 120 }
