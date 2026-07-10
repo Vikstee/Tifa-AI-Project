@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const projectNames = Array.from(new Set(projects?.map(p => p.name) || [])).join(', ');
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     let prompt = `Anda adalah TIFA (TelkomInfra Financial Assistant). 
 Buatkan respon dalam format JSON yang berisi:
