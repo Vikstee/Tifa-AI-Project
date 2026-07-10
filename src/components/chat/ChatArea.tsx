@@ -15,7 +15,7 @@ interface UploadedFile {
   name: string;
   size: string;
   type: string;
-  file?: File;
+  file: File;
 }
 
 // Remove initialMessages since it will be handled by page.tsx or empty at start
