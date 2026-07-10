@@ -466,6 +466,7 @@ export default function ChatArea({
                     message={msg} 
                     darkMode={darkMode} 
                     onEditMessage={handleEditMessage} 
+                    userProfile={userProfile}
                   />
                 ))}
                 {isLoading && <TypingIndicator darkMode={darkMode} />}

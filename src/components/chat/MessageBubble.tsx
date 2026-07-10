@@ -26,9 +26,17 @@ interface MessageBubbleProps {
   message: Message;
   darkMode: boolean;
   onEditMessage?: (messageId: string, newContent: string) => void;
+  userProfile?: any;
 }
 
-export default function MessageBubble({ message, darkMode, onEditMessage }: MessageBubbleProps) {
+const getInitials = (name?: string) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 1).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+export default function MessageBubble({ message, darkMode, onEditMessage, userProfile }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = React.useState(false);
   const [editContent, setEditContent] = React.useState(message.content);
@@ -118,8 +126,12 @@ export default function MessageBubble({ message, darkMode, onEditMessage }: Mess
               )}
             </div>
             {!isEditing && (
-              <div className="w-7 h-7 rounded-full bg-telkom-red/20 border border-telkom-red/30 flex items-center justify-center flex-shrink-0 mb-0.5">
-                <span className="text-xs font-bold text-telkom-red">AS</span>
+              <div className="w-7 h-7 rounded-full bg-telkom-red/20 border border-telkom-red/30 flex items-center justify-center flex-shrink-0 mb-0.5 overflow-hidden">
+                {userProfile?.avatar_url ? (
+                  <img src={userProfile.avatar_url} alt="User" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-telkom-red">{getInitials(userProfile?.name)}</span>
+                )}
               </div>
             )}
           </div>
