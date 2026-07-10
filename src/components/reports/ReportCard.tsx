@@ -311,7 +311,10 @@ export default function ReportCard({
 
       {/* WA Modal */}
       {showWaModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="bg-white dark:bg-telkom-sidebar w-full max-w-sm rounded-xl p-6 shadow-xl relative border border-gray-200 dark:border-telkom-border-dark animate-in fade-in zoom-in duration-200">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Kirim ke WhatsApp 🤖</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
