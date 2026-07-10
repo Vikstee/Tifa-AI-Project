@@ -2,13 +2,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { dbToolsDefinitions, lookupRecord, filterRecords, aggregateRecords, aggregateChartPython, predictCashflowPython, detectAnomalyPython } from '@/lib/dbTools';
 
-const getBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return 'http://localhost:4028';
-};
-
 const apiKeyString = process.env.GEMINI_API_KEY || '';
 // Parse comma-separated API keys
 const apiKeys = apiKeyString.split(',').map(k => k.trim()).filter(k => k.length > 0);
@@ -66,8 +59,7 @@ export async function POST(req: NextRequest) {
       for (const file of files) {
         if (file.url) {
           try {
-            const baseUrl = getBaseUrl();
-            const parseRes = await fetch(`${baseUrl}/api/parse_document`, {
+            const parseRes = await fetch(process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/parse_document` : 'http://localhost:4028/api/parse_document', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ url: file.url, name: file.name })
@@ -101,7 +93,7 @@ export async function POST(req: NextRequest) {
       try {
         const genAI = new GoogleGenerativeAI(selectedKey);
         const model = genAI.getGenerativeModel({ 
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-flash',
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ functionDeclarations: dbToolsDefinitions as any }]
         });
@@ -116,7 +108,6 @@ export async function POST(req: NextRequest) {
           let funcRes: any = { error: 'Unknown function' };
           const args = call.args as any;
           
-          const baseUrl = getBaseUrl();
           if (call.name === 'lookupRecord') {
             funcRes = await lookupRecord(args.tableName, args.idColumn, args.idValue);
           } else if (call.name === 'filterRecords') {
@@ -124,11 +115,11 @@ export async function POST(req: NextRequest) {
           } else if (call.name === 'aggregateRecords') {
             funcRes = await aggregateRecords(args.tableName, args.sumColumn, args.filterColumn, args.filterValue);
           } else if (call.name === 'aggregate_chart') {
-            funcRes = await aggregateChartPython(args.table, args.group_by, args.sum_col, baseUrl);
+            funcRes = await aggregateChartPython(args.table, args.group_by, args.sum_col);
           } else if (call.name === 'predict_cashflow') {
-            funcRes = await predictCashflowPython(args.months_ahead, baseUrl);
+            funcRes = await predictCashflowPython(args.months_ahead);
           } else if (call.name === 'detect_anomaly') {
-            funcRes = await detectAnomalyPython(args.table, args.amount_col, baseUrl);
+            funcRes = await detectAnomalyPython(args.table, args.amount_col);
           }
 
           console.log(`[Tifa] Function response:`, funcRes);

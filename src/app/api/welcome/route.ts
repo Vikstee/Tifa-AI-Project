@@ -23,34 +23,26 @@ export async function POST(req: NextRequest) {
 
     const recentQueries = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
 
-    // Fetch real context from database so even new users get highly specific prompts
-    const { data: invoices } = await supabase.from('invoices').select('client_name').limit(3);
-    const clientNames = Array.from(new Set(invoices?.map(i => i.client_name) || [])).join(', ');
-
-    const { data: projects } = await supabase.from('projects').select('name').limit(3);
-    const projectNames = Array.from(new Set(projects?.map(p => p.name) || [])).join(', ');
-
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     let prompt = `Anda adalah TIFA (TelkomInfra Financial Assistant). 
 Buatkan respon dalam format JSON yang berisi:
-1. "subtitle": 1 kalimat singkat menyarankan bantuan.
+1. "subtitle": 1-2 kalimat singkat menyarankan bantuan (bahasa Indonesia). Jangan gunakan kata sapaan (Halo/Selamat pagi).
 2. "prompts": Array berisi persis 4 objek rekomendasi. Setiap objek memiliki:
    - "icon": satu emoji relevan
-   - "text": judul prompt singkat (maks 6 kata).
+   - "text": judul prompt singkat (maks 5-6 kata). Harus berupa pertanyaan/perintah yang bisa diklik user.
    - "desc": deskripsi singkat 3-5 kata
 
-Konteks Database:
-Riwayat pencarian user akhir-akhir ini: ${recentQueries.length > 0 ? recentQueries.join(' | ') : 'Belum ada riwayat'}.
-Data nyata di database saat ini: Klien (${clientNames || 'Umum'}), Proyek (${projectNames || 'Umum'}).
+Konteks pengguna:
+- Riwayat topik pengguna ini: ${historyTitles && historyTitles.length > 0 ? historyTitles.join(', ') : 'Belum ada riwayat'}.
+- Pertanyaan yang baru-baru ini / sering ditanyakan oleh semua user di database: ${recentQueries.length > 0 ? recentQueries.join(' | ') : 'Belum ada data'}.
 
-Tugas Anda SANGAT KRITIKAL:
-- Buat 4 prompts rekomendasi.
-- Jika ada "Riwayat pencarian", WAJIB ambil inspirasi dari sana.
-- Jika belum ada riwayat, WAJIB buat pertanyaan spesifik berdasarkan "Data nyata di database saat ini" (misal: "Berapa total invoice untuk klien X?" atau "Cek status proyek Y").
-- Jangan pernah gunakan template default yang membosankan! Harus spesifik menyebut nama Klien atau Proyek dari data di atas jika riwayat kosong.
-- HANYA kembalikan valid JSON tanpa markdown.`;
+Tugas Anda:
+- Buat 4 prompts (kotak rekomendasi) berdasarkan "Pertanyaan yang baru-baru ini / sering ditanyakan" di atas agar relevan dengan apa yang dicari user akhir-akhir ini.
+- PASTIKAN prompt yang Anda rekomendasikan SESUAI DENGAN KEMAMPUAN ANDA (bisa dijawab karena datanya ada di database seperti projects, purchase_orders, cash_in, invoices, contracts). 
+- Jika tidak ada data riwayat, buat 4 prompt standar terkait status PO, Cash flow, AR Aging, dan Rekonsiliasi.
+HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
 
     const result = await model.generateContent(prompt);
     let text = result.response.text();
@@ -61,15 +53,48 @@ Tugas Anda SANGAT KRITIKAL:
     return NextResponse.json(parsed);
   } catch (error: any) {
     console.error('Error generating welcome message:', error);
+    
+    // Fallback using database cached queries (recentQueries)
+    let fallbackPrompts: any[] = [];
+    
+    try {
+      // Try fetching recent queries again if it wasn't fetched yet in the try block
+      const { data: recentMessages } = await supabase
+        .from('chat_messages')
+        .select('content')
+        .eq('role', 'user')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      const recent = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
+      const uniqueQueries = Array.from(new Set(recent)).slice(0, 4);
+      const fallbackIcons = ['💬', '🔍', '📊', '💡'];
+      
+      if (uniqueQueries.length > 0) {
+        fallbackPrompts = (uniqueQueries as string[]).map((q: string, idx: number) => ({
+          icon: fallbackIcons[idx % fallbackIcons.length],
+          text: q.length > 40 ? q.substring(0, 40) + '...' : q,
+          desc: 'Riwayat pertanyaan'
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to fetch fallback from DB', e);
+    }
+
+    // Ultimate fallback if DB also fails or is empty
+    if (fallbackPrompts.length === 0) {
+      fallbackPrompts = [
+        { icon: '📊', text: 'Tampilkan status PO bulan ini', desc: 'Ringkasan Purchase Order aktif' },
+        { icon: '💰', text: 'Analisis cash flow Q3 2024', desc: 'Arus kas masuk dan keluar' },
+        { icon: '📋', text: 'Laporan aging piutang', desc: 'Piutang berdasarkan umur' },
+        { icon: '🔍', text: 'Rekonsiliasi invoice outstanding', desc: 'Invoice yang belum terbayar' },
+      ];
+    }
+
     return NextResponse.json(
       { 
-        subtitle: `Error: ${error.message || 'Unknown Error'}`,
-        prompts: [
-          { icon: '⚠️', text: 'Error', desc: error.message || 'Error API' },
-          { icon: '💰', text: 'Analisis cash flow Q3 2024', desc: 'Arus kas masuk dan keluar' },
-          { icon: '📋', text: 'Laporan aging piutang', desc: 'Piutang berdasarkan umur' },
-          { icon: '🔍', text: 'Rekonsiliasi invoice outstanding', desc: 'Invoice yang belum terbayar' },
-        ]
+        subtitle: 'Asisten AI Keuangan TelkomInfra yang siap membantu Anda.',
+        prompts: fallbackPrompts
       },
       { status: 200 }
     );
