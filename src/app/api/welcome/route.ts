@@ -6,7 +6,9 @@ export async function POST(req: NextRequest) {
   try {
     const { historyTitles, userName } = await req.json();
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKeyString = process.env.GEMINI_API_KEY || '';
+    const apiKey = apiKeyString.split(',')[0].trim();
+    
     if (!apiKey) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
@@ -53,9 +55,9 @@ HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
     console.error('Error generating welcome message:', error);
     return NextResponse.json(
       { 
-        subtitle: 'Asisten AI Keuangan TelkomInfra yang siap membantu analisis PO hingga Cash Flow Anda.',
+        subtitle: `Error: ${error.message || 'Unknown Error'}`,
         prompts: [
-          { icon: '📊', text: 'Tampilkan status PO bulan ini', desc: 'Ringkasan Purchase Order aktif' },
+          { icon: '⚠️', text: 'Error', desc: error.message || 'Error API' },
           { icon: '💰', text: 'Analisis cash flow Q3 2024', desc: 'Arus kas masuk dan keluar' },
           { icon: '📋', text: 'Laporan aging piutang', desc: 'Piutang berdasarkan umur' },
           { icon: '🔍', text: 'Rekonsiliasi invoice outstanding', desc: 'Invoice yang belum terbayar' },
