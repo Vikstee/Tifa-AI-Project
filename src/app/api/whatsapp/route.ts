@@ -8,37 +8,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Phone and message are required' }, { status: 400 });
     }
 
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const twilioNumber = process.env.TWILIO_PHONE_NUMBER; // Usually in format 'whatsapp:+14155238886'
+    const fonnteToken = process.env.FONNTE_TOKEN;
 
-    if (!accountSid || !authToken || !twilioNumber) {
-      return NextResponse.json({ error: 'Twilio credentials are not configured in environment variables' }, { status: 500 });
+    if (!fonnteToken) {
+      return NextResponse.json({ error: 'Fonnte token is not configured in environment variables' }, { status: 500 });
     }
 
-    // Format phone number to WhatsApp format if not already
+    // Format phone number to standard format
     let processedPhone = phone.trim();
     if (processedPhone.startsWith('0')) {
       processedPhone = '62' + processedPhone.substring(1);
+    } else if (processedPhone.startsWith('+')) {
+      processedPhone = processedPhone.substring(1);
     }
-    const toPhone = processedPhone.startsWith('whatsapp:') ? processedPhone : `whatsapp:${processedPhone.startsWith('+') ? processedPhone : '+' + processedPhone}`;
-    const fromPhone = twilioNumber.startsWith('whatsapp:') ? twilioNumber : `whatsapp:${twilioNumber}`;
+    // Remove non-numeric characters just in case, but keep basic numbers
+    processedPhone = processedPhone.replace(/[^0-9]/g, '');
 
-    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const url = 'https://api.fonnte.com/send';
     
-    // Create form data (Twilio API uses x-www-form-urlencoded)
+    // Create form data
     const formData = new URLSearchParams();
-    formData.append('To', toPhone);
-    formData.append('From', fromPhone);
-    formData.append('Body', message);
+    formData.append('target', processedPhone);
+    formData.append('message', message);
     if (mediaUrl) {
-      formData.append('MediaUrl', mediaUrl);
+      formData.append('url', mediaUrl);
     }
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+        'Authorization': fonnteToken,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: formData.toString(),
@@ -46,12 +45,12 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      console.error('[Twilio] Error:', data);
-      return NextResponse.json({ error: data.message || 'Failed to send WhatsApp message' }, { status: response.status });
+    if (!response.ok || !data.status) {
+      console.error('[Fonnte] Error:', data);
+      return NextResponse.json({ error: data.reason || 'Failed to send WhatsApp message' }, { status: response.status === 200 ? 400 : response.status });
     }
 
-    return NextResponse.json({ success: true, messageId: data.sid });
+    return NextResponse.json({ success: true, messageId: data.id || 'sent' });
 
   } catch (error: any) {
     console.error('WhatsApp Bot Error:', error);

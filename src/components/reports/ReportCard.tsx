@@ -225,8 +225,8 @@ export default function ReportCard({
   return (
     <div className="gradient-border group cursor-pointer" onClick={handlePreview} title="Klik untuk melihat / preview laporan">
       <div className={`p-3 transition-colors ${darkMode ? 'bg-telkom-surface-dark hover:bg-telkom-surface' : 'bg-white hover:bg-gray-50'}`}>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-start gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
             {/* Format icon */}
             <div
               className={`w-8 h-8 rounded-lg ${fmt.bg} flex items-center justify-center flex-shrink-0`}
@@ -279,7 +279,7 @@ export default function ReportCard({
 
           {/* Actions */}
           {!isGenerating && (
-            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+            <div className="flex items-center justify-end gap-1.5 flex-shrink-0">
               <button
                 onClick={handleDownload}
                 disabled={isGeneratingLazy}

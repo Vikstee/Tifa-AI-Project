@@ -4,6 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, EllipsisVerticalIcon, TrashIcon, ShareIcon } from '@heroicons/react/24/solid';
 import AppImage from '@/components/ui/AppImage';
 
+const getInitials = (name?: string) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 1).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 interface ConversationItem {
   id: string;
   title: string;
@@ -336,14 +343,18 @@ export default function Sidebar({
               className="flex items-center gap-3 p-3 rounded-xl transition-all"
             >
               <div 
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer overflow-hidden ${
                   isLoggedIn ? 'bg-primary' : 'bg-telkom-red'
                 }`}
                 onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
               >
-                <span className="text-white text-xs font-bold">
-                  {isLoggedIn ? userProfile?.name?.substring(0, 2).toUpperCase() : '?'}
-                </span>
+                {isLoggedIn && userProfile?.avatar_url ? (
+                  <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white text-sm font-bold">
+                    {isLoggedIn ? getInitials(userProfile?.name) : '?'}
+                  </span>
+                )}
               </div>
               {isOpen && (
                 <>

@@ -33,6 +33,18 @@ export default function MessageBubble({ message, darkMode, onEditMessage }: Mess
   const [isEditing, setIsEditing] = React.useState(false);
   const [editContent, setEditContent] = React.useState(message.content);
 
+  // Freeze the generated date so it doesn't update on every re-render (e.g. when opening WA modal)
+  const reportDate = React.useMemo(() => {
+    return new Date().toLocaleString('id-ID', { 
+      timeZone: 'Asia/Jakarta', 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }) + ' WIB';
+  }, []);
+
   if (isUser) {
     return (
       <div className="flex justify-end animate-fadeIn">
@@ -193,7 +205,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage }: Mess
                               title={data.reportType || 'Laporan'}
                               format={data.format as any || 'PDF'}
                               size="~100 KB"
-                              date={new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB'}
+                              date={reportDate}
                             />
                           </div>
                         );
@@ -284,14 +296,14 @@ export default function MessageBubble({ message, darkMode, onEditMessage }: Mess
               title="Laporan PO Outstanding Oktober 2024"
               format="PDF"
               size="2.4 MB"
-              date={new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB'}
+              date={reportDate}
             />
             <ReportCard
               darkMode={darkMode}
               title="Laporan PO Outstanding Oktober 2024"
               format="Excel"
               size="1.1 MB"
-              date={new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB'}
+              date={reportDate}
             />
           </div>
         )}

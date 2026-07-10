@@ -48,6 +48,7 @@ export default function HomePage() {
           name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
           wa_number: session.user.user_metadata?.wa_number || '',
           llm_model: session.user.user_metadata?.llm_model || 'flash',
+          avatar_url: session.user.user_metadata?.avatar_url || null,
         });
       }
     });
@@ -62,6 +63,7 @@ export default function HomePage() {
           name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
           wa_number: session.user.user_metadata?.wa_number || '',
           llm_model: session.user.user_metadata?.llm_model || 'flash',
+          avatar_url: session.user.user_metadata?.avatar_url || null,
         });
       } else {
         setAuthToken(null);
@@ -218,6 +220,7 @@ export default function HomePage() {
         onClose={() => setShowProfileModal(false)}
         user={userProfile}
         onLogout={handleLogout}
+        onUserUpdate={setUserProfile}
       />
 
       <ShareModal
