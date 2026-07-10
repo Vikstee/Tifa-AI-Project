@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const recentQueries = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     let prompt = `Anda adalah TIFA (TelkomInfra Financial Assistant). 
 Buatkan respon dalam format JSON yang berisi:
@@ -49,7 +49,7 @@ HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
     const parsed = JSON.parse(text);
 
     return NextResponse.json(parsed);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating welcome message:', error);
     return NextResponse.json(
       { 
