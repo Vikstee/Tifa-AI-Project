@@ -84,7 +84,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
             <input
               type="text"
               value={waNumber}
-              onChange={(e) => setWaNumber(e.target.value)}
+              onChange={(e) => {
+                let val = e.target.value;
+                if (val.startsWith('0')) {
+                  val = '62' + val.substring(1);
+                }
+                setWaNumber(val);
+              }}
               className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white text-sm"
               placeholder="+62 812-xxxx-xxxx"
             />
