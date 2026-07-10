@@ -1,13 +1,52 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { supabase } from '@/lib/supabaseClient';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  userProfile?: any;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProfile }) => {
+  const [waNumber, setWaNumber] = useState('');
+  const [llmModel, setLlmModel] = useState('flash');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (userProfile) {
+      setWaNumber(userProfile.wa_number || '');
+      setLlmModel(userProfile.llm_model || 'flash');
+    }
+  }, [userProfile]);
+
   if (!isOpen) return null;
+
+  const handleSave = async () => {
+    if (!userProfile) {
+      alert("Anda harus login untuk menyimpan pengaturan ini.");
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          wa_number: waNumber,
+          llm_model: llmModel
+        }
+      });
+      
+      if (error) throw error;
+      
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal menyimpan pengaturan: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -44,9 +83,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Nomor WhatsApp Default</h3>
             <input
               type="text"
+              value={waNumber}
+              onChange={(e) => setWaNumber(e.target.value)}
               className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white text-sm"
               placeholder="+62 812-xxxx-xxxx"
-              defaultValue="6281234567890"
             />
             <p className="text-xs text-gray-500 dark:text-telkom-gray mt-2">
               Nomor ini akan digunakan sebagai default saat mengirim laporan via WhatsApp.
@@ -58,7 +98,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           {/* Default Model */}
           <div>
             <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Model LLM Default</h3>
-            <select className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white text-sm">
+            <select 
+              value={llmModel}
+              onChange={(e) => setLlmModel(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white text-sm"
+            >
               <option value="flash">Gemini Flash (Cepat & Ringan)</option>
               <option value="pro">Gemini Pro (Analisis Mendalam)</option>
               <option value="advanced">Gemini Advanced (Kompleks)</option>
@@ -68,10 +112,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
         <div className="mt-8 flex justify-end">
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            Simpan & Tutup
+            {isSaving ? 'Menyimpan...' : 'Simpan & Tutup'}
           </button>
         </div>
       </div>

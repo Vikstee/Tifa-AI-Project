@@ -46,6 +46,8 @@ export default function HomePage() {
           id: session.user.id,
           email: session.user.email,
           name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+          wa_number: session.user.user_metadata?.wa_number || '',
+          llm_model: session.user.user_metadata?.llm_model || 'flash',
         });
       }
     });
@@ -58,6 +60,8 @@ export default function HomePage() {
           id: session.user.id,
           email: session.user.email,
           name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+          wa_number: session.user.user_metadata?.wa_number || '',
+          llm_model: session.user.user_metadata?.llm_model || 'flash',
         });
       } else {
         setAuthToken(null);
@@ -206,7 +210,7 @@ export default function HomePage() {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
+      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} userProfile={userProfile} />
 
       <ProfileModal
         isOpen={showProfileModal}

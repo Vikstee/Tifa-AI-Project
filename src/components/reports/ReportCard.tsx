@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { generatePDFReport, generateExcelReport, generateWordReport } from '@/lib/reportGenerator';
 
@@ -31,6 +31,21 @@ export default function ReportCard({
 }: ReportCardProps) {
   const [url, setUrl] = useState<string | undefined>(initialUrl);
   const [isGeneratingLazy, setIsGeneratingLazy] = useState(false);
+  
+  // Custom WA Modal State
+  const [showWaModal, setShowWaModal] = useState(false);
+  const [waTargetNumber, setWaTargetNumber] = useState('');
+  const [waMessageContext, setWaMessageContext] = useState({ message: '', mediaUrl: '' });
+  const [isSendingWa, setIsSendingWa] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.user_metadata?.wa_number) {
+        setWaTargetNumber(user.user_metadata.wa_number);
+      }
+    });
+  }, []);
+
   const fmt = formatIcons[format];
 
   const handleWhatsAppShare = async () => {
@@ -100,27 +115,37 @@ export default function ReportCard({
 
     const message = `Halo Bapak/Ibu! ${EMOJI_WAVE}\n${finalGreeting}\n\nTIFA sudah menyiapkan dokumen *${title}* terbaru untuk Bapak/Ibu. Laporan ini di-generate otomatis, lengkap dengan rincian transaksi, visualisasi grafik, dan rangkuman analisis agar lebih cepat dan mudah di-review. ${EMOJI_CHART}\n\nDetail Laporan:\n\nUpdate per: ${date}\n\nUnduh ${format}: ${publicLink || 'Gagal membuat tautan publik'}\n\nIngin mengeksplorasi data lain atau ngobrol langsung dengan TIFA? Bapak/Ibu bisa langsung mengakses sistem AI kami di sini:\n${EMOJI_LINK} https://tifa-ai-assistant.vercel.app\n\nKalau ada pertanyaan, jangan ragu untuk menghubungi kami. Selamat melanjutkan aktivitas! ${EMOJI_BRIEFCASE}${EMOJI_ROCKET}\n\nSalam hangat,\n*TIFA AI - TelkomInfra*`;
 
-    const targetPhone = window.prompt("🤖 TIFA BOT: Masukkan nomor WhatsApp tujuan (gunakan kode negara, contoh: +628123456789):");
-    if (!targetPhone) return;
+    setWaMessageContext({ message, mediaUrl: publicLink || '' });
+    setShowWaModal(true);
+  };
 
+  const executeWaSend = async () => {
+    if (!waTargetNumber) {
+      alert("Masukkan nomor tujuan terlebih dahulu.");
+      return;
+    }
+    setIsSendingWa(true);
     try {
       const response = await fetch('/api/whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: targetPhone,
-          message: message,
-          mediaUrl: publicLink || null
+          phone: waTargetNumber,
+          message: waMessageContext.message,
+          mediaUrl: waMessageContext.mediaUrl || null
         })
       });
       const data = await response.json();
       if (response.ok) {
         alert('✅ Berhasil dikirim via Bot WhatsApp TIFA!');
+        setShowWaModal(false);
       } else {
         alert('❌ Gagal mengirim: ' + data.error);
       }
     } catch (e) {
       alert('❌ Terjadi kesalahan jaringan saat memanggil Bot.');
+    } finally {
+      setIsSendingWa(false);
     }
   };
 
@@ -283,6 +308,40 @@ export default function ReportCard({
           )}
         </div>
       </div>
+
+      {/* WA Modal */}
+      {showWaModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-telkom-sidebar w-full max-w-sm rounded-xl p-6 shadow-xl relative border border-gray-200 dark:border-telkom-border-dark animate-in fade-in zoom-in duration-200">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Kirim ke WhatsApp 🤖</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Konfirmasi nomor tujuan pengiriman otomatis. Anda dapat mengubahnya.
+            </p>
+            <input
+              type="text"
+              value={waTargetNumber}
+              onChange={(e) => setWaTargetNumber(e.target.value)}
+              placeholder="+6281234567890"
+              className="w-full px-4 py-2 mb-6 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white"
+            />
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowWaModal(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-telkom-border-dark transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={executeWaSend}
+                disabled={isSendingWa}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-50"
+              >
+                {isSendingWa ? 'Mengirim...' : 'Kirim Sekarang'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
