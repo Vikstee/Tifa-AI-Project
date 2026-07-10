@@ -8,10 +8,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'TIFA — TelkomInfra AI Financial Assistant',
+  title: 'TIFA - TelkomInfra Financial Assistant',
   description: 'Asisten AI Keuangan TelkomInfra untuk domain PO to Cash In',
   icons: {
-    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+    icon: [{ url: '/tower.png', type: 'image/png' }],
   },
 };
 
