@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes bounce3 {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* Rotating gradient border animation */
+@keyframes gradientRotate {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes borderSpin {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 300% 0%;
+  }
+}
+
+/* Gradient border wrapper — always-on slow spin */
+.gradient-border {
+  position: relative;
+  border-radius: 1rem;
+  padding: 1px;
+  background: linear-gradient(90deg, rgba(228, 0, 43, 0.15), rgba(255, 107, 53, 0.15), rgba(255, 215, 0, 0.15), rgba(0, 201, 255, 0.15), rgba(123, 47, 247, 0.15), rgba(228, 0, 43, 0.15));
+  background-size: 300% 300%;
+  animation: borderSpin 20s linear infinite;
+}
+
+.gradient-border > * {
+  border-radius: calc(1rem - 1px);
+}
+
+/* Chat input gradient border — faster on hover/focus-within */
+.gradient-border-input {
+  position: relative;
+  border-radius: 1rem;
+  padding: 2px;
+  background: linear-gradient(90deg, #d1d5db, #e5e7eb, #d1d5db);
+  background-size: 300% 300%;
+  animation: borderSpin 8s linear infinite;
+  transition: background 0.4s ease;
+}
+
+.gradient-border-input > * {
+  border-radius: calc(1rem - 2px);
+}
+
+.gradient-border-input:hover,
+.gradient-border-input:focus-within {
+  background: linear-gradient(90deg, rgba(228, 0, 43, 0.15), rgba(255, 107, 53, 0.15), rgba(255, 215, 0, 0.15), rgba(0, 201, 255, 0.15), rgba(123, 47, 247, 0.15), rgba(228, 0, 43, 0.15));
+  background-size: 300% 300%;
+  animation: borderSpin 20s linear infinite;
+  box-shadow: 0 0 18px 2px rgba(228, 0, 43, 0.03);
+}
