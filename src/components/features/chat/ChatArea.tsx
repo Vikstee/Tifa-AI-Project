@@ -109,7 +109,7 @@ export default function ChatArea({
     const extractedReports: any[] = [];
     chatHistory.forEach((msg) => {
       if (msg.role === 'ai') {
-        const regex = /```json_report\n([\s\S]*?)\n```/g;
+        const regex = /```json_report\s+([\s\S]*?)\s*```/g;
         let match;
         while ((match = regex.exec(msg.content)) !== null) {
           try {
