@@ -2,87 +2,55 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { targetNumber, message, fileUrl, fileName } = await req.json();
+    const { phone, message, mediaUrl } = await req.json();
 
-    if (!targetNumber) {
-      return NextResponse.json({ error: 'Nomor tujuan wajib diisi' }, { status: 400 });
+    if (!phone || !message) {
+      return NextResponse.json({ error: 'Phone and message are required' }, { status: 400 });
     }
 
-    const WA_TOKEN = process.env.WA_ACCESS_TOKEN;
-    const WA_PHONE_ID = process.env.WA_PHONE_NUMBER_ID;
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioNumber = process.env.TWILIO_PHONE_NUMBER; // Usually in format 'whatsapp:+14155238886'
 
-    if (!WA_TOKEN || !WA_PHONE_ID) {
-      return NextResponse.json({ error: 'WhatsApp API belum dikonfigurasi di server' }, { status: 500 });
+    if (!accountSid || !authToken || !twilioNumber) {
+      return NextResponse.json({ error: 'Twilio credentials are not configured in environment variables' }, { status: 500 });
     }
 
-    // Pastikan nomor diawali dengan kode negara tanpa +
-    let formattedNumber = targetNumber.replace(/\D/g, '');
-    if (formattedNumber.startsWith('0')) {
-      formattedNumber = '62' + formattedNumber.substring(1);
+    // Format phone number to WhatsApp format if not already
+    const toPhone = phone.startsWith('whatsapp:') ? phone : `whatsapp:${phone.startsWith('+') ? phone : '+' + phone}`;
+    const fromPhone = twilioNumber.startsWith('whatsapp:') ? twilioNumber : `whatsapp:${twilioNumber}`;
+
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    
+    // Create form data (Twilio API uses x-www-form-urlencoded)
+    const formData = new URLSearchParams();
+    formData.append('To', toPhone);
+    formData.append('From', fromPhone);
+    formData.append('Body', message);
+    if (mediaUrl) {
+      formData.append('MediaUrl', mediaUrl);
     }
 
-    // 1. Send the file if exists
-    if (fileUrl) {
-      const documentPayload = {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: formattedNumber,
-        type: 'document',
-        document: {
-          link: fileUrl,
-          caption: message || 'Berikut adalah dokumen laporan Anda.',
-          filename: fileName || 'Laporan_TIFA.pdf'
-        }
-      };
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+    });
 
-      const docRes = await fetch(`https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${WA_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(documentPayload)
-      });
+    const data = await response.json();
 
-      const docData = await docRes.json();
-      if (!docRes.ok) {
-        throw new Error(docData.error?.message || 'Gagal mengirim dokumen');
-      }
-      
-      return NextResponse.json({ success: true, message: 'Pesan dan dokumen berhasil dikirim!' });
+    if (!response.ok) {
+      console.error('[Twilio] Error:', data);
+      return NextResponse.json({ error: data.message || 'Failed to send WhatsApp message' }, { status: response.status });
     }
 
-    // 2. Send text only if no file
-    if (message) {
-      const textPayload = {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: formattedNumber,
-        type: 'text',
-        text: { body: message }
-      };
-
-      const textRes = await fetch(`https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${WA_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(textPayload)
-      });
-
-      const textData = await textRes.json();
-      if (!textRes.ok) {
-        throw new Error(textData.error?.message || 'Gagal mengirim pesan');
-      }
-
-      return NextResponse.json({ success: true, message: 'Pesan berhasil dikirim!' });
-    }
-
-    return NextResponse.json({ error: 'Tidak ada pesan atau dokumen yang dikirim' }, { status: 400 });
+    return NextResponse.json({ success: true, messageId: data.sid });
 
   } catch (error: any) {
-    console.error('WhatsApp API Error:', error);
-    return NextResponse.json({ error: error.message || 'Terjadi kesalahan internal' }, { status: 500 });
+    console.error('WhatsApp Bot Error:', error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
