@@ -281,11 +281,11 @@ export default function ReportCard({
 
           {/* Actions */}
           {!isGenerating && (
-            <div className={`flex ${isSidebar ? 'flex-col w-full mt-2' : 'items-center justify-end'} gap-1.5 flex-shrink-0`}>
+            <div className={`flex ${isSidebar ? 'flex-col' : 'items-center justify-end'} gap-1.5 flex-shrink-0`}>
               <button
                 onClick={handleDownload}
                 disabled={isGeneratingLazy}
-                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 bg-telkom-red hover:bg-telkom-red-dark text-white text-xs font-medium rounded-lg transition-colors ${isSidebar ? 'w-full' : ''} ${isGeneratingLazy ? 'opacity-70 cursor-wait' : ''}`}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 bg-telkom-red hover:bg-telkom-red-dark text-white text-xs font-medium rounded-lg transition-colors ${isGeneratingLazy ? 'opacity-70 cursor-wait' : ''}`}
                 title="Download"
               >
                 {isGeneratingLazy ? (
@@ -302,7 +302,7 @@ export default function ReportCard({
               </button>
               <button
                 onClick={handleWhatsApp}
-                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors ${isSidebar ? 'w-full' : ''}`}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
                 title="Bagikan via WhatsApp"
               >
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
