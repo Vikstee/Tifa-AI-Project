@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
 
     const recentQueries = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
 
+    // Fetch real context from database so even new users get highly specific prompts
+    const { data: invoices } = await supabase.from('invoices').select('client_name').limit(3);
+    const clientNames = Array.from(new Set(invoices?.map(i => i.client_name) || [])).join(', ');
+
+    const { data: projects } = await supabase.from('projects').select('name').limit(3);
+    const projectNames = Array.from(new Set(projects?.map(p => p.name) || [])).join(', ');
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -35,11 +42,14 @@ Buatkan respon dalam format JSON yang berisi:
    - "desc": deskripsi singkat 3-5 kata
 
 Konteks Database:
-Riwayat pencarian user akhir-akhir ini: ${recentQueries.length > 0 ? recentQueries.join(' | ') : 'Tampilkan status PO, Analisis cash flow, Laporan aging, Rekonsiliasi invoice'}.
+Riwayat pencarian user akhir-akhir ini: ${recentQueries.length > 0 ? recentQueries.join(' | ') : 'Belum ada riwayat'}.
+Data nyata di database saat ini: Klien (${clientNames || 'Umum'}), Proyek (${projectNames || 'Umum'}).
 
 Tugas Anda SANGAT KRITIKAL:
-- Anda WAJIB membuat 4 prompts yang isinya MENGAMBIL INSPIRASI LANGSUNG dari "Riwayat pencarian user akhir-akhir ini" di atas.
-- Jangan gunakan template default jika ada riwayat pencarian!
+- Buat 4 prompts rekomendasi.
+- Jika ada "Riwayat pencarian", WAJIB ambil inspirasi dari sana.
+- Jika belum ada riwayat, WAJIB buat pertanyaan spesifik berdasarkan "Data nyata di database saat ini" (misal: "Berapa total invoice untuk klien X?" atau "Cek status proyek Y").
+- Jangan pernah gunakan template default yang membosankan! Harus spesifik menyebut nama Klien atau Proyek dari data di atas jika riwayat kosong.
 - HANYA kembalikan valid JSON tanpa markdown.`;
 
     const result = await model.generateContent(prompt);
