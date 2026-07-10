@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
-import ChatArea from '@/components/chat/ChatArea';
-import AuthModal from '@/components/modals/AuthModal';
-import SettingsModal from '@/components/modals/SettingsModal';
-import ProfileModal from '@/components/modals/ProfileModal';
-import ShareModal from '@/components/modals/ShareModal';
+import Sidebar from '@/components/features/layout/Sidebar';
+import ChatArea from '@/components/features/chat/ChatArea';
+import AuthModal from '@/components/features/modals/AuthModal';
+import SettingsModal from '@/components/features/modals/SettingsModal';
+import ProfileModal from '@/components/features/modals/ProfileModal';
+import ShareModal from '@/components/features/modals/ShareModal';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function HomePage() {

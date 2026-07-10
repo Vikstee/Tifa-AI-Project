@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
-import { dbToolsDefinitions, lookupRecord, filterRecords, aggregateRecords, aggregateChartPython, predictCashflowPython, detectAnomalyPython } from '@/lib/dbTools';
+import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
+import { lookupRecord, filterRecords, aggregateRecords } from '@/lib/db/supabaseQueries';
+import { aggregateChartPython, predictCashflowPython, detectAnomalyPython } from '@/lib/api/pythonClient';
 
 const apiKeyString = process.env.GEMINI_API_KEY || '';
 // Parse comma-separated API keys
