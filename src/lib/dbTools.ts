@@ -9,7 +9,9 @@ export async function lookupRecord(tableName: string, idColumn: string, idValue:
     .single();
 
   if (error) {
-    return { error: error.message };
+    const { data: sample } = await supabase.from(tableName).select('*').limit(1);
+    const cols = sample && sample.length > 0 ? Object.keys(sample[0]).join(', ') : 'unknown';
+    return { error: `${error.message}. Note: Available columns in ${tableName} might be: ${cols}` };
   }
   return { data };
 }
@@ -23,7 +25,9 @@ export async function filterRecords(tableName: string, filterColumn: string, fil
     .limit(limit);
 
   if (error) {
-    return { error: error.message };
+    const { data: sample } = await supabase.from(tableName).select('*').limit(1);
+    const cols = sample && sample.length > 0 ? Object.keys(sample[0]).join(', ') : 'unknown';
+    return { error: `${error.message}. Note: Available columns in ${tableName} might be: ${cols}` };
   }
   
   // Also get the total count
@@ -50,7 +54,9 @@ export async function aggregateRecords(tableName: string, sumColumn: string, fil
   const { data, error } = await query;
 
   if (error) {
-    return { error: error.message };
+    const { data: sample } = await supabase.from(tableName).select('*').limit(1);
+    const cols = sample && sample.length > 0 ? Object.keys(sample[0]).join(', ') : 'unknown';
+    return { error: `${error.message}. Hint: Available columns in ${tableName} are: ${cols}. Please retry with the correct column name.` };
   }
 
   const totalSum = data.reduce((acc, row: any) => acc + (Number(row[sumColumn]) || 0), 0);
