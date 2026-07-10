@@ -563,6 +563,7 @@ export default function ChatArea({
                       size={report.size}
                       date={report.date}
                       url={report.url}
+                      isSidebar={true}
                     />
                   ))}
                   {isGeneratingReport && (
@@ -573,6 +574,7 @@ export default function ChatArea({
                       size="---"
                       date="..."
                       isGenerating={true}
+                      isSidebar={true}
                     />
                   )}
                   {reports.length === 0 && !isGeneratingReport && (
