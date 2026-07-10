@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
-import { dbToolsDefinitions, lookupRecord, filterRecords, aggregateRecords } from '@/lib/dbTools';
+import { dbToolsDefinitions, lookupRecord, filterRecords, aggregateRecords, aggregateChartPython, predictCashflowPython } from '@/lib/dbTools';
 
 const apiKeyString = process.env.GEMINI_API_KEY || '';
 // Parse comma-separated API keys
@@ -95,6 +95,10 @@ export async function POST(req: NextRequest) {
             funcRes = await filterRecords(args.tableName, args.filterColumn, args.filterValue);
           } else if (call.name === 'aggregateRecords') {
             funcRes = await aggregateRecords(args.tableName, args.sumColumn, args.filterColumn, args.filterValue);
+          } else if (call.name === 'aggregate_chart') {
+            funcRes = await aggregateChartPython(args.table, args.group_by, args.sum_col);
+          } else if (call.name === 'predict_cashflow') {
+            funcRes = await predictCashflowPython(args.months_ahead);
           }
 
           console.log(`[Tifa] Function response:`, funcRes);

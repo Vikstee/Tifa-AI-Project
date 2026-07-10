@@ -67,6 +67,34 @@ export async function aggregateRecords(tableName: string, sumColumn: string, fil
   };
 }
 
+export const aggregateChartPython = async (table: string, group_by: string, sum_col: string) => {
+  try {
+    const res = await fetch(process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/aggregate_chart` : 'http://localhost:4028/api/aggregate_chart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table, group_by, sum_col })
+    });
+    return await res.json();
+  } catch (error: any) {
+    console.error('Error fetching python chart data:', error);
+    return { error: error.message };
+  }
+};
+
+export const predictCashflowPython = async (months_ahead: number) => {
+  try {
+    const res = await fetch(process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/predict_cashflow` : 'http://localhost:4028/api/predict_cashflow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ months_ahead })
+    });
+    return await res.json();
+  } catch (error: any) {
+    console.error('Error fetching python forecast:', error);
+    return { error: error.message };
+  }
+};
+
 export const dbToolsDefinitions = [
   {
     name: 'lookupRecord',
@@ -136,6 +164,42 @@ export const dbToolsDefinitions = [
         }
       },
       required: ['tableName', 'sumColumn']
+    }
+  },
+  {
+    name: "aggregate_chart",
+    description: "Meminta server Python untuk mengagregasi data jutaan baris (groupby) dan mengembalikannya dalam format chart JSON untuk dirender. Gunakan ini saat pengguna meminta grafik agregasi.",
+    parameters: {
+      type: "object",
+      properties: {
+        table: {
+          type: "string",
+          description: "Nama tabel (contoh: purchase_orders, invoices, cash_in, cash_out)"
+        },
+        group_by: {
+          type: "string",
+          description: "Kolom yang dikelompokkan (contoh: status, client_name)"
+        },
+        sum_col: {
+          type: "string",
+          description: "Kolom angka yang dijumlahkan (contoh: amount)"
+        }
+      },
+      required: ["table", "group_by", "sum_col"]
+    }
+  },
+  {
+    name: "predict_cashflow",
+    description: "Meminta server Python untuk melakukan Machine Learning (Linear Regression) untuk memprediksi net cash flow di bulan-bulan mendatang berdasarkan data historis cash_in dan cash_out.",
+    parameters: {
+      type: "object",
+      properties: {
+        months_ahead: {
+          type: "number",
+          description: "Jumlah bulan ke depan yang ingin diprediksi (contoh: 3)"
+        }
+      },
+      required: ["months_ahead"]
     }
   }
 ];
