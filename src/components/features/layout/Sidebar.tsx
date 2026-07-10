@@ -89,8 +89,8 @@ export default function Sidebar({
             {isOpen ? (
               <>
                 <div className="flex-1 flex items-center gap-2 min-w-0">
-                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-transparent">
-                    <AppImage src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"} alt="TIFA" width={32} height={32} className="object-contain w-8 h-8" />
+                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-transparent">
+                    <AppImage src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"} alt="TIFA" width={40} height={40} className="object-contain w-10 h-10" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">

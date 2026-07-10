@@ -423,7 +423,7 @@ export default function ChatArea({
             {isEmpty ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4">
-                <div className="w-24 h-24 mb-6 relative">
+                <div className="w-32 h-32 mb-2 relative">
                   <AppImage
                     src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"}
                     alt="TIFA Logo"
