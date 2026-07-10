@@ -100,7 +100,35 @@ export default function ReportCard({
 
     const message = `Halo Bapak/Ibu! ${EMOJI_WAVE}\n${finalGreeting}\n\nTIFA sudah menyiapkan dokumen *${title}* terbaru untuk Bapak/Ibu. Laporan ini di-generate otomatis, lengkap dengan rincian transaksi, visualisasi grafik, dan rangkuman analisis agar lebih cepat dan mudah di-review. ${EMOJI_CHART}\n\nDetail Laporan:\n\nUpdate per: ${date}\n\nUnduh ${format}: ${publicLink || 'Gagal membuat tautan publik'}\n\nIngin mengeksplorasi data lain atau ngobrol langsung dengan TIFA? Bapak/Ibu bisa langsung mengakses sistem AI kami di sini:\n${EMOJI_LINK} https://tifa-ai-assistant.vercel.app\n\nKalau ada pertanyaan, jangan ragu untuk menghubungi kami. Selamat melanjutkan aktivitas! ${EMOJI_BRIEFCASE}${EMOJI_ROCKET}\n\nSalam hangat,\n*TIFA AI - TelkomInfra*`;
 
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank');
+    const targetNumber = window.prompt("Masukkan nomor WhatsApp tujuan (contoh: 081234567890):\n\n(Catatan: Anda harus mengatur token Meta Developer di .env.local terlebih dahulu agar bot berfungsi)");
+    if (!targetNumber) {
+      setIsGeneratingLazy(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetNumber,
+          message,
+          fileUrl: publicLink,
+          fileName: `Laporan_${title.replace(/[^a-zA-Z0-9]/g, '_')}.${format.toLowerCase()}`
+        })
+      });
+      
+      const result = await response.json();
+      if (response.ok) {
+        alert("Berhasil terkirim via WhatsApp Bot!");
+      } else {
+        alert("Gagal mengirim: " + result.error);
+      }
+    } catch (e) {
+      alert("Terjadi kesalahan pengiriman ke server WhatsApp.");
+    } finally {
+      setIsGeneratingLazy(false);
+    }
   };
 
   const handlePreview = async () => {
