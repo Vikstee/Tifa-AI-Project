@@ -1,30 +1,44 @@
 // Imports are now dynamic to reduce First Load JS
-// Helper to generate dummy data based on report type
-const getDummyData = (reportType: string, period: string) => {
-  if (reportType.includes('PO Outstanding')) {
-    return [
-      ['No', 'PO Number', 'Vendor', 'Date', 'Amount (Rp)', 'Status', 'Due Date'],
-      ['1', 'PO-2024-001', 'PT Maju Jaya', '2024-10-01', '150,000,000', 'Outstanding', '2024-10-15'],
-      ['2', 'PO-2024-002', 'CV Teknologi Abadi', '2024-10-03', '75,500,000', 'Outstanding', '2024-10-17'],
-      ['3', 'PO-2024-005', 'PT Sarana Berkat', '2024-10-05', '210,000,000', 'Outstanding', '2024-10-20'],
-      ['4', 'PO-2024-008', 'Vendor Lokal X', '2024-10-10', '45,000,000', 'Outstanding', '2024-10-25'],
-      ['5', 'PO-2024-012', 'PT Solusi Pratama', '2024-10-12', '320,000,000', 'Outstanding', '2024-10-26'],
-    ];
+import { supabase } from './supabaseClient';
+
+// Helper to fetch real data from Supabase based on report type
+const getRealData = async (reportType: string, period: string) => {
+  if (reportType.toLowerCase().includes('po outstanding') || reportType.toLowerCase().includes('purchase order')) {
+    const { data, error } = await supabase.from('purchase_orders').select('*').eq('status', 'Outstanding').limit(50);
+    if (error || !data || data.length === 0) {
+      return [['No', 'PO Number', 'Vendor', 'Date', 'Amount (Rp)', 'Status'], ['-', 'Tidak ada data ditemukan', '-', '-', '-', '-']];
+    }
+    const headers = ['No', 'PO Number', 'Vendor', 'Date', 'Amount (Rp)', 'Status'];
+    const rows = data.map((item: any, index: number) => [
+      (index + 1).toString(),
+      item.po_number || item.id || '-',
+      item.vendor || '-',
+      item.date || item.created_at || '-',
+      (item.amount || item.total_amount || 0).toLocaleString('id-ID'),
+      item.status || '-'
+    ]);
+    return [headers, ...rows];
   }
-  if (reportType.includes('Cash Flow')) {
-    return [
-      ['Date', 'Description', 'Category', 'Inflow (Rp)', 'Outflow (Rp)', 'Balance (Rp)'],
-      ['2024-10-01', 'Opening Balance', 'Balance', '-', '-', '1,500,000,000'],
-      ['2024-10-05', 'Payment from Telkomsel', 'Revenue', '500,000,000', '-', '2,000,000,000'],
-      ['2024-10-10', 'Vendor Payment (PT Maju Jaya)', 'Expense', '-', '150,000,000', '1,850,000,000'],
-      ['2024-10-15', 'Operational Costs', 'Expense', '-', '75,000,000', '1,775,000,000'],
-    ];
+  
+  if (reportType.toLowerCase().includes('cash flow') || reportType.toLowerCase().includes('cash_in')) {
+    const { data, error } = await supabase.from('cash_in').select('*').limit(50);
+    if (error || !data || data.length === 0) {
+      return [['Date', 'Description', 'Category', 'Amount (Rp)'], ['-', 'Tidak ada data ditemukan', '-', '-']];
+    }
+    const headers = ['Date', 'Description', 'Category', 'Amount (Rp)'];
+    const rows = data.map((item: any) => [
+      item.date || item.created_at || '-',
+      item.description || '-',
+      item.category || '-',
+      (item.amount || 0).toLocaleString('id-ID')
+    ]);
+    return [headers, ...rows];
   }
-  // Default fallback data
+
+  // Default fallback data for generic reports
   return [
-    ['ID', 'Description', 'Amount', 'Date'],
-    ['1', 'Dummy Item A', '1000', '2024-01-01'],
-    ['2', 'Dummy Item B', '2000', '2024-01-02'],
+    ['Informasi', 'Keterangan'],
+    ['Status', 'Tipe laporan ini belum memiliki pemetaan ke tabel spesifik di database.']
   ];
 };
 
@@ -79,7 +93,7 @@ export const generatePDFReport = async (reportType: string, period: string): Pro
   const { default: autoTable } = await import('jspdf-autotable');
   const doc = new jsPDF('landscape');
   
-  const data = getDummyData(reportType, period);
+  const data = await getRealData(reportType, period);
   const headers = data[0];
   const body = data.slice(1);
 
@@ -246,7 +260,7 @@ export const generatePDFReport = async (reportType: string, period: string): Pro
 export const generateExcelReport = async (reportType: string, period: string): Promise<string> => {
   const XLSX = await import('xlsx');
   
-  const data = getDummyData(reportType, period);
+  const data = await getRealData(reportType, period);
   const analysisLines = getDummyAnalysis(reportType);
   
   const worksheet = XLSX.utils.aoa_to_sheet([
@@ -271,7 +285,7 @@ export const generateExcelReport = async (reportType: string, period: string): P
 export const generateWordReport = async (reportType: string, period: string): Promise<string> => {
   const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, BorderStyle, WidthType } = await import('docx');
 
-  const data = getDummyData(reportType, period);
+  const data = await getRealData(reportType, period);
   
   const tableRows = data.map((row, rowIndex) => {
     return new TableRow({

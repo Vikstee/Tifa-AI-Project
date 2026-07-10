@@ -41,7 +41,11 @@ export default function ReportCard({
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user?.user_metadata?.wa_number) {
-        setWaTargetNumber(user.user_metadata.wa_number);
+        let val = user.user_metadata.wa_number;
+        if (val.startsWith('0')) {
+          val = '62' + val.substring(1);
+        }
+        setWaTargetNumber(val);
       }
     });
   }, []);

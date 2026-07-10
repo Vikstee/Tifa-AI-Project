@@ -17,7 +17,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Format phone number to WhatsApp format if not already
-    const toPhone = phone.startsWith('whatsapp:') ? phone : `whatsapp:${phone.startsWith('+') ? phone : '+' + phone}`;
+    let processedPhone = phone.trim();
+    if (processedPhone.startsWith('0')) {
+      processedPhone = '62' + processedPhone.substring(1);
+    }
+    const toPhone = processedPhone.startsWith('whatsapp:') ? processedPhone : `whatsapp:${processedPhone.startsWith('+') ? processedPhone : '+' + processedPhone}`;
     const fromPhone = twilioNumber.startsWith('whatsapp:') ? twilioNumber : `whatsapp:${twilioNumber}`;
 
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
