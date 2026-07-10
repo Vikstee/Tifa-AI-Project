@@ -76,8 +76,13 @@ export default function ChatArea({
           const data = await res.json();
           if (data.subtitle) setDynamicSubtitle(data.subtitle);
           if (data.prompts) setDynamicPrompts(data.prompts);
-        } catch (e) {
-          console.error(e);
+        } catch (e: any) {
+          console.error('Client side fetch error:', e);
+          setDynamicSubtitle('Gagal memuat rekomendasi cerdas dari server.');
+          setDynamicPrompts([
+            { icon: '⚠️', text: 'Koneksi Terputus / Timeout', desc: e.message || 'Gagal menghubungi server Vercel' },
+            { icon: '🔄', text: 'Coba refresh halaman ini', desc: 'Tekan Ctrl+F5' }
+          ]);
         } finally {
           setIsSubtitleLoading(false);
         }
