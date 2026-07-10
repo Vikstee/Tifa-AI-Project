@@ -423,10 +423,10 @@ export default function ChatArea({
             {isEmpty ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4">
-                <div className="w-48 h-16 mb-6 relative">
+                <div className="w-24 h-24 mb-6 relative">
                   <AppImage
-                    src={darkMode ? "/assets/images/logo_telkominfra_grayscale.png" : "/assets/images/telkominfra-hires.png"}
-                    alt="TelkomInfra Logo"
+                    src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"}
+                    alt="TIFA Logo"
                     fill
                     className="object-contain"
                     priority

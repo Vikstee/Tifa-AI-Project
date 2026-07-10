@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { EllipsisVerticalIcon, TrashIcon, ShareIcon } from '@heroicons/react/24/solid';
+import { SparklesIcon, EllipsisVerticalIcon, TrashIcon, ShareIcon } from '@heroicons/react/24/solid';
 import AppImage from '@/components/ui/AppImage';
 
 const getInitials = (name?: string) => {
@@ -89,8 +89,8 @@ export default function Sidebar({
             {isOpen ? (
               <>
                 <div className="flex-1 flex items-center gap-2 min-w-0">
-                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg overflow-hidden">
-                    <img src="/Tifa.png" alt="TIFA Logo" className="w-full h-full object-contain" />
+                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-transparent">
+                    <AppImage src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"} alt="TIFA" width={32} height={32} className="object-contain w-8 h-8" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
