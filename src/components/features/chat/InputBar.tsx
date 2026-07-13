@@ -145,7 +145,7 @@ export default function InputBar({
             placeholder="Tanyakan tentang data keuangan TelkomInfra..."
             rows={1}
             className={`
-              flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed py-1.5
+              flex-1 resize-none bg-transparent outline-none text-base sm:text-sm leading-relaxed py-1.5
               placeholder-telkom-gray/50 max-h-32 overflow-y-auto
               ${darkMode ? 'text-white' : 'text-gray-900'}
             `}

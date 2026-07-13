@@ -140,7 +140,10 @@ export default function Sidebar({
           {/* New Chat Button */}
           <div className="p-3">
             <button
-              onClick={onNewChat}
+              onClick={() => {
+                onNewChat();
+                if (window.innerWidth < 1024) onToggle();
+              }}
               className={`
               w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl
               bg-telkom-red hover:bg-telkom-red-dark
@@ -180,7 +183,10 @@ export default function Sidebar({
                     {history.map((conv) => (
                       <div key={conv.id} className="relative group">
                         <button
-                          onClick={() => onSelectConversation(conv.id)}
+                          onClick={() => {
+                            onSelectConversation(conv.id);
+                            if (window.innerWidth < 1024) onToggle();
+                          }}
                           className={`
                             w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative
                             ${

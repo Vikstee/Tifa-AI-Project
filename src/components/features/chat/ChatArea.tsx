@@ -416,7 +416,7 @@ export default function ChatArea({
       </div>
 
       {/* Main content area */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Chat messages */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
@@ -495,7 +495,7 @@ export default function ChatArea({
         {/* Report generation panel */}
         {showReportPanel && (
           <div
-            className={`w-80 flex-shrink-0 border-l flex flex-col overflow-hidden animate-slideIn
+            className={`absolute md:relative inset-y-0 right-0 z-30 w-full md:w-80 flex-shrink-0 border-l flex flex-col overflow-hidden animate-slideIn
             ${darkMode ? 'bg-telkom-sidebar border-telkom-border-dark' : 'bg-white border-gray-200'}
           `}
           >
