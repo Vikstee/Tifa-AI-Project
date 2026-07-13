@@ -117,7 +117,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
                   </div>
                 </div>
               ) : (
-                <div className="prose prose-sm prose-invert max-w-none">
+                <div className="prose prose-sm prose-invert max-w-none break-words">
                   <ReactMarkdown>
                     {message.content}
                   </ReactMarkdown>
@@ -164,7 +164,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
 
         {/* Text content */}
         <div className={`text-sm leading-relaxed ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-          <div className={`prose prose-sm max-w-none ${darkMode ? 'prose-invert' : ''}`}>
+          <div className={`prose prose-sm max-w-none break-words ${darkMode ? 'prose-invert' : ''}`}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{

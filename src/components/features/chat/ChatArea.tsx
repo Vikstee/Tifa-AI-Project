@@ -419,7 +419,7 @@ export default function ChatArea({
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Chat messages */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-4 pb-6 pt-20 space-y-6">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6 pt-20 space-y-6">
             {isEmpty ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4">
