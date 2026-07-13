@@ -348,9 +348,9 @@ export default function ChatArea({
     <div
       className={`flex flex-col flex-1 min-w-0 h-full relative ${darkMode ? 'bg-telkom-charcoal' : 'bg-telkom-surface-light'}`}
     >
-      {/* Top bar (Sticky & Transparent) */}
+      {/* Top bar (Solid) */}
       <div
-        className={`absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 flex-shrink-0 backdrop-blur-md transition-colors ${darkMode ? 'bg-telkom-charcoal/80' : 'bg-white/80'}`}
+        className={`absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 flex-shrink-0 transition-colors border-b ${darkMode ? 'bg-telkom-charcoal border-telkom-border-dark' : 'bg-telkom-surface-light border-gray-200/60'}`}
       >
         {/* Hamburger for mobile / collapsed sidebar */}
         {!sidebarOpen && (
