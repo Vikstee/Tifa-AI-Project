@@ -165,7 +165,7 @@ export default function InputBar({
             value={inputText}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Tanyakan tentang data keuangan TelkomInfra..."
+            placeholder="Tanyakan Saja Ke Tifa..."
             rows={1}
             className={`
               flex-1 resize-none bg-transparent outline-none text-base sm:text-sm leading-relaxed py-1.5
