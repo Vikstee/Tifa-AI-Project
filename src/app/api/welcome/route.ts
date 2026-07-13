@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(req: NextRequest) {
   try {
     const { historyTitles, userName } = await req.json();
 
-    const apiKeyString = process.env.GEMINI_API_KEY || '';
-    const apiKey = apiKeyString.split(',')[0].trim();
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'OPENROUTER_API_KEY not configured' }, { status: 500 });
     }
 
     // Fetch the 20 most recent user messages across all sessions to find "frequently/recently asked" questions
@@ -23,8 +22,10 @@ export async function POST(req: NextRequest) {
 
     const recentQueries = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const openai = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: apiKey,
+    });
 
     let prompt = `Anda adalah TIFA (TelkomInfra Financial Assistant). 
 Buatkan respon dalam format JSON yang berisi:
@@ -44,8 +45,12 @@ Tugas Anda:
 - Jika tidak ada data riwayat, buat 4 prompt standar terkait status PO, Cash flow, AR Aging, dan Rekonsiliasi.
 HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
 
-    const result = await model.generateContent(prompt);
-    let text = result.response.text();
+    const response = await openai.chat.completions.create({
+      model: 'google/gemini-2.5-flash:free',
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    let text = response.choices[0].message?.content || '';
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
     const parsed = JSON.parse(text);

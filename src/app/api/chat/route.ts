@@ -1,12 +1,14 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
 import { lookupRecord, filterRecords, aggregateRecords } from '@/lib/db/supabaseQueries';
 import { aggregateChartPython, predictCashflowPython, detectAnomalyPython } from '@/lib/api/pythonClient';
+import OpenAI from 'openai';
 
-const apiKeyString = process.env.GEMINI_API_KEY || '';
-// Parse comma-separated API keys
-const apiKeys = apiKeyString.split(',').map(k => k.trim()).filter(k => k.length > 0);
+const apiKey = process.env.OPENROUTER_API_KEY;
+const openai = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: apiKey,
+});
 
 const SYSTEM_INSTRUCTION = `Kamu adalah TIFA (TelkomInfra AI Financial Assistant). 
 Berikan jawaban yang terstruktur, rapi, dan enak dibaca. Gunakan poin-poin (bullet points/numbered lists). Gunakan kalimat yang natural dan sesekali gunakan emoticon. Jawab dalam bahasa Indonesia.
@@ -41,23 +43,37 @@ Jika permintaan valid, hasilkan blok kode dengan bahasa "json_report" yang beris
 
 Selalu berikan penjelasan singkat sebelum atau sesudah grafik.`;
 
+// Daftar model gratis OpenRouter yang MENDUKUNG Function Calling
+const FALLBACK_MODELS = [
+  'google/gemini-2.5-flash:free',
+  'meta-llama/llama-3.3-70b-instruct:free'
+];
+
 export async function POST(req: NextRequest) {
-  if (apiKeys.length === 0) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY is not set in environment variables' }, { status: 500 });
+  if (!apiKey) {
+    return NextResponse.json({ error: 'OPENROUTER_API_KEY is not set in environment variables' }, { status: 500 });
   }
 
   try {
     const { message, files, history } = await req.json();
 
-    const formattedHistory = history?.map((msg: any) => ({
-      role: msg.role === 'ai' ? 'model' : 'user',
-      parts: [{ text: msg.content }],
-    })) || [];
+    // Mapping history to OpenAI format
+    const messages: any[] = [
+      { role: 'system', content: SYSTEM_INSTRUCTION }
+    ];
 
-    let parts: any[] = [];
-    if (message) parts.push(message);
+    if (history) {
+      history.forEach((msg: any) => {
+        messages.push({
+          role: msg.role === 'ai' ? 'assistant' : 'user',
+          content: msg.content
+        });
+      });
+    }
+
+    let userMessageContent = message || '';
+
     if (files && files.length > 0) {
-      // Instead of sending URL to Gemini directly (which fails), we use Python RAG parsing
       for (const file of files) {
         if (file.url) {
           try {
@@ -69,7 +85,7 @@ export async function POST(req: NextRequest) {
             if (parseRes.ok) {
               const parsedData = await parseRes.json();
               if (parsedData.text) {
-                parts.push(parsedData.text);
+                userMessageContent += `\n\n[Isi Dokumen ${file.name}]:\n${parsedData.text}`;
               }
             }
           } catch (err) {
@@ -79,74 +95,81 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (parts.length === 0) {
+    if (!userMessageContent) {
       return NextResponse.json({ error: 'Message or files are required' }, { status: 400 });
     }
 
-    // Try keys randomly up to apiKeys.length times
+    messages.push({ role: 'user', content: userMessageContent });
+
     let lastError: any = null;
-    let availableKeys = [...apiKeys];
 
-    while (availableKeys.length > 0) {
-      const randomIndex = Math.floor(Math.random() * availableKeys.length);
-      const selectedKey = availableKeys[randomIndex];
-      availableKeys.splice(randomIndex, 1); // Remove it so we don't try it again in this request
-
+    // Fallback loop over models
+    for (const currentModel of FALLBACK_MODELS) {
       try {
-        const genAI = new GoogleGenerativeAI(selectedKey);
-        const model = genAI.getGenerativeModel({ 
-          model: 'gemini-3.5-flash',
-          systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ functionDeclarations: dbToolsDefinitions as any }]
-        });
+        let finalResponseText = '';
+        let loopCount = 0;
+        const maxLoops = 5;
+        
+        while (loopCount < maxLoops) {
+          const response = await openai.chat.completions.create({
+            model: currentModel,
+            messages: messages,
+            tools: dbToolsDefinitions as any,
+            tool_choice: 'auto'
+          });
 
-        const chat = model.startChat({ history: formattedHistory });
-        
-        let result = await chat.sendMessage(parts);
-        let call = result.response.functionCalls()?.[0];
-        
-        while (call) {
-          console.log(`[Tifa] Function called: ${call.name} with args:`, call.args);
-          let funcRes: any = { error: 'Unknown function' };
-          const args = call.args as any;
-          
-          if (call.name === 'lookupRecord') {
-            funcRes = await lookupRecord(args.tableName, args.idColumn, args.idValue);
-          } else if (call.name === 'filterRecords') {
-            funcRes = await filterRecords(args.tableName, args.filterColumn, args.filterValue);
-          } else if (call.name === 'aggregateRecords') {
-            funcRes = await aggregateRecords(args.tableName, args.sumColumn, args.filterColumn, args.filterValue);
-          } else if (call.name === 'aggregate_chart') {
-            funcRes = await aggregateChartPython(args.table, args.group_by, args.sum_col);
-          } else if (call.name === 'predict_cashflow') {
-            funcRes = await predictCashflowPython(args.months_ahead);
-          } else if (call.name === 'detect_anomaly') {
-            funcRes = await detectAnomalyPython(args.table, args.amount_col);
+          const messageResponse = response.choices[0].message;
+          messages.push(messageResponse);
+
+          if (messageResponse.content) {
+            finalResponseText += messageResponse.content;
           }
 
-          console.log(`[Tifa] Function response:`, funcRes);
+          if (!messageResponse.tool_calls || messageResponse.tool_calls.length === 0) {
+            break; // No more tool calls, we are done
+          }
 
-          result = await chat.sendMessage([{
-            functionResponse: {
-              name: call.name,
-              response: funcRes
+          for (const toolCall of messageResponse.tool_calls) {
+            console.log(`[Tifa] Function called: ${toolCall.function.name} with args:`, toolCall.function.arguments);
+            let funcRes: any = { error: 'Unknown function' };
+            const args = JSON.parse(toolCall.function.arguments);
+
+            if (toolCall.function.name === 'lookupRecord') {
+              funcRes = await lookupRecord(args.tableName, args.idColumn, args.idValue);
+            } else if (toolCall.function.name === 'filterRecords') {
+              funcRes = await filterRecords(args.tableName, args.filterColumn, args.filterValue);
+            } else if (toolCall.function.name === 'aggregateRecords') {
+              funcRes = await aggregateRecords(args.tableName, args.sumColumn, args.filterColumn, args.filterValue);
+            } else if (toolCall.function.name === 'aggregate_chart') {
+              funcRes = await aggregateChartPython(args.table, args.group_by, args.sum_col);
+            } else if (toolCall.function.name === 'predict_cashflow') {
+              funcRes = await predictCashflowPython(args.months_ahead);
+            } else if (toolCall.function.name === 'detect_anomaly') {
+              funcRes = await detectAnomalyPython(args.table, args.amount_col);
             }
-          }]);
-          call = result.response.functionCalls()?.[0];
+
+            console.log(`[Tifa] Function response:`, funcRes);
+
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify(funcRes)
+            });
+          }
+          
+          loopCount++;
         }
 
-        const finalString = result.response.text();
-
-        // Simulate streaming back the final result
+        // Simulate streaming back the final result to match frontend expectation
         const stream = new ReadableStream({
           start(controller) {
             const chunkSize = 20;
             let i = 0;
             const encoder = new TextEncoder();
-            
+
             function push() {
-              if (i < finalString.length) {
-                controller.enqueue(encoder.encode(finalString.substring(i, i + chunkSize)));
+              if (i < finalResponseText.length) {
+                controller.enqueue(encoder.encode(finalResponseText.substring(i, i + chunkSize)));
                 i += chunkSize;
                 setTimeout(push, 10);
               } else {
@@ -167,24 +190,15 @@ export async function POST(req: NextRequest) {
 
       } catch (error: any) {
         lastError = error;
-        const errorMessage = error.message?.toLowerCase() || '';
-        
-        // Check if it's a rate limit, quota, or 429 error
-        if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
-           console.warn(`[Tifa] API Key rate limited! Retrying... (${availableKeys.length} keys left in pool)`);
-           continue; // Try next key in the pool
-        } else {
-           // For other errors, throw immediately to be caught by outer catch block
-           throw error;
-        }
+        console.warn(`[Tifa] API Error with model ${currentModel}:`, error.message);
+        // Continue to the next model in the fallback list
       }
     }
 
-    // If we've exhausted all keys
-    throw new Error(`Semua limit API Key telah habis (Too Many Requests). Silakan coba beberapa saat lagi. Last error: ${lastError?.message}`);
+    throw new Error(`Semua model fallback (termasuk Gemini dan Llama) telah habis atau gagal. Last error: ${lastError?.message}`);
 
   } catch (error: any) {
-    console.error('Gemini API Error:', error);
+    console.error('OpenRouter API Error:', error);
     return NextResponse.json({ error: error.message || 'Something went wrong' }, { status: 500 });
   }
 }
