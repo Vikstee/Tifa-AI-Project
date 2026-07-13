@@ -27,7 +27,7 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
 
   if (isLoading) {
     return (
-      <div className="flex overflow-x-auto snap-x sm:grid sm:grid-cols-2 gap-3 w-full max-w-2xl pb-4 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className={`rounded-xl border p-4 ${darkMode ? 'border-telkom-border-dark bg-telkom-surface-dark/50' : 'border-gray-100 bg-gray-50'} animate-pulse`}>
             <div className="flex items-start gap-3">
@@ -44,11 +44,11 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
   }
 
   return (
-    <div className="flex overflow-x-auto snap-x sm:grid sm:grid-cols-2 gap-3 w-full max-w-2xl pb-4 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full max-w-2xl px-1">
       {displayPrompts.map((prompt, idx) => (
         <div 
           key={idx} 
-          className="gradient-border flex-shrink-0 w-[240px] sm:w-auto snap-center transition-all duration-300 hover:scale-[1.02] hover:shadow-md dark:hover:shadow-black/50"
+          className="gradient-border transition-all duration-300 hover:scale-[1.02] hover:shadow-md dark:hover:shadow-black/50"
         >
           <button
             onClick={() => onSelectPrompt(prompt.text)}
@@ -61,15 +61,15 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
               }
             `}
           >
-            <div className="flex items-start gap-3">
-              <span className="text-xl flex-shrink-0">{prompt.icon}</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+              <span className="text-xl sm:text-2xl flex-shrink-0">{prompt.icon}</span>
               <div>
                 <p
-                  className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'} group-hover:text-telkom-red transition-colors`}
+                  className={`text-xs sm:text-sm font-medium leading-snug sm:leading-normal line-clamp-2 sm:line-clamp-none ${darkMode ? 'text-white' : 'text-gray-900'} group-hover:text-telkom-red transition-colors`}
                 >
                   {prompt.text}
                 </p>
-                <p className={`text-xs mt-0.5 ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}>
+                <p className={`hidden sm:block text-xs mt-0.5 ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}>
                   {prompt.desc}
                 </p>
               </div>
