@@ -480,7 +480,9 @@ export default function ChatArea({
             className={`px-4 pb-4 pt-2 flex-shrink-0 border-t relative overflow-visible ${darkMode ? 'border-telkom-border-dark/50' : 'border-gray-200/50'}`}
           >
             {/* Animated Smoky Gradient */}
-            <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-telkom-red/10 via-blue-400/5 to-transparent blur-2xl animate-bottom-smoke pointer-events-none -z-10" />
+            <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-telkom-red/20 via-blue-400/10 to-transparent blur-2xl animate-bottom-smoke pointer-events-none" />
+
+            <div className="relative z-10">
 
             <InputBar
               darkMode={darkMode}
@@ -492,6 +494,7 @@ export default function ChatArea({
               onRemoveFile={(idx) => setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))}
               isLoading={isLoading}
             />
+            </div>
           </div>
         </div>
 
