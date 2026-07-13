@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
     const apiKeyString = process.env.GEMINI_API_KEY || '';
     const apiKey = apiKeyString.split(',')[0].trim();
-    
+
     if (!apiKey) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const recentQueries = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
 
     let prompt = `Anda adalah TIFA (TelkomInfra Financial Assistant). 
 Buatkan respon dalam format JSON yang berisi:
@@ -53,10 +53,10 @@ HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
     return NextResponse.json(parsed);
   } catch (error: any) {
     console.error('Error generating welcome message:', error);
-    
+
     // Fallback using database cached queries (recentQueries)
     let fallbackPrompts: any[] = [];
-    
+
     try {
       // Try fetching recent queries again if it wasn't fetched yet in the try block
       const { data: recentMessages } = await supabase
@@ -65,11 +65,11 @@ HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
         .eq('role', 'user')
         .order('created_at', { ascending: false })
         .limit(20);
-      
+
       const recent = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
       const uniqueQueries = Array.from(new Set(recent)).slice(0, 4);
       const fallbackIcons = ['💬', '🔍', '📊', '💡'];
-      
+
       if (uniqueQueries.length > 0) {
         fallbackPrompts = (uniqueQueries as string[]).map((q: string, idx: number) => ({
           icon: fallbackIcons[idx % fallbackIcons.length],
@@ -92,7 +92,7 @@ HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
     }
 
     return NextResponse.json(
-      { 
+      {
         subtitle: 'Asisten AI Keuangan TelkomInfra yang siap membantu Anda.',
         prompts: fallbackPrompts
       },
