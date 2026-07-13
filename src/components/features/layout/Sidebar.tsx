@@ -76,16 +76,15 @@ export default function Sidebar({
           fixed lg:relative z-30 lg:z-auto
           flex flex-col h-full
           transition-all duration-300 ease-in-out
-          ${darkMode ? 'bg-telkom-sidebar border-telkom-border-dark' : 'bg-white border-gray-200'}
+          ${darkMode ? 'bg-telkom-sidebar/70 border-telkom-border-dark' : 'bg-white/70 border-gray-200'}
+          backdrop-blur-md
           ${isOpen ? 'w-72 translate-x-0 border-r' : 'w-0 -translate-x-full border-r-0'}
           overflow-hidden
         `}
       >
         <div className="flex flex-col h-full min-w-[288px] lg:min-w-0">
           {/* Header */}
-          <div
-            className={`flex items-center gap-3 p-4 border-b ${darkMode ? 'border-telkom-border-dark' : 'border-gray-200'}`}
-          >
+          <div className="flex items-center gap-3 p-4">
             {isOpen ? (
               <>
                 <div className="flex-1 flex items-center gap-2 min-w-0">
@@ -308,9 +307,7 @@ export default function Sidebar({
           )}
 
           {/* Bottom: User Profile */}
-          <div
-            className={`border-t p-3 ${darkMode ? 'border-telkom-border-dark' : 'border-gray-200'}`}
-          >
+          <div className="p-3">
             {/* Dark mode toggle */}
             {isOpen && (
               <button
