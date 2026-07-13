@@ -46,7 +46,7 @@ Tugas Anda:
 HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
 
     const response = await openai.chat.completions.create({
-      model: 'google/gemini-2.5-flash:free',
+      model: 'openrouter/auto',
       messages: [{ role: 'user', content: prompt }]
     });
 

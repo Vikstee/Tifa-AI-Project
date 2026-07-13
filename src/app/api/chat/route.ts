@@ -43,8 +43,11 @@ Selalu berikan penjelasan singkat sebelum atau sesudah grafik.`;
 
 // Daftar model gratis OpenRouter yang MENDUKUNG Function Calling
 const FALLBACK_MODELS = [
-  'google/gemini-2.5-flash:free',
-  'meta-llama/llama-3.3-70b-instruct:free'
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'google/gemini-2.0-flash-exp:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'mistralai/mistral-nemo:free'
 ];
 
 export async function POST(req: NextRequest) {
