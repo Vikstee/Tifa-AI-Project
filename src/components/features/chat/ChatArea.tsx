@@ -380,7 +380,7 @@ export default function ChatArea({
           <h1
             className={`text-sm font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}
           >
-            {isEmpty ? 'Chat Baru' : 'PO to Cash Analysis'}
+            {isEmpty ? 'Chat Baru' : (globalHistory?.find(h => h.id === activeConversation)?.title || 'Percakapan')}
           </h1>
           <p className={`text-xs ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}>
             TIFA - TelkomInfra Financial Assistant
