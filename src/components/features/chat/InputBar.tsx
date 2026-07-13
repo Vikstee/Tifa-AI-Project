@@ -40,9 +40,9 @@ export default function InputBar({
 
     // Reset height to auto to recalculate
     textarea.style.height = 'auto';
-    
-    // Max height is 108px (approx 3x the normal height of 36px)
-    const maxHeight = 108;
+
+    // Max height is 144px (approx 4x the normal height of 36px)
+    const maxHeight = 144;
     const currentScrollHeight = textarea.scrollHeight;
 
     if (currentScrollHeight > maxHeight) {
@@ -180,12 +180,11 @@ export default function InputBar({
             onClick={() => setIsRecording(!isRecording)}
             title="Input suara"
             className={`p-2 rounded-xl transition-colors flex-shrink-0 mb-0.5
-              ${
-                isRecording
-                  ? 'text-telkom-red bg-telkom-red/10 animate-pulse'
-                  : darkMode
-                    ? 'text-telkom-gray hover:text-white hover:bg-telkom-border-dark'
-                    : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+              ${isRecording
+                ? 'text-telkom-red bg-telkom-red/10 animate-pulse'
+                : darkMode
+                  ? 'text-telkom-gray hover:text-white hover:bg-telkom-border-dark'
+                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -205,12 +204,11 @@ export default function InputBar({
             disabled={(!inputText.trim() && uploadedFiles.length === 0) || isLoading}
             className={`
               p-2 rounded-xl transition-all duration-200 flex-shrink-0 mb-0.5
-              ${
-                (inputText.trim() || uploadedFiles.length > 0) && !isLoading
-                  ? 'bg-telkom-red hover:bg-telkom-red-dark text-white shadow-lg shadow-telkom-red/20'
-                  : darkMode
-                    ? 'text-telkom-gray/40 cursor-not-allowed'
-                    : 'text-gray-300 cursor-not-allowed'
+              ${(inputText.trim() || uploadedFiles.length > 0) && !isLoading
+                ? 'bg-telkom-red hover:bg-telkom-red-dark text-white shadow-lg shadow-telkom-red/20'
+                : darkMode
+                  ? 'text-telkom-gray/40 cursor-not-allowed'
+                  : 'text-gray-300 cursor-not-allowed'
               }
             `}
           >

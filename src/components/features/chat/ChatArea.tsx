@@ -350,7 +350,7 @@ export default function ChatArea({
     >
       {/* Top bar (Sticky & Transparent) */}
       <div
-        className={`absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 border-b flex-shrink-0 backdrop-blur-md transition-colors ${darkMode ? 'bg-telkom-charcoal/80 border-telkom-border-dark' : 'bg-white/80 border-gray-200'}`}
+        className={`absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 flex-shrink-0 backdrop-blur-md transition-colors ${darkMode ? 'bg-telkom-charcoal/80' : 'bg-white/80'}`}
       >
         {/* Hamburger for mobile / collapsed sidebar */}
         {!sidebarOpen && (
