@@ -31,6 +31,28 @@ export default function InputBar({
   isLoading,
 }: InputBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to auto to recalculate
+    textarea.style.height = 'auto';
+    
+    // Max height is 72px (approx 2x the normal height of 36px)
+    const maxHeight = 72;
+    const currentScrollHeight = textarea.scrollHeight;
+
+    if (currentScrollHeight > maxHeight) {
+      textarea.style.height = `${maxHeight}px`;
+      textarea.style.overflowY = 'auto';
+    } else {
+      textarea.style.height = `${currentScrollHeight}px`;
+      textarea.style.overflowY = 'hidden';
+    }
+  }, [inputText]);
   const [isRecording, setIsRecording] = useState(false);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -139,6 +161,7 @@ export default function InputBar({
 
           {/* Text input */}
           <textarea
+            ref={textareaRef}
             value={inputText}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -146,15 +169,10 @@ export default function InputBar({
             rows={1}
             className={`
               flex-1 resize-none bg-transparent outline-none text-base sm:text-sm leading-relaxed py-1.5
-              placeholder-telkom-gray/50 max-h-32 overflow-y-auto
+              placeholder-telkom-gray/50
               ${darkMode ? 'text-white' : 'text-gray-900'}
             `}
-            style={{ minHeight: '36px' }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
-              target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-            }}
+            style={{ minHeight: '36px', overflowY: 'hidden' }}
           />
 
           {/* Voice input */}
