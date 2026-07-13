@@ -48,12 +48,12 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
       {displayPrompts.map((prompt, idx) => (
         <div 
           key={idx} 
-          className="gradient-border transition-all duration-300 hover:scale-[1.02] hover:shadow-md dark:hover:shadow-black/50"
+          className="h-full gradient-border transition-all duration-300 hover:scale-[1.02] hover:shadow-md dark:hover:shadow-black/50"
         >
           <button
             onClick={() => onSelectPrompt(prompt.text)}
             className={`
-              w-full text-left px-4 py-3.5 transition-colors duration-200 group
+              w-full h-full text-left px-4 py-3.5 transition-colors duration-200 group
               ${
                 darkMode
                   ? 'bg-telkom-surface-dark'
