@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: apiKey,
+      apiKey: apiKey || 'dummy-key-for-build',
     });
 
     let prompt = `Anda adalah TIFA (TelkomInfra Financial Assistant). 

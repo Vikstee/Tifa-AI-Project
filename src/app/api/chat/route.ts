@@ -5,10 +5,8 @@ import { aggregateChartPython, predictCashflowPython, detectAnomalyPython } from
 import OpenAI from 'openai';
 
 const apiKey = process.env.OPENROUTER_API_KEY;
-const openai = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: apiKey,
-});
+// Initialize openai client inside POST to prevent build-time errors
+
 
 const SYSTEM_INSTRUCTION = `Kamu adalah TIFA (TelkomInfra AI Financial Assistant). 
 Berikan jawaban yang terstruktur, rapi, dan enak dibaca. Gunakan poin-poin (bullet points/numbered lists). Gunakan kalimat yang natural dan sesekali gunakan emoticon. Jawab dalam bahasa Indonesia.
@@ -53,6 +51,11 @@ export async function POST(req: NextRequest) {
   if (!apiKey) {
     return NextResponse.json({ error: 'OPENROUTER_API_KEY is not set in environment variables' }, { status: 500 });
   }
+
+  const openai = new OpenAI({
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: apiKey,
+  });
 
   try {
     const { message, files, history } = await req.json();
