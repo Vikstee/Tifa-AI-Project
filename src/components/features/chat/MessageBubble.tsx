@@ -83,18 +83,17 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
               </button>
             )}
             <div
-              className={`px-4 py-3 rounded-2xl rounded-br-sm text-sm leading-relaxed relative ${isEditing ? 'w-full' : ''}
-              ${darkMode && !isEditing ? 'bg-telkom-red text-white' : ''}
-              ${!darkMode && !isEditing ? 'bg-telkom-red text-white' : ''}
-              ${isEditing ? (darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-300 shadow-sm') : ''}
+              className={`relative text-sm leading-relaxed ${isEditing ? 'w-full min-w-[250px] sm:min-w-[400px]' : 'px-4 py-3 rounded-2xl rounded-br-sm'}
+              ${!darkMode && !isEditing ? 'bg-telkom-red text-white shadow-sm' : ''}
+              ${darkMode && !isEditing ? 'bg-telkom-red text-white shadow-sm' : ''}
             `}
             >
               {isEditing ? (
-                <div className="flex flex-col gap-3 min-w-[300px]">
+                <div className="flex flex-col gap-2 w-full">
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className={`w-full p-2 text-sm rounded-lg outline-none resize-none min-h-[80px] ${darkMode ? 'bg-gray-900 text-white border-gray-700 focus:border-telkom-red' : 'bg-gray-50 text-gray-900 border-gray-200 focus:border-telkom-red'} border`}
+                    className={`w-full p-3 text-sm rounded-xl outline-none resize-none min-h-[100px] shadow-md transition-colors ${darkMode ? 'bg-gray-800 text-white border-gray-700 focus:border-telkom-red' : 'bg-white text-gray-900 border-gray-200 focus:border-telkom-red'} border`}
                     autoFocus
                   />
                   <div className="flex justify-end gap-2">

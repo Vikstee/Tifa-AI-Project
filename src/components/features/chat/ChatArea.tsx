@@ -172,7 +172,7 @@ export default function ChatArea({
     }
 
     let currentSessionId = activeConversation;
-    if (currentIsEmpty && onFirstMessage && currentInput) {
+    if (currentIsEmpty && !activeConversation && onFirstMessage && currentInput) {
       currentSessionId = (await onFirstMessage(currentInput)) || currentSessionId;
     }
 
