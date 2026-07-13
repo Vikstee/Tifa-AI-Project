@@ -6,17 +6,20 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   userProfile?: any;
+  onUserUpdate?: (user: any) => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProfile }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProfile, onUserUpdate }) => {
   const [waNumber, setWaNumber] = useState('');
   const [llmModel, setLlmModel] = useState('flash');
+  const [fullName, setFullName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
       setWaNumber(userProfile.wa_number || '');
       setLlmModel(userProfile.llm_model || 'flash');
+      setFullName(userProfile.name || '');
     }
   }, [userProfile]);
 
@@ -32,6 +35,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
     try {
       const { error } = await supabase.auth.updateUser({
         data: {
+          full_name: fullName,
           wa_number: waNumber,
           llm_model: llmModel
         }
@@ -39,6 +43,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
       
       if (error) throw error;
       
+      onUserUpdate?.({ ...userProfile, name: fullName, wa_number: waNumber, llm_model: llmModel });
       onClose();
     } catch (err: any) {
       console.error(err);
@@ -64,15 +69,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
         </div>
 
         <div className="space-y-6">
-          {/* Theme Setting */}
+          {/* User Name Setting */}
           <div>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Tampilan</h3>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Mode Gelap (Dark Mode)</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-gray-200 dark:bg-telkom-border-dark peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Profil</h3>
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Nama Lengkap</span>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white text-sm"
+                placeholder="Masukkan nama Anda"
+              />
             </div>
           </div>
 

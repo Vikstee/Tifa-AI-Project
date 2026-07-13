@@ -213,7 +213,12 @@ export default function HomePage() {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} userProfile={userProfile} />
+      <SettingsModal 
+        isOpen={showSettingsModal} 
+        onClose={() => setShowSettingsModal(false)} 
+        userProfile={userProfile} 
+        onUserUpdate={setUserProfile}
+      />
 
       <ProfileModal
         isOpen={showProfileModal}
