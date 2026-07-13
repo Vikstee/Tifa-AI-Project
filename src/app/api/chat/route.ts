@@ -111,9 +111,9 @@ export async function POST(req: NextRequest) {
           const args = call.args as any;
 
           if (call.name === 'lookupRecord') {
-            funcRes = await lookupRecord(args.tableName, args.idColumn, args.idValue);
+            funcRes = await lookupRecord(args.tableName, args.idColumn, args.idValue, args.selectColumns);
           } else if (call.name === 'filterRecords') {
-            funcRes = await filterRecords(args.tableName, args.filterColumn, args.filterValue);
+            funcRes = await filterRecords(args.tableName, args.filterColumn, args.filterValue, args.selectColumns, args.limitAmount);
           } else if (call.name === 'aggregateRecords') {
             funcRes = await aggregateRecords(args.tableName, args.sumColumn, args.filterColumn, args.filterValue);
           } else if (call.name === 'aggregate_chart') {

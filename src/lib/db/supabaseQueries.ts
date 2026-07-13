@@ -1,8 +1,8 @@
 import { supabase } from '../supabaseClient';
 
-export const lookupRecord = async (tableName: string, idColumn: string, idValue: string) => {
+export const lookupRecord = async (tableName: string, idColumn: string, idValue: string, selectColumns?: string) => {
   try {
-    const { data, error } = await supabase.from(tableName).select('*').eq(idColumn, idValue);
+    const { data, error } = await supabase.from(tableName).select(selectColumns || '*').eq(idColumn, idValue);
     if (error) return { error: error.message };
     return { data };
   } catch (error: any) {
@@ -10,9 +10,9 @@ export const lookupRecord = async (tableName: string, idColumn: string, idValue:
   }
 };
 
-export const filterRecords = async (tableName: string, filterColumn: string, filterValue: string) => {
+export const filterRecords = async (tableName: string, filterColumn: string, filterValue: string, selectColumns?: string, limitAmount?: number) => {
   try {
-    let query = supabase.from(tableName).select('*');
+    let query = supabase.from(tableName).select(selectColumns || '*');
     if (filterColumn && filterValue) {
       if (filterValue.startsWith('>=') || filterValue.startsWith('<=')) {
         const op = filterValue.substring(0, 2);
@@ -27,7 +27,7 @@ export const filterRecords = async (tableName: string, filterColumn: string, fil
         query = query.ilike(filterColumn, `%${filterValue}%`);
       }
     }
-    const { data, error } = await query.limit(50);
+    const { data, error } = await query.limit(limitAmount || 15);
     if (error) return { error: error.message };
     return { data };
   } catch (error: any) {

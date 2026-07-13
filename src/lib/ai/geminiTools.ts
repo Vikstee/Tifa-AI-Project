@@ -7,7 +7,8 @@ export const dbToolsDefinitions = [
       properties: {
         tableName: { type: 'string', description: 'Nama tabel (contoh: projects, contracts, purchase_orders, sales_orders, invoices, cash_in)' },
         idColumn: { type: 'string', description: 'Nama kolom ID (contoh: id, project_id, po_id)' },
-        idValue: { type: 'string', description: 'Nilai ID yang dicari' }
+        idValue: { type: 'string', description: 'Nilai ID yang dicari' },
+        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (koma). Contoh: "id, name, amount". Gunakan ini untuk menghemat kuota token!' }
       },
       required: ['tableName', 'idColumn', 'idValue']
     }
@@ -20,7 +21,9 @@ export const dbToolsDefinitions = [
       properties: {
         tableName: { type: 'string', description: 'Nama tabel (contoh: purchase_orders)' },
         filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
-        filterValue: { type: 'string', description: 'Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' }
+        filterValue: { type: 'string', description: 'Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
+        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (contoh: "id, total_amount"). Gunakan untuk hemat token!' },
+        limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 15). Hemat token dengan membatasi baris.' }
       },
       required: ['tableName', 'filterColumn', 'filterValue']
     }
