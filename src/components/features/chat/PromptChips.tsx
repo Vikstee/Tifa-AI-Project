@@ -27,7 +27,7 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+      <div className="flex overflow-x-auto snap-x sm:grid sm:grid-cols-2 gap-3 w-full max-w-2xl pb-4 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className={`rounded-xl border p-4 ${darkMode ? 'border-telkom-border-dark bg-telkom-surface-dark/50' : 'border-gray-100 bg-gray-50'} animate-pulse`}>
             <div className="flex items-start gap-3">
@@ -44,11 +44,11 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+    <div className="flex overflow-x-auto snap-x sm:grid sm:grid-cols-2 gap-3 w-full max-w-2xl pb-4 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {displayPrompts.map((prompt, idx) => (
         <div 
           key={idx} 
-          className="gradient-border transition-all duration-300 hover:scale-[1.02] hover:shadow-md dark:hover:shadow-black/50"
+          className="gradient-border flex-shrink-0 w-[240px] sm:w-auto snap-center transition-all duration-300 hover:scale-[1.02] hover:shadow-md dark:hover:shadow-black/50"
         >
           <button
             onClick={() => onSelectPrompt(prompt.text)}

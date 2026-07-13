@@ -417,8 +417,15 @@ export default function ChatArea({
 
       {/* Main content area */}
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        {/* Background Glow */}
+        {isEmpty && (
+          <div className="absolute inset-x-0 bottom-0 top-1/4 pointer-events-none flex items-center justify-center z-0 overflow-hidden">
+            <div className="w-full max-w-lg h-[400px] bg-telkom-red/20 dark:bg-telkom-red/10 blur-[120px] rounded-full opacity-60"></div>
+          </div>
+        )}
+        
         {/* Chat messages */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
           <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
             {isEmpty ? (
               /* Empty state */
@@ -477,7 +484,7 @@ export default function ChatArea({
 
           {/* Input bar */}
           <div
-            className={`px-4 pb-4 pt-2 flex-shrink-0 border-t ${darkMode ? 'border-telkom-border-dark/50' : 'border-gray-200/50'}`}
+            className="px-4 pb-4 sm:pb-6 pt-2 flex-shrink-0 relative z-10"
           >
             <InputBar
               darkMode={darkMode}
