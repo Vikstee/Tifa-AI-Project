@@ -41,8 +41,8 @@ export default function InputBar({
     // Reset height to auto to recalculate
     textarea.style.height = 'auto';
     
-    // Max height is 72px (approx 2x the normal height of 36px)
-    const maxHeight = 72;
+    // Max height is 108px (approx 3x the normal height of 36px)
+    const maxHeight = 108;
     const currentScrollHeight = textarea.scrollHeight;
 
     if (currentScrollHeight > maxHeight) {
