@@ -371,8 +371,8 @@ export default function ChatArea({
 
         {/* Logo for collapsed state */}
         {!sidebarOpen && (
-          <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-telkom-red/10 rounded-lg">
-            <SparklesIcon className="w-4 h-4 text-telkom-red" />
+          <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-transparent">
+            <AppImage src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"} alt="TIFA Logo" width={28} height={28} className="object-contain" />
           </div>
         )}
 
@@ -383,7 +383,7 @@ export default function ChatArea({
             {isEmpty ? 'Chat Baru' : 'PO to Cash Analysis'}
           </h1>
           <p className={`text-xs ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}>
-            TIFA — TelkomInfra AI Financial Assistant
+            TIFA - TelkomInfra Financial Assistant
           </p>
         </div>
 
