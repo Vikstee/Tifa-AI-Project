@@ -23,7 +23,9 @@ export const dbToolsDefinitions = [
         filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
         filterValue: { type: 'string', description: 'Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
         selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (contoh: "id, total_amount"). Gunakan untuk hemat token!' },
-        limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 15). Hemat token dengan membatasi baris.' }
+        limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 15). Hemat token dengan membatasi baris.' },
+        orderColumn: { type: 'string', description: 'Opsional. Nama kolom untuk mengurutkan (contoh: created_at, amount). Sangat berguna untuk mencari nilai Terbesar, Terkecil, Terbaru, atau Terlama.' },
+        orderAscending: { type: 'boolean', description: 'Opsional. True untuk naik (Terkecil/Terlama), False untuk turun (Terbesar/Terbaru). Default: True.' }
       },
       required: ['tableName', 'filterColumn', 'filterValue']
     }

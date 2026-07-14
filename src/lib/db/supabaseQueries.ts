@@ -10,7 +10,7 @@ export const lookupRecord = async (tableName: string, idColumn: string, idValue:
   }
 };
 
-export const filterRecords = async (tableName: string, filterColumn: string, filterValue: string, selectColumns?: string, limitAmount?: number) => {
+export const filterRecords = async (tableName: string, filterColumn: string, filterValue: string, selectColumns?: string, limitAmount?: number, orderColumn?: string, orderAscending?: boolean) => {
   try {
     let query = supabase.from(tableName).select(selectColumns || '*');
     if (filterColumn && filterValue) {
@@ -27,6 +27,11 @@ export const filterRecords = async (tableName: string, filterColumn: string, fil
         query = query.ilike(filterColumn, `%${filterValue}%`);
       }
     }
+    
+    if (orderColumn) {
+      query = query.order(orderColumn, { ascending: orderAscending !== false });
+    }
+    
     const { data, error } = await query.limit(limitAmount || 15);
     if (error) return { error: error.message };
     return { data };
