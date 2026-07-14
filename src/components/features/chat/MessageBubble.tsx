@@ -157,7 +157,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
       </div>
 
       {/* AI message content */}
-      <div className="flex-1 max-w-[85%]">
+      <div className="flex-1 max-w-[85%]" data-tifa-response>
         <div className="flex items-center gap-2 mb-1.5">
           <span className="text-xs font-semibold text-telkom-red">TIFA</span>
           <span className={`text-xs ${darkMode ? 'text-telkom-gray/50' : 'text-gray-400'}`}>
