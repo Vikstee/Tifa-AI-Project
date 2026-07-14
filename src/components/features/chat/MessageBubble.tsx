@@ -235,10 +235,11 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
                           <div className="my-3">
                             <ReportCard
                               darkMode={darkMode}
-                              title={data.reportType || 'Laporan'}
+                              title={data.title || data.reportType || 'Laporan'}
                               format={data.format as any || 'PDF'}
-                              size="~100 KB"
-                              date={reportDate}
+                              size="~200 KB"
+                              date={data.period || reportDate}
+                              sections={data.sections}
                             />
                           </div>
                         );

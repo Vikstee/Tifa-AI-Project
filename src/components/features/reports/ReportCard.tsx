@@ -13,6 +13,7 @@ interface ReportCardProps {
   url?: string;
   isGenerating?: boolean;
   isSidebar?: boolean;
+  sections?: any[]; // structured report sections from AI
 }
 
 const formatIcons: Record<string, { icon: string; color: string; bg: string }> = {
@@ -30,6 +31,7 @@ export default function ReportCard({
   url: initialUrl,
   isGenerating = false,
   isSidebar = false,
+  sections,
 }: ReportCardProps) {
   const [url, setUrl] = useState<string | undefined>(initialUrl);
   const [isGeneratingLazy, setIsGeneratingLazy] = useState(false);
@@ -61,9 +63,9 @@ export default function ReportCard({
       setIsGeneratingLazy(true);
       try {
         const periodMatch = date;
-        if (format === 'PDF') downloadUrl = await generatePDFReport(title, periodMatch);
-        else if (format === 'Excel') downloadUrl = await generateExcelReport(title, periodMatch);
-        else if (format === 'Word') downloadUrl = await generateWordReport(title, periodMatch);
+        if (format === 'PDF') downloadUrl = await generatePDFReport(title, periodMatch, sections);
+        else if (format === 'Excel') downloadUrl = await generateExcelReport(title, periodMatch, sections);
+        else if (format === 'Word') downloadUrl = await generateWordReport(title, periodMatch, sections);
         setUrl(downloadUrl);
       } catch (err) {
         console.error('Failed to generate report for WA', err);
@@ -167,9 +169,9 @@ export default function ReportCard({
     try {
       let newUrl = '';
       const periodMatch = date;
-      if (format === 'PDF') newUrl = await generatePDFReport(title, periodMatch);
-      else if (format === 'Excel') newUrl = await generateExcelReport(title, periodMatch);
-      else if (format === 'Word') newUrl = await generateWordReport(title, periodMatch);
+      if (format === 'PDF') newUrl = await generatePDFReport(title, periodMatch, sections);
+      else if (format === 'Excel') newUrl = await generateExcelReport(title, periodMatch, sections);
+      else if (format === 'Word') newUrl = await generateWordReport(title, periodMatch, sections);
 
       setUrl(newUrl);
       window.open(newUrl, '_blank');
@@ -199,9 +201,9 @@ export default function ReportCard({
     try {
       let newUrl = '';
       const periodMatch = date; // We use date as period or a default
-      if (format === 'PDF') newUrl = await generatePDFReport(title, periodMatch);
-      else if (format === 'Excel') newUrl = await generateExcelReport(title, periodMatch);
-      else if (format === 'Word') newUrl = await generateWordReport(title, periodMatch);
+      if (format === 'PDF') newUrl = await generatePDFReport(title, periodMatch, sections);
+      else if (format === 'Excel') newUrl = await generateExcelReport(title, periodMatch, sections);
+      else if (format === 'Word') newUrl = await generateWordReport(title, periodMatch, sections);
 
       setUrl(newUrl);
       

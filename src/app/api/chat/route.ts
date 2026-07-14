@@ -93,14 +93,39 @@ PENTING: Maksimal 10-15 item per grafik. Gabungkan sisanya sebagai "Lainnya".
 Untuk pie chart gunakan type "pie", untuk grafik garis gunakan type "line".
 Untuk setiap grafik, WAJIB sertakan blok json_chart — bukan teks deskripsi grafik, bukan ASCII art.
 
-FORMAT LAPORAN — Gunakan json_report HANYA untuk permintaan PDF/Excel/Word terkait database perusahaan:
+FORMAT LAPORAN — Ketika pengguna meminta PDF/Excel/Word, kamu WAJIB:
+1. Ambil semua data yang diperlukan dari database menggunakan tools.
+2. Hasilkan blok json_report yang berisi SELURUH konten laporan dalam array "sections".
+3. Setiap section harus lengkap dengan data aktual dari database — JANGAN buat placeholder.
+
+Tipe section yang tersedia:
+- {"type": "heading", "text": "Judul Section"}
+- {"type": "text", "text": "Paragraf teks penjelasan..."}
+- {"type": "table", "title": "Judul Tabel", "headers": ["Kol1","Kol2"], "rows": [["val1","val2"]]}
+- {"type": "bar_chart", "title": "Judul", "labels": ["A","B","C"], "values": [100,200,150], "unit": "Jt"}
+- {"type": "pie_chart", "title": "Judul", "labels": ["A","B"], "values": [604,596]}
+- {"type": "insight", "text": "Kesimpulan dan rekomendasi penting..."}
+
 \`\`\`json_report
 {
-  "reportType": "PO Outstanding Summary",
+  "title": "Laporan Keuangan TelkomInfra",
   "format": "PDF",
-  "period": "Jul 2026"
+  "period": "Jul 2026",
+  "sections": [
+    {"type": "heading", "text": "1. Top 10 Invoice Unpaid"},
+    {"type": "text", "text": "Berikut adalah 10 invoice dengan nilai tagihan terbesar yang belum dibayar per Juli 2026."},
+    {"type": "table", "title": "Invoice Unpaid Terbesar", "headers": ["No","Invoice","Nilai (Rp)","Jatuh Tempo","Status"], "rows": [["1","INV-38-3","209.272.175","12 Jul 2026","Unpaid"]]},
+    {"type": "heading", "text": "2. Komposisi Status Purchase Orders"},
+    {"type": "pie_chart", "title": "Status PO", "labels": ["Approved","Pending"], "values": [604,596]},
+    {"type": "heading", "text": "3. Proyek dengan Budget Terbesar"},
+    {"type": "bar_chart", "title": "15 Proyek Budget Terbesar", "labels": ["PJ-7211","PJ-4211"], "values": [498000000,495000000], "unit": "Jt"},
+    {"type": "insight", "text": "Total invoice unpaid mencapai Rp 2,02 Miliar. Direkomendasikan follow-up segera kepada klien."}
+  ]
 }
 \`\`\`
+
+PENTING: Isi rows tabel dan values chart dengan data NYATA dari database. Bukan contoh placeholder di atas.
+Laporan HANYA untuk data perusahaan (projects, contracts, purchase_orders, sales_orders, invoices, cash_in).
 
 Selalu berikan penjelasan singkat sebelum atau sesudah grafik dan tabel.`;
 
