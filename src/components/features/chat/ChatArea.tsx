@@ -32,6 +32,7 @@ interface ChatAreaProps {
   onFirstMessage?: (text: string) => Promise<string | undefined>;
   activeConversation?: string;
   globalHistory?: any[];
+  onMessageSent?: () => void;
 }
 
 export default function ChatArea({
@@ -46,6 +47,7 @@ export default function ChatArea({
   onFirstMessage,
   activeConversation,
   globalHistory,
+  onMessageSent,
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -210,6 +212,13 @@ export default function ChatArea({
           content: currentInput || `[${uploadedFiles.length} file diunggah]`
         });
       }
+      
+      // Update session updated_at so it floats to top
+      await supabase.from('chat_sessions')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', currentSessionId);
+      
+      if (onMessageSent) onMessageSent();
     }
 
     const userMsg: Message = {
@@ -296,6 +305,13 @@ export default function ChatArea({
           role: 'ai',
           content: fullText
         });
+        
+        // Update session updated_at again after AI replies
+        await supabase.from('chat_sessions')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', currentSessionId);
+          
+        if (onMessageSent) onMessageSent();
       }
     } catch (error: any) {
       console.error(error);

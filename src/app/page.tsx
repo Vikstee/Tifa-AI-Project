@@ -84,17 +84,29 @@ export default function HomePage() {
   }, [userProfile?.id]);
 
   const loadHistory = async () => {
-    const { data, error } = await supabase
+    // Coba order berdasarkan updated_at (yang baru)
+    let { data, error } = await supabase
       .from('chat_sessions')
       .select('*')
       .eq('user_id', userProfile.id)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
+    
+    // Fallback jika kolom updated_at belum ada di schema
+    if (error) {
+      const fallback = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('user_id', userProfile.id)
+        .order('created_at', { ascending: false });
+      data = fallback.data;
+      error = fallback.error;
+    }
     
     if (data && !error) {
       setHistory(data.map((s: any) => ({
         id: s.id,
         title: s.title,
-        timestamp: s.created_at
+        timestamp: s.updated_at || s.created_at
       })));
     }
   };
@@ -205,6 +217,7 @@ export default function HomePage() {
         onFirstMessage={handleFirstMessage}
         activeConversation={activeConversation}
         globalHistory={history}
+        onMessageSent={loadHistory}
       />
 
       <AuthModal
