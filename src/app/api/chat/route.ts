@@ -19,8 +19,8 @@ let currentKeyIndex = 0;
 // Classifies prompt complexity locally (zero tokens) to pick the right model.
 // LITE model = fast response for simple queries.
 // FULL model = powerful model for heavy analysis/charts.
-const LITE_MODEL = 'gemini-2.0-flash-lite';
-const FULL_MODEL = 'gemini-flash-latest';
+const LITE_MODEL = 'gemini-flash-lite-latest';
+const FULL_MODEL = 'gemini-flash-lite-latest'; // fallback: same model until flash-latest quota resets
 
 function classifyPrompt(text: string): 'lite' | 'full' {
   const lower = text.toLowerCase();
