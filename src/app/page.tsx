@@ -84,23 +84,11 @@ export default function HomePage() {
   }, [userProfile?.id]);
 
   const loadHistory = async () => {
-    // Coba order berdasarkan updated_at (yang baru)
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('chat_sessions')
       .select('*')
       .eq('user_id', userProfile.id)
       .order('updated_at', { ascending: false });
-    
-    // Fallback jika kolom updated_at belum ada di schema
-    if (error) {
-      const fallback = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('user_id', userProfile.id)
-        .order('created_at', { ascending: false });
-      data = fallback.data;
-      error = fallback.error;
-    }
     
     if (data && !error) {
       setHistory(data.map((s: any) => ({
@@ -184,6 +172,15 @@ export default function HomePage() {
     return undefined;
   };
 
+  const handleConversationActivity = async (conversationId: string) => {
+    // Bump updated_at so this conversation rises to the top of the sidebar
+    await supabase
+      .from('chat_sessions')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversationId);
+    loadHistory();
+  };
+
   return (
     <div
       className={`flex h-[100dvh] overflow-hidden ${darkMode ? 'dark bg-telkom-charcoal' : 'bg-telkom-surface-light'}`}
@@ -217,7 +214,7 @@ export default function HomePage() {
         onFirstMessage={handleFirstMessage}
         activeConversation={activeConversation}
         globalHistory={history}
-        onMessageSent={loadHistory}
+        onConversationActivity={handleConversationActivity}
       />
 
       <AuthModal
