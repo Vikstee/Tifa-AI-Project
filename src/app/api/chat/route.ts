@@ -94,40 +94,52 @@ Untuk pie chart gunakan type "pie", untuk grafik garis gunakan type "line".
 Untuk setiap grafik, WAJIB sertakan blok json_chart — bukan teks deskripsi grafik, bukan ASCII art.
 
 FORMAT LAPORAN — Ketika pengguna meminta PDF/Excel/Word, kamu WAJIB:
-1. Ambil semua data yang diperlukan dari database menggunakan tools.
-2. Hasilkan blok json_report yang berisi SELURUH konten laporan dalam array "sections".
-3. Setiap section harus lengkap dengan data aktual dari database — JANGAN buat placeholder.
+1. Ambil semua data yang diperlukan dari database menggunakan tools SESUAI PERMINTAAN USER.
+2. Hasilkan blok json_report dengan SELURUH konten laporan dalam array "sections".
+3. Setiap section harus berisi data NYATA dari database — bukan placeholder.
+4. Konten laporan SESUAI dengan apa yang diminta user — bukan hanya dari riwayat chat.
 
-Tipe section yang tersedia:
-- {"type": "heading", "text": "Judul Section"}
-- {"type": "text", "text": "Paragraf teks penjelasan..."}
+ATURAN PENULISAN LAPORAN (WAJIB DIIKUTI):
+- Setiap section visual (table, bar_chart, pie_chart) HARUS didahului oleh section "text" yang menjelaskan konteks data tersebut (1-3 kalimat).
+- Setiap section visual HARUS diikuti oleh section "text" singkat berisi temuan/kesimpulan dari data tersebut.
+- Laporan harus mengalir seperti narasi analisis: heading → penjelasan → data → kesimpulan → heading berikutnya.
+- Insight di akhir harus berisi rekomendasi yang konkret dan spesifik berdasarkan angka nyata.
+
+Tipe section:
+- {"type": "heading", "text": "1. Judul Section"}
+- {"type": "text", "text": "Narasi penjelasan sebelum atau sesudah data..."}
 - {"type": "table", "title": "Judul Tabel", "headers": ["Kol1","Kol2"], "rows": [["val1","val2"]]}
-- {"type": "bar_chart", "title": "Judul", "labels": ["A","B","C"], "values": [100,200,150], "unit": "Jt"}
+- {"type": "bar_chart", "title": "Judul", "labels": ["A","B"], "values": [100,200], "unit": "Jt"}
 - {"type": "pie_chart", "title": "Judul", "labels": ["A","B"], "values": [604,596]}
-- {"type": "insight", "text": "Kesimpulan dan rekomendasi penting..."}
+- {"type": "insight", "text": "Kesimpulan dan rekomendasi konkret berdasarkan angka nyata..."}
 
+CONTOH STRUKTUR YANG BENAR (ikuti pola ini):
 \`\`\`json_report
 {
   "title": "Laporan Keuangan TelkomInfra",
   "format": "PDF",
   "period": "Jul 2026",
   "sections": [
-    {"type": "heading", "text": "1. Top 10 Invoice Unpaid"},
-    {"type": "text", "text": "Berikut adalah 10 invoice dengan nilai tagihan terbesar yang belum dibayar per Juli 2026."},
-    {"type": "table", "title": "Invoice Unpaid Terbesar", "headers": ["No","Invoice","Nilai (Rp)","Jatuh Tempo","Status"], "rows": [["1","INV-38-3","209.272.175","12 Jul 2026","Unpaid"]]},
+    {"type": "heading", "text": "1. Top 10 Invoice Unpaid Terbesar"},
+    {"type": "text", "text": "Berikut adalah 10 invoice dengan nilai tagihan tertinggi yang saat ini masih berstatus Unpaid. Total nilai 10 invoice ini mencapai Rp 2,02 Miliar dan mayoritas jatuh tempo di bulan Juli-Agustus 2026."},
+    {"type": "table", "title": "Invoice Unpaid Terbesar", "headers": ["No","No. Invoice","Nilai Tagihan (Rp)","Jatuh Tempo","Status"], "rows": [["1","INV-38-3","209.272.175","12 Jul 2026","Unpaid"]]},
+    {"type": "text", "text": "Invoice INV-38-3 memiliki nilai tertinggi sebesar Rp 209 juta dan telah jatuh tempo. Perlu dilakukan follow-up prioritas kepada klien terkait."},
     {"type": "heading", "text": "2. Komposisi Status Purchase Orders"},
-    {"type": "pie_chart", "title": "Status PO", "labels": ["Approved","Pending"], "values": [604,596]},
+    {"type": "text", "text": "Dari total 1.200 Purchase Orders yang ada, berikut adalah distribusi berdasarkan status persetujuan per Juli 2026."},
+    {"type": "pie_chart", "title": "Komposisi Status PO", "labels": ["Approved","Pending"], "values": [604,596]},
+    {"type": "text", "text": "Sebesar 50,34% PO sudah Approved (604 PO) sementara 49,66% masih Pending (596 PO). Rasio yang hampir seimbang ini menunjukkan masih banyak PO yang perlu diproses."},
     {"type": "heading", "text": "3. Proyek dengan Budget Terbesar"},
+    {"type": "text", "text": "Berikut adalah 15 proyek infrastruktur dengan alokasi budget terbesar yang sedang berjalan."},
     {"type": "bar_chart", "title": "15 Proyek Budget Terbesar", "labels": ["PJ-7211","PJ-4211"], "values": [498000000,495000000], "unit": "Jt"},
-    {"type": "insight", "text": "Total invoice unpaid mencapai Rp 2,02 Miliar. Direkomendasikan follow-up segera kepada klien."}
+    {"type": "text", "text": "Alokasi budget proyek berkisar antara Rp 488 juta hingga Rp 498 juta, menunjukkan standarisasi biaya yang baik dalam pelaksanaan proyek infrastruktur."},
+    {"type": "insight", "text": "KESIMPULAN: Total piutang belum terbayar (Invoice Unpaid) sebesar Rp 2,02 Miliar perlu ditindaklanjuti segera. Prioritaskan INV-38-3 dan INV-77-3. Percepat approval 596 PO yang masih Pending untuk menjaga kelancaran operasional."}
   ]
 }
 \`\`\`
 
-PENTING: Isi rows tabel dan values chart dengan data NYATA dari database. Bukan contoh placeholder di atas.
-Laporan HANYA untuk data perusahaan (projects, contracts, purchase_orders, sales_orders, invoices, cash_in).
+PENTING: Isi rows tabel dan values chart dengan data NYATA dari database. Ikuti pola teks narasi di atas.
+Laporan HANYA untuk data perusahaan (projects, contracts, purchase_orders, sales_orders, invoices, cash_in).`;
 
-Selalu berikan penjelasan singkat sebelum atau sesudah grafik dan tabel.`;
 
 
 export async function POST(req: NextRequest) {
