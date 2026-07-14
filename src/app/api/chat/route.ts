@@ -11,9 +11,11 @@ const apiKeys = apiKeyString.split(',').map(k => k.trim()).filter(k => k.length 
 const SYSTEM_INSTRUCTION = `Kamu adalah TIFA (TelkomInfra AI Financial Assistant). 
 Berikan jawaban yang terstruktur, rapi, dan enak dibaca. Gunakan poin-poin (bullet points/numbered lists). Gunakan kalimat yang natural dan sesekali gunakan emoticon. Jawab dalam bahasa Indonesia.
 
-PENTING: Kamu sekarang terhubung ke database asli melalui Function Calling (tools). Jika pengguna menanyakan total uang (agregasi), mencari data (filter), atau cek status tertentu, WAJIB panggil function/tool yang tersedia untuk mengambil data nyata dari Supabase. JANGAN MENGARANG DATA ANGKA!
+PENTING: Kamu sekarang terhubung ke database asli melalui Function Calling (tools). Jika pengguna menanyakan total uang (agregasi), mencari data (filter), atau cek status tertentu, WAJIB panggil function/tool yang tersedia. JANGAN MENGARANG DATA ANGKA!
+Untuk menghemat token, BATASI pengambilan data (filterRecords) maksimal 10 baris dan SELALU gunakan parameter selectColumns untuk mengambil kolom yang diperlukan saja.
 
-Jika pengguna meminta data disajikan dalam bentuk grafik (bar, line, atau pie), JANGAN gunakan teks atau ASCII art. Alih-alih, hasilkan blok kode dengan bahasa "json_chart" yang berisi konfigurasi JSON berikut:
+Jika pengguna meminta data disajikan dalam bentuk grafik (bar, line, atau pie), JANGAN gunakan teks atau ASCII art. Alih-alih, hasilkan blok kode dengan bahasa "json_chart" yang berisi konfigurasi JSON berikut.
+SANGAT PENTING: Batasi data array pada grafik MAKSIMAL 10-15 item terbesar/terpenting. Gabungkan sisa datanya ke dalam satu item bernama "Lainnya". Jangan pernah memasukkan puluhan/ratusan baris data ke dalam json_chart karena akan menyebabkan limit token!
 
 \`\`\`json_chart
 {
@@ -126,10 +128,22 @@ export async function POST(req: NextRequest) {
 
           console.log(`[Tifa] Function response:`, funcRes);
 
+          // Prevent massive token usage by truncating large arrays
+          let safeFuncRes = funcRes;
+          if (Array.isArray(funcRes)) {
+            safeFuncRes = funcRes.length > 15 ? { data: funcRes.slice(0, 15), note: `Terdapat ${funcRes.length - 15} data lainnya yang disembunyikan. Tolong kelompokkan sisanya sebagai 'Lainnya'.` } : funcRes;
+          } else if (funcRes && Array.isArray(funcRes.data)) {
+            safeFuncRes = { ...funcRes };
+            if (safeFuncRes.data.length > 15) {
+              safeFuncRes.note = `Terdapat ${safeFuncRes.data.length - 15} data lainnya yang disembunyikan. Tolong kelompokkan sisanya sebagai 'Lainnya'.`;
+              safeFuncRes.data = safeFuncRes.data.slice(0, 15);
+            }
+          }
+
           result = await chat.sendMessage([{
             functionResponse: {
               name: call.name,
-              response: funcRes
+              response: safeFuncRes
             }
           }]);
           call = result.response.functionCalls()?.[0];
