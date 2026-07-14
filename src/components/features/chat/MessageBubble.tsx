@@ -53,6 +53,9 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
     }) + ' WIB';
   }, []);
 
+  // Pass content as-is — status normalization happens at cell level (see td renderer below)
+  const sanitizedContent = message.content;
+
   if (isUser) {
     return (
       <div className="flex justify-end animate-fadeIn">
@@ -185,9 +188,28 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
                 th: ({ node, ...props }: any) => (
                   <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-telkom-gray-light' : 'text-gray-500'}`} {...props} />
                 ),
-                td: ({ node, ...props }: any) => (
-                  <td className={`px-4 py-3 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props} />
-                ),
+                td: ({ node, children, ...props }: any) => {
+                  // Normalize status text ONLY inside table cells — safe, won't touch JSON
+                  const normalizeCell = (text: string): string => {
+                    return text
+                      .replace(/[^\w\s]{1,4}\s*(Unpaid|Belum Dibayar)/gi, '🔴 $1')
+                      .replace(/[^\w\s]{1,4}\s*(Paid|Lunas)(?!.*Unpaid)/gi, '🟢 $1')
+                      .replace(/[^\w\s]{1,4}\s*(Pending)/gi, '🟡 $1')
+                      .replace(/[^\w\s]{1,4}\s*(Approved|Disetujui)/gi, '✅ $1')
+                      .replace(/[^\w\s]{1,4}\s*(Rejected|Ditolak)/gi, '❌ $1')
+                      .replace(/[^\w\s]{1,4}\s*(Overdue)/gi, '⛔ $1')
+                      .replace(/[^\w\s]{1,4}\s*(Ongoing)/gi, '🔵 $1')
+                      .replace(/[^\w\s]{1,4}\s*(Completed|Selesai)/gi, '✅ $1');
+                  };
+                  const processedChildren = React.Children.map(children, (child) =>
+                    typeof child === 'string' ? normalizeCell(child) : child
+                  );
+                  return (
+                    <td className={`px-4 py-3 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
+                      {processedChildren}
+                    </td>
+                  );
+                },
                 pre({ node, children, ...props }: any) {
                   // Check if the pre contains a code block with our json_chart language
                   if (node?.children?.[0]?.tagName === 'code') {
@@ -242,7 +264,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
                 },
               }}
             >
-              {message.content}
+              {sanitizedContent}
             </ReactMarkdown>
           </div>
         </div>

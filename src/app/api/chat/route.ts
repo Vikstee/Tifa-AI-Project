@@ -8,6 +8,49 @@ const apiKeyString = process.env.GEMINI_API_KEY || '';
 // Parse comma-separated API keys
 const apiKeys = apiKeyString.split(',').map(k => k.trim()).filter(k => k.length > 0);
 
+// ===== STICKY ROUND-ROBIN KEY ROTATION =====
+// Persists across requests in the same server process (warm instance).
+// Starts from the last successful key — only advances when rate-limited.
+// Cycles back to key[0] after the last key is exhausted.
+let currentKeyIndex = 0;
+// ===========================================
+
+// ===== SMART MODEL ROUTING =====
+// Classifies prompt complexity locally (zero tokens) to pick the right model.
+// LITE model = fast response for simple queries.
+// FULL model = powerful model for heavy analysis/charts.
+const LITE_MODEL = 'gemini-2.0-flash-lite';
+const FULL_MODEL = 'gemini-flash-latest';
+
+function classifyPrompt(text: string): 'lite' | 'full' {
+  const lower = text.toLowerCase();
+  const heavyKeywords = [
+    // Charts & Visualisasi
+    'chart', 'grafik', 'pie', 'bar chart', 'line chart', 'donut', 'histogram', 'diagram',
+    // Laporan
+    'laporan', 'report', 'pdf', 'excel', 'word', 'unduh', 'download', 'ekspor', 'export',
+    // Analisis Kompleks
+    'analisis', 'analisa', 'tren', 'trend', 'prediksi', 'forecasting', 'proyeksi',
+    'anomali', 'anomaly', 'deteksi', 'detect',
+    // Multi-step / Kombinasi
+    'all-in-one', 'sekaligus', 'laporan lengkap', 'laporan eksekutif', 'dashboard',
+    'rangkuman lengkap', 'ringkasan lengkap', 'semua data',
+    // Ranking & Perbandingan
+    'ranking', 'peringkat', 'top 10', 'top 5', 'top-10', 'top-5', 'terbesar', 'terkecil',
+    'perbandingan', 'bandingkan', 'vs ', 'versus',
+    // Agregasi Kompleks
+    'outstanding', 'aging', 'dso', 'overdue', 'jatuh tempo', 'profit', 'margin',
+    // Multi-permintaan
+    '1.', '2.', '3.', // numbered lists in prompt = multi-step
+  ];
+
+  const isHeavy = heavyKeywords.some(kw => lower.includes(kw));
+  const model = isHeavy ? 'full' : 'lite';
+  console.log(`[Tifa] Prompt classified as: ${model.toUpperCase()} | Trigger: "${lower.substring(0, 60)}..."`);
+  return model;
+}
+// ===================================
+
 const SYSTEM_INSTRUCTION = `Kamu adalah TIFA (TelkomInfra AI Financial Assistant). 
 Berikan jawaban yang terstruktur, rapi, dan enak dibaca. Gunakan poin-poin (bullet points/numbered lists). Gunakan kalimat yang natural dan sesekali gunakan emoticon. Jawab dalam bahasa Indonesia.
 
@@ -85,19 +128,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message or files are required' }, { status: 400 });
     }
 
-    // Try keys randomly up to apiKeys.length times
+    // ===== STICKY ROUND-ROBIN KEY ROTATION =====
+    // Start from the last successful key. Advance on 429. Wrap around after last key.
     let lastError: any = null;
-    let availableKeys = [...apiKeys];
+    const totalKeys = apiKeys.length;
+    let attempts = 0;
 
-    while (availableKeys.length > 0) {
-      const randomIndex = Math.floor(Math.random() * availableKeys.length);
-      const selectedKey = availableKeys[randomIndex];
-      availableKeys.splice(randomIndex, 1); // Remove it so we don't try it again in this request
+    while (attempts < totalKeys) {
+      const selectedKey = apiKeys[currentKeyIndex];
+      const keyLabel = `Key #${currentKeyIndex + 1}/${totalKeys}`;
 
       try {
         const genAI = new GoogleGenerativeAI(selectedKey);
+        // Smart model routing: pick lite or full based on prompt complexity
+        const userMessageText = typeof message === 'string' ? message : (message?.text || '');
+        const complexity = classifyPrompt(userMessageText);
+        const selectedModel = complexity === 'full' ? FULL_MODEL : LITE_MODEL;
+        console.log(`[Tifa] Using model: ${selectedModel} | ${keyLabel}`);
         const model = genAI.getGenerativeModel({
-          model: 'gemini-flash-latest',
+          model: selectedModel,
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ functionDeclarations: dbToolsDefinitions as any }]
         });
@@ -151,6 +200,9 @@ export async function POST(req: NextRequest) {
 
         const finalString = result.response.text();
 
+        // ✅ SUCCESS — keep currentKeyIndex as-is so next request reuses this key
+        console.log(`[Tifa] ✅ Success with ${keyLabel}`);
+
         // Simulate streaming back the final result
         const stream = new ReadableStream({
           start(controller) {
@@ -183,12 +235,15 @@ export async function POST(req: NextRequest) {
         lastError = error;
         const errorMessage = error.message?.toLowerCase() || '';
 
-        // Check if it's a rate limit, quota, or 429 error
-        if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
-          console.warn(`[Tifa] API Key rate limited! Retrying... (${availableKeys.length} keys left in pool)`);
-          continue; // Try next key in the pool
+        if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
+          // Rate limited — advance to next key in the cycle
+          const prevIndex = currentKeyIndex;
+          currentKeyIndex = (currentKeyIndex + 1) % totalKeys;
+          console.warn(`[Tifa] ⚠️ Key #${prevIndex + 1} rate-limited! Switching to Key #${currentKeyIndex + 1}...`);
+          attempts++;
+          continue;
         } else {
-          // For other errors, throw immediately to be caught by outer catch block
+          // Non-rate-limit error (e.g. invalid key, model error) — throw immediately
           throw error;
         }
       }
