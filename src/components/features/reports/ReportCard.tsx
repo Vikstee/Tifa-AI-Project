@@ -35,6 +35,28 @@ export default function ReportCard({
 }: ReportCardProps) {
   const [url, setUrl] = useState<string | undefined>(initialUrl);
   const [isGeneratingLazy, setIsGeneratingLazy] = useState(false);
+  const [actualSize, setActualSize] = useState<string>(size);
+  
+  useEffect(() => {
+    let isMounted = true;
+    const preGenerate = async () => {
+      try {
+        let res: { url: string; size: number } | null = null;
+        if (format === 'PDF') res = await generatePDFReport(title, "", date, sections);
+        else if (format === 'Excel') res = await generateExcelReport(title, "", date, sections);
+        else if (format === 'Word') res = await generateWordReport(title, "", date, sections);
+        
+        if (isMounted && res) {
+          setUrl(res.url);
+          setActualSize(res.size >= 1024 * 1024 
+            ? (res.size / (1024 * 1024)).toFixed(2) + ' MB' 
+            : (res.size / 1024).toFixed(0) + ' KB');
+        }
+      } catch (e) {}
+    };
+    if (!url) preGenerate();
+    return () => { isMounted = false; };
+  }, [format, title, date, sections, url]);
   
   // Custom WA Modal State
   const [showWaModal, setShowWaModal] = useState(false);
@@ -54,7 +76,12 @@ export default function ReportCard({
     });
   }, []);
 
-  const fmt = formatIcons[format];
+  // Normalize format string (e.g. "pdf" -> "PDF", "word" -> "Word", "excel" -> "Excel")
+  const normalizedFormat = format?.toLowerCase() === 'pdf' ? 'PDF'
+    : format?.toLowerCase() === 'word' ? 'Word'
+    : format?.toLowerCase() === 'excel' ? 'Excel'
+    : format;
+  const fmt = formatIcons[normalizedFormat] ?? { icon: '📄', color: 'text-gray-400', bg: 'bg-gray-500/10' };
 
   const handleWhatsAppShare = async () => {
     // Generate URL if not exists, but do NOT auto-download
@@ -63,10 +90,16 @@ export default function ReportCard({
       setIsGeneratingLazy(true);
       try {
         const periodMatch = date;
-        if (format === 'PDF') downloadUrl = await generatePDFReport(title, periodMatch, sections);
-        else if (format === 'Excel') downloadUrl = await generateExcelReport(title, periodMatch, sections);
-        else if (format === 'Word') downloadUrl = await generateWordReport(title, periodMatch, sections);
-        setUrl(downloadUrl);
+        let res: { url: string; size: number } | null = null;
+        if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, sections);
+        else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, sections);
+        else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, sections);
+        
+        if (res) {
+          downloadUrl = res.url;
+          setUrl(res.url);
+          setActualSize(res.size >= 1024 * 1024 ? (res.size / (1024 * 1024)).toFixed(2) + ' MB' : (res.size / 1024).toFixed(0) + ' KB');
+        }
       } catch (err) {
         console.error('Failed to generate report for WA', err);
         alert('Gagal men-generate laporan untuk WhatsApp.');
@@ -159,22 +192,42 @@ export default function ReportCard({
 
   const handlePreview = async () => {
     if (isGeneratingLazy || isGenerating) return;
+
+    const isDownloadable = format === 'Word' || format === 'Excel';
+    const extension = format === 'Word' ? 'docx' : format === 'Excel' ? 'xlsx' : 'pdf';
+    const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_TIFA.${extension}`;
+
+    const triggerDownload = (downloadUrl: string) => {
+        if (isDownloadable) {
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            window.open(downloadUrl, '_blank');
+        }
+    };
     
     if (url) {
-      window.open(url, '_blank');
+      triggerDownload(url);
       return;
     }
 
     setIsGeneratingLazy(true);
     try {
-      let newUrl = '';
       const periodMatch = date;
-      if (format === 'PDF') newUrl = await generatePDFReport(title, periodMatch, sections);
-      else if (format === 'Excel') newUrl = await generateExcelReport(title, periodMatch, sections);
-      else if (format === 'Word') newUrl = await generateWordReport(title, periodMatch, sections);
+      let res: { url: string; size: number } | null = null;
+      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, sections);
+      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, sections);
+      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, sections);
 
-      setUrl(newUrl);
-      window.open(newUrl, '_blank');
+      if (res) {
+        setUrl(res.url);
+        setActualSize(res.size >= 1024 * 1024 ? (res.size / (1024 * 1024)).toFixed(2) + ' MB' : (res.size / 1024).toFixed(0) + ' KB');
+        triggerDownload(res.url);
+      }
     } catch (err) {
       console.error('Failed to generate report', err);
       alert('Gagal men-generate laporan.');
@@ -185,34 +238,38 @@ export default function ReportCard({
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    const extension = format === 'Word' ? 'docx' : format === 'Excel' ? 'xlsx' : 'pdf';
+    const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_TIFA.${extension}`;
+
     if (url) {
-      // If URL already exists, just trigger download
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${title.replace(/\s+/g, '_')}.${format.toLowerCase()}`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       return;
     }
 
-    // Lazy generate
     setIsGeneratingLazy(true);
     try {
-      let newUrl = '';
-      const periodMatch = date; // We use date as period or a default
-      if (format === 'PDF') newUrl = await generatePDFReport(title, periodMatch, sections);
-      else if (format === 'Excel') newUrl = await generateExcelReport(title, periodMatch, sections);
-      else if (format === 'Word') newUrl = await generateWordReport(title, periodMatch, sections);
+      let res: { url: string; size: number } | null = null;
+      const periodMatch = date;
+      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, sections);
+      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, sections);
+      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, sections);
 
-      setUrl(newUrl);
-      
-      const a = document.createElement('a');
-      a.href = newUrl;
-      a.download = `${title.replace(/\s+/g, '_')}.${format.toLowerCase()}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      if (res) {
+        setUrl(res.url);
+        setActualSize(res.size >= 1024 * 1024 ? (res.size / (1024 * 1024)).toFixed(2) + ' MB' : (res.size / 1024).toFixed(0) + ' KB');
+        
+        const a = document.createElement('a');
+        a.href = res.url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     } catch (err) {
       console.error('Failed to generate report', err);
       alert('Gagal men-generate laporan.');
@@ -254,7 +311,7 @@ export default function ReportCard({
                   •
                 </span>
                 <span className={`text-xs ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}>
-                  {size}
+                  {actualSize}
                 </span>
                 <span className={`text-xs ${darkMode ? 'text-telkom-gray/50' : 'text-gray-300'}`}>
                   •
