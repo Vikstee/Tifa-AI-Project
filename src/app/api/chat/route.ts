@@ -150,10 +150,40 @@ export async function POST(req: NextRequest) {
   try {
     const { message, files, history } = await req.json();
 
-    const formattedHistory = history?.map((msg: any) => ({
+    // Sanitize history for Gemini:
+    // 1. Map roles (ai → model)
+    // 2. Drop leading 'model' messages (history must start with 'user')
+    // 3. Ensure strictly alternating roles (user, model, user, model...)
+    // 4. Exclude the last message if it's 'user' (that's sent as the current turn)
+    const rawHistory = (history || []).map((msg: any) => ({
       role: msg.role === 'ai' ? 'model' : 'user',
-      parts: [{ text: msg.content }],
-    })) || [];
+      parts: [{ text: msg.content || '' }],
+    }));
+
+    // Drop the last user message (it's the current turn, sent separately)
+    const withoutCurrentTurn = rawHistory.slice(0, -1);
+
+    // Ensure history starts with 'user'
+    let trimmed = withoutCurrentTurn;
+    while (trimmed.length > 0 && trimmed[0].role !== 'user') {
+      trimmed = trimmed.slice(1);
+    }
+
+    // Ensure strictly alternating: keep only valid alternating pairs
+    const formattedHistory: { role: string; parts: { text: string }[] }[] = [];
+    let expectedRole = 'user';
+    for (const entry of trimmed) {
+      if (entry.role === expectedRole) {
+        formattedHistory.push(entry);
+        expectedRole = expectedRole === 'user' ? 'model' : 'user';
+      }
+      // Skip entries that break alternation
+    }
+
+    // History must end with 'model' for Gemini
+    while (formattedHistory.length > 0 && formattedHistory[formattedHistory.length - 1].role !== 'model') {
+      formattedHistory.pop();
+    }
 
     let parts: any[] = [];
     if (message) parts.push(message);
