@@ -341,16 +341,35 @@ export async function POST(req: NextRequest) {
       } catch (error: any) {
         lastError = error;
         const errorMessage = error.message?.toLowerCase() || '';
+        const errorString = String(error).toLowerCase();
 
-        if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
-          // Rate limited — advance to next key in the cycle
+        // Cek apakah error terkait limit, quota, server overload, atau timeout/fetch failed
+        const isTransientError = 
+          errorMessage.includes('429') || 
+          errorMessage.includes('quota') || 
+          errorMessage.includes('rate limit') || 
+          errorMessage.includes('too many') ||
+          errorMessage.includes('503') ||
+          errorMessage.includes('overloaded') ||
+          errorMessage.includes('unavailable') ||
+          errorMessage.includes('fetch failed') ||
+          errorMessage.includes('timeout') ||
+          errorString.includes('429') ||
+          errorString.includes('503');
+
+        if (isTransientError) {
+          // Rate limited / Overloaded — advance to next key in the cycle
           const prevIndex = currentKeyIndex;
           currentKeyIndex = (currentKeyIndex + 1) % totalKeys;
-          console.warn(`[Tifa] ⚠️ Key #${prevIndex + 1} rate-limited! Switching to Key #${currentKeyIndex + 1}...`);
+          console.warn(`[Tifa] ⚠️ Key #${prevIndex + 1} failed (${errorMessage.substring(0, 50)}...). Switching to Key #${currentKeyIndex + 1}...`);
           attempts++;
+          
+          // Jeda singkat 1 detik sebelum mencoba key berikutnya (menghindari burst API yang memicu limit massal)
+          await new Promise(resolve => setTimeout(resolve, 1000));
           continue;
         } else {
-          // Non-rate-limit error (e.g. invalid key, model error) — throw immediately
+          // Non-transient error (e.g. invalid arguments) — throw immediately
+          console.error(`[Tifa] ❌ Non-transient error on Key #${currentKeyIndex + 1}:`, error);
           throw error;
         }
       }
