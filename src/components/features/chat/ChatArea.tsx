@@ -122,6 +122,7 @@ export default function ChatArea({
               format: data.format || 'PDF',
               size: '~100 KB',
               date: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB',
+              sections: data.sections,
             });
           } catch (e) {
             console.warn('Failed to parse json_report from history', e);
@@ -574,6 +575,7 @@ export default function ChatArea({
                       date={report.date}
                       url={report.url}
                       isSidebar={true}
+                      sections={report.sections}
                     />
                   ))}
                   {isGeneratingReport && (
