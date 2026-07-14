@@ -5,7 +5,7 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, contracts, purchase_orders, sales_orders, invoices, cash_in)' },
+        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in)' },
         idColumn: { type: 'string', description: 'Nama kolom ID (contoh: id, project_id, po_id)' },
         idValue: { type: 'string', description: 'Nilai ID yang dicari' },
         selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (koma). Contoh: "id, name, amount". Gunakan ini untuk menghemat kuota token!' }
@@ -19,7 +19,7 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: purchase_orders)' },
+        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in). Untuk JOIN pakai tabel milestone + joinTable.' },
         filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
         filterValue: { type: 'string', description: 'Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
         selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (contoh: "id, total_amount"). Gunakan untuk hemat token!' },
@@ -36,8 +36,8 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: invoices)' },
-        sumColumn: { type: 'string', description: 'Nama kolom yang akan dijumlahkan (contoh: amount, total_amount)' },
+        tableName: { type: 'string', description: 'Nama tabel (contoh: rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in)' },
+        sumColumn: { type: 'string', description: 'Nama kolom yang akan dijumlahkan (contoh: cash_in, revenue, po_amount, rkap_stg, invoice)' },
         filterColumn: { type: 'string', description: 'Kolom untuk filter opsional' },
         filterValue: { type: 'string', description: 'Nilai filter opsional' }
       },
@@ -52,7 +52,7 @@ export const dbToolsDefinitions = [
       properties: {
         table: {
           type: "string",
-          description: "Nama tabel (contoh: purchase_orders, invoices, cash_in, cash_out)"
+          description: "Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in)"
         },
         group_by: {
           type: "string",

@@ -138,7 +138,28 @@ CONTOH STRUKTUR YANG BENAR (ikuti pola ini):
 \`\`\`
 
 PENTING: Isi rows tabel dan values chart dengan data NYATA dari database. Ikuti pola teks narasi di atas.
-Laporan HANYA untuk data perusahaan (projects, contracts, purchase_orders, sales_orders, invoices, cash_in).`;
+
+SKEMA DATABASE TIFA (Data Riil TelkomInfra):
+
+Tabel MASTER:
+- projects: id, sid, io_number, project_name, customer, portfolio, segment, lop_group_name, funnel
+  (210 proyek unik, portfolio: INS/PS/SCS, segment: TSL/TGR/NTG)
+
+Tabel MILESTONE (semua punya project_id → FK ke projects.id, dan kolom period VARCHAR misal '2026-01'):
+- rkap_stg: project_id, period, rkap, rkap_stg  ← Nilai RKAP
+- po_amount: project_id, period, po_amount, po_amount_co, po_open  ← Nilai PO
+- outlook_amount: project_id, period, outlook_amount  ← Nilai Outlook
+- bast_amount_app2: project_id, period, bast_amount, bast_amount_app1, bast_amount_app2, remaining_bast  ← Nilai BAST
+- revenue: project_id, period, revenue  ← Nilai Revenue
+- invoice: project_id, period, invoice, clearing_number  ← Nilai Invoice
+- cash_in: project_id, period, cash_in, pinalty, accrue_date  ← Nilai Cash In
+
+Cara JOIN (contoh):
+  SELECT p.project_name, p.portfolio, c.cash_in, c.period
+  FROM cash_in c JOIN projects p ON c.project_id = p.id
+  WHERE c.period = '2026-06' ORDER BY c.cash_in DESC LIMIT 10;
+
+Laporan HANYA untuk data perusahaan TelkomInfra dari tabel-tabel di atas.`;
 
 
 
