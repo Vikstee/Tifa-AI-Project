@@ -96,11 +96,14 @@ export async function POST(req: NextRequest) {
 
       try {
         const genAI = new GoogleGenerativeAI(selectedKey);
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
-          systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ functionDeclarations: dbToolsDefinitions as any }]
-        });
+        const model = genAI.getGenerativeModel(
+          {
+            model: 'gemini-2.5-flash',
+            systemInstruction: SYSTEM_INSTRUCTION,
+            tools: [{ functionDeclarations: dbToolsDefinitions as any }]
+          },
+          { apiVersion: 'v1beta' }
+        );
 
         const chat = model.startChat({ history: formattedHistory });
 
