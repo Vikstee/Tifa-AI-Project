@@ -106,7 +106,7 @@ ATURAN PENULISAN LAPORAN (WAJIB DIIKUTI):
 - Insight di akhir harus berisi rekomendasi yang konkret dan spesifik berdasarkan angka nyata.
 
 Tipe section:
-- {"type": "heading", "text": "1. Judul Section"}
+- {"type": "heading", "text": "1. Judul Section", "pageBreakBefore": boolean}
 - {"type": "text", "text": "Narasi penjelasan sebelum atau sesudah data..."}
 - {"type": "table", "title": "Judul Tabel", "headers": ["Kol1","Kol2"], "rows": [["val1","val2"]]}
 - {"type": "bar_chart", "title": "Judul", "labels": ["A","B"], "values": [100,200], "unit": "Jt"}
@@ -116,28 +116,29 @@ Tipe section:
 CONTOH STRUKTUR YANG BENAR (ikuti pola ini):
 \`\`\`json_report
 {
-  "title": "Laporan Keuangan TelkomInfra",
+  "title": "REPORT SID AGING",
+  "subtitle": "Laporan All SID",
   "format": "PDF",
-  "period": "Jul 2026",
+  "period": "14 July 2026",
   "sections": [
-    {"type": "heading", "text": "1. Top 10 Invoice Unpaid Terbesar"},
-    {"type": "text", "text": "Berikut adalah 10 invoice dengan nilai tagihan tertinggi yang saat ini masih berstatus Unpaid. Total nilai 10 invoice ini mencapai Rp 2,02 Miliar dan mayoritas jatuh tempo di bulan Juli-Agustus 2026."},
-    {"type": "table", "title": "Invoice Unpaid Terbesar", "headers": ["No","No. Invoice","Nilai Tagihan (Rp)","Jatuh Tempo","Status"], "rows": [["1","INV-38-3","209.272.175","12 Jul 2026","Unpaid"]]},
-    {"type": "text", "text": "Invoice INV-38-3 memiliki nilai tertinggi sebesar Rp 209 juta dan telah jatuh tempo. Perlu dilakukan follow-up prioritas kepada klien terkait."},
-    {"type": "heading", "text": "2. Komposisi Status Purchase Orders"},
-    {"type": "text", "text": "Dari total 1.200 Purchase Orders yang ada, berikut adalah distribusi berdasarkan status persetujuan per Juli 2026."},
-    {"type": "pie_chart", "title": "Komposisi Status PO", "labels": ["Approved","Pending"], "values": [604,596]},
-    {"type": "text", "text": "Sebesar 50,34% PO sudah Approved (604 PO) sementara 49,66% masih Pending (596 PO). Rasio yang hampir seimbang ini menunjukkan masih banyak PO yang perlu diproses."},
-    {"type": "heading", "text": "3. Proyek dengan Budget Terbesar"},
-    {"type": "text", "text": "Berikut adalah 15 proyek infrastruktur dengan alokasi budget terbesar yang sedang berjalan."},
-    {"type": "bar_chart", "title": "15 Proyek Budget Terbesar", "labels": ["PJ-7211","PJ-4211"], "values": [498000000,495000000], "unit": "Jt"},
-    {"type": "text", "text": "Alokasi budget proyek berkisar antara Rp 488 juta hingga Rp 498 juta, menunjukkan standarisasi biaya yang baik dalam pelaksanaan proyek infrastruktur."},
-    {"type": "insight", "text": "KESIMPULAN: Total piutang belum terbayar (Invoice Unpaid) sebesar Rp 2,02 Miliar perlu ditindaklanjuti segera. Prioritaskan INV-38-3 dan INV-77-3. Percepat approval 596 PO yang masih Pending untuk menjaga kelancaran operasional."}
+    {"type": "heading", "text": "EXECUTIVE SUMMARY", "pageBreakBefore": false},
+    {"type": "text", "text": "Berikut adalah ringkasan eksekutif untuk data aging. Dominasi masih dipegang oleh portfolio tertentu."},
+    {"type": "bar_chart", "title": "Aging Process Closed", "labels": ["Maximum","Average"], "values": [1760,25], "unit": "Days"},
+    {"type": "bar_chart", "title": "Aging Open In Cycle", "labels": ["Maximum","Average"], "values": [1686,357], "unit": "Days"},
+    {"type": "heading", "text": "DETAILED LIST", "pageBreakBefore": true},
+    {"type": "text", "text": "Berikut adalah rincian data untuk proyek yang perlu mendapatkan perhatian khusus."},
+    {"type": "table", "title": "List Aging Open In Cycle", "headers": ["No", "Unit Name", "Aging Process Closed (Max)", "Aging Open In Cycle (Max)", "Progress (Days)", "Status"], "rows": [["1","MANAGED SERVICE & OPERATION","1548","488","146","Increased"], ["2","PROJECT & SERVICE DELIVERY 02","1513","29","76","Increased"]]},
+    {"type": "heading", "text": "CLOSING", "pageBreakBefore": true},
+    {"type": "insight", "text": "KESIMPULAN: Pertahankan kinerja pada proyek-proyek ini karena menjadi pilar utama."}
   ]
 }
 \`\`\`
 
-PENTING: Isi rows tabel dan values chart dengan data NYATA dari database. Ikuti pola teks narasi di atas.
+PENTING: 
+1. Isi rows tabel dan values chart dengan data NYATA dari database. 
+2. OTOMATISASI STRUKTUR: Meskipun user HANYA meminta tabel data (misal: "tampilkan top 10 aging"), Anda WAJIB SECARA OTOMATIS membuatkan bab EXECUTIVE SUMMARY (lengkap dengan visual chart seperti bar_chart/pie_chart) dan bab CLOSING yang relevan dengan konteks. JANGAN PERNAH membuat laporan yang hanya berisi tabel saja! Selalu gunakan struktur 3 Bab penuh.
+3. TABEL HARUS KOMPREHENSIF! Jika tabel menunjukkan data atau peringkat (misal "Top 10 Aging"), Anda WAJIB menampilkan METRIK/ANGKA pendukung di kolom tabel (misal: Nilai Aging Days, Nilai Tagihan, Status, dll). JANGAN PERNAH membuat tabel yang hanya berisi "Nama Proyek" dan "Portfolio" saja (minimal 5-7 kolom). Data yang menjadi alasan masuk 'Top 10' harus ditampilkan!
+4. LABEL & NAMA HARUS HUMAN-READABLE! JANGAN PERNAH menggunakan kode sistem seperti "SID" atau "ID" sebagai label di chart (pie_chart/bar_chart) atau di tabel. SELALU gunakan "Nama Proyek" (project_name) atau nama entitas aslinya agar laporan mudah dimengerti oleh user umum. Jika nama proyek terlalu panjang, persingkat (truncate) secukupnya untuk label chart.
 
 SKEMA DATABASE TIFA (Data Riil TelkomInfra):
 
