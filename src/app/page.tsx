@@ -84,12 +84,24 @@ export default function HomePage() {
   }, [userProfile?.id]);
 
   const loadHistory = async () => {
-    const { data, error } = await supabase
+    // Try updated_at first (if column exists). Fallback to created_at.
+    let { data, error } = await supabase
       .from('chat_sessions')
       .select('*')
       .eq('user_id', userProfile.id)
       .order('updated_at', { ascending: false });
-    
+
+    if (error) {
+      // updated_at column may not exist yet — fallback to created_at
+      const result = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('user_id', userProfile.id)
+        .order('created_at', { ascending: false });
+      data = result.data;
+      error = result.error;
+    }
+
     if (data && !error) {
       setHistory(data.map((s: any) => ({
         id: s.id,
