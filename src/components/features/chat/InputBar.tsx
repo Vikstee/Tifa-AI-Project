@@ -48,6 +48,7 @@ export default function InputBar({
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const barsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const historyRef = useRef<number[]>(new Array(30).fill(0));
 
   const startVisualizer = async () => {
     try {
@@ -78,29 +79,36 @@ export default function InputBar({
         
         analyserRef.current.getByteFrequencyData(dataArrayRef.current);
         
+        // Capture the core voice frequency (around bin 4, ignoring 0-300Hz wind rumble)
+        let centerValue = dataArrayRef.current[4] || 0;
+        
+        // Apply strict Noise Gate Threshold to completely ignore background wind/noise
+        if (centerValue < 80) {
+          centerValue = 0;
+        } else {
+          centerValue = centerValue - 80; // Smooth scaling above threshold
+        }
+
+        // Push current center value to history array for the ripple effect
+        historyRef.current.unshift(centerValue);
+        historyRef.current.pop();
+        
         // Update the 13 bars
         for (let i = 0; i < 13; i++) {
           if (barsRef.current[i]) {
             // Calculate distance from center bar (index 6)
             const distance = Math.abs(6 - i);
             
-            // Use higher frequency bins to ignore low-frequency wind rumble (0-300Hz)
-            const freqIndex = 3 + distance;
-            let rawValue = dataArrayRef.current[freqIndex] || 0; 
-            
-            // Apply strict Noise Gate Threshold to completely ignore background wind/noise
-            if (rawValue < 80) {
-              rawValue = 0;
-            } else {
-              rawValue = rawValue - 80; // Smooth scaling above threshold
-            }
+            // Fetch the historical volume for this bar to create an outward moving wave
+            const delayIndex = distance * 2; // Outer bars read older volumes
+            const historicalValue = historyRef.current[delayIndex] || 0;
             
             // Apply a bell-curve weighting so the center is highest (7 weights for distance 0-6)
             const weights = [1.0, 0.85, 0.7, 0.55, 0.4, 0.25, 0.15];
             const weight = weights[distance];
             
             // Normalize to 10% - 100% height (boosted slightly)
-            const heightPercent = Math.max(10, Math.min(100, (rawValue / 195) * 200 * weight)); 
+            const heightPercent = Math.max(10, Math.min(100, (historicalValue / 195) * 200 * weight)); 
             barsRef.current[i]!.style.height = `${heightPercent}%`;
           }
         }
