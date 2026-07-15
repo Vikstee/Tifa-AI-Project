@@ -659,6 +659,175 @@ export const generateExcelReport = async (
 // WORD GENERATOR
 // ─────────────────────────────────────────────
 
+/** Render a horizontal bar chart to a PNG ArrayBuffer using Canvas API */
+async function renderBarChartToImage(
+  labels: string[], values: number[], title: string, unit?: string
+): Promise<ArrayBuffer | null> {
+  try {
+    const BAR_H = 32;
+    const PADDING = { top: 60, bottom: 40, left: 200, right: 80 };
+    const CHART_W = 700;
+    const chartH = labels.length * (BAR_H + 12);
+    const totalH = chartH + PADDING.top + PADDING.bottom;
+    
+    const canvas = new OffscreenCanvas(CHART_W, totalH);
+    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
+    if (!ctx) return null;
+
+    // White background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, CHART_W, totalH);
+
+    // Title
+    ctx.fillStyle = '#1E1E1E';
+    ctx.font = 'bold 18px Arial';
+    ctx.fillText(title, PADDING.left, 36);
+
+    // Unit badge
+    if (unit) {
+      const badgeText = unit.toUpperCase();
+      ctx.font = 'bold 11px Arial';
+      const badgeW = ctx.measureText(badgeText).width + 16;
+      ctx.fillStyle = '#D1FAE5';
+      ctx.beginPath();
+      ctx.roundRect(CHART_W - PADDING.right - badgeW, 18, badgeW, 20, 4);
+      ctx.fill();
+      ctx.fillStyle = '#065F46';
+      ctx.fillText(badgeText, CHART_W - PADDING.right - badgeW + 8, 32);
+    }
+
+    const barAreaW = CHART_W - PADDING.left - PADDING.right;
+    const maxVal = Math.max(...values) * 1.15 || 1;
+
+    // Grid lines
+    ctx.strokeStyle = '#E5E7EB';
+    ctx.lineWidth = 0.5;
+    for (let g = 0; g <= 4; g++) {
+      const gx = PADDING.left + (barAreaW / 4) * g;
+      ctx.beginPath();
+      ctx.moveTo(gx, PADDING.top);
+      ctx.lineTo(gx, PADDING.top + chartH);
+      ctx.stroke();
+    }
+
+    const paletteRgb = [
+      '#DC2626','#2563EB','#F59E0B','#10B981','#8B5CF6',
+      '#EC4899','#06B6D4','#F97316','#84CC16','#6366F1',
+    ];
+
+    labels.forEach((lbl, i) => {
+      const val = values[i] || 0;
+      const barW = (val / maxVal) * barAreaW;
+      const y = PADDING.top + i * (BAR_H + 12);
+
+      // Label
+      ctx.fillStyle = '#374151';
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'right';
+      const truncatedLbl = lbl.length > 28 ? lbl.substring(0, 25) + '...' : lbl;
+      ctx.fillText(truncatedLbl, PADDING.left - 10, y + BAR_H / 2 + 5);
+
+      // Bar (rounded)
+      ctx.fillStyle = paletteRgb[i % paletteRgb.length];
+      ctx.beginPath();
+      ctx.roundRect(PADDING.left, y, Math.max(barW, 2), BAR_H, 4);
+      ctx.fill();
+
+      // Value label
+      ctx.fillStyle = '#374151';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(fmtNum(val, unit), PADDING.left + barW + 6, y + BAR_H / 2 + 5);
+    });
+
+    const blob = await canvas.convertToBlob({ type: 'image/png' });
+    return await blob.arrayBuffer();
+  } catch (e) {
+    console.warn('Failed to render bar chart image', e);
+    return null;
+  }
+}
+
+/** Render a pie/donut chart to a PNG ArrayBuffer using Canvas API */
+async function renderPieChartToImage(
+  labels: string[], values: number[], title: string
+): Promise<ArrayBuffer | null> {
+  try {
+    const SIZE = 600;
+    const cx = SIZE / 2, cy = SIZE / 2;
+    const R = 200, innerR = 100;
+    const LEGEND_X = SIZE - 170;
+    
+    const canvas = new OffscreenCanvas(SIZE, SIZE);
+    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
+    if (!ctx) return null;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    // Title
+    ctx.fillStyle = '#1E1E1E';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, cx - 80, 30);
+
+    const total = values.reduce((a, b) => a + b, 0) || 1;
+    const paletteRgb = [
+      '#DC2626','#2563EB','#F59E0B','#10B981','#8B5CF6',
+      '#EC4899','#06B6D4','#F97316','#84CC16','#6366F1',
+    ];
+
+    let startAngle = -Math.PI / 2;
+    values.forEach((val, i) => {
+      const slice = (val / total) * 2 * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(cx - 80, cy + 10);
+      ctx.arc(cx - 80, cy + 10, R, startAngle, startAngle + slice);
+      ctx.closePath();
+      ctx.fillStyle = paletteRgb[i % paletteRgb.length];
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      startAngle += slice;
+    });
+
+    // Donut hole
+    ctx.beginPath();
+    ctx.arc(cx - 80, cy + 10, innerR, 0, 2 * Math.PI);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+
+    // Center text
+    ctx.fillStyle = '#1E1E1E';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Total', cx - 80, cy + 6);
+    ctx.fillText(fmtNum(total), cx - 80, cy + 24);
+
+    // Legend
+    values.forEach((val, i) => {
+      const ly = 80 + i * 32;
+      ctx.fillStyle = paletteRgb[i % paletteRgb.length];
+      ctx.fillRect(LEGEND_X, ly, 14, 14);
+      const pct = ((val / total) * 100).toFixed(1) + '%';
+      const truncatedLbl = labels[i].length > 18 ? labels[i].substring(0, 15) + '...' : labels[i];
+      ctx.fillStyle = '#374151';
+      ctx.font = '11px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(truncatedLbl, LEGEND_X + 20, ly + 11);
+      ctx.fillStyle = '#6B7280';
+      ctx.fillText(pct, LEGEND_X + 20, ly + 23);
+    });
+
+    const blob = await canvas.convertToBlob({ type: 'image/png' });
+    return await blob.arrayBuffer();
+  } catch (e) {
+    console.warn('Failed to render pie chart image', e);
+    return null;
+  }
+}
+
 export const generateWordReport = async (
   title: string,
   subtitle: string,
@@ -739,15 +908,17 @@ export const generateWordReport = async (
 
   const body: any[] = [...coverChildren];
 
-
-  const borders = {
+  const cellBorders = {
     top:    { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
     bottom: { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
     left:   { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
     right:  { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
   };
 
-  (sections || []).forEach((s, idx) => {
+  // Header palette (uniform per column, matching PDF palette)
+  const WORD_HEADER_HEX = ['1A1F36', '14305C', '114A2B', '6B1414', '4C1D6B', '135C52', '0C4A6E', '7C2D12', '365314', '312E81'];
+
+  for (const [idx, s] of (sections || []).entries()) {
     if (s.pageBreakBefore || idx === 0) {
       body.push(new Paragraph({ children: [new PageBreak()] }));
     }
@@ -767,65 +938,105 @@ export const generateWordReport = async (
       }));
 
     } else if (s.type === 'insight') {
-      body.push(new Paragraph({
-        children: [new TextRun({ text: s.text || '', size: 22, bold: true, color: '991B1B' })],
-        spacing: { before: 200, after: 200 },
-        shading: { type: ShadingType.CLEAR, fill: 'FEF2F2' }
-      }));
-
-    } else if (s.type === 'table' && s.headers && s.rows) {
-      if (s.title) {
-        body.push(new Paragraph({ 
-          children: [new TextRun({ text: s.title, bold: true, size: 22 })], 
-          spacing: { after: 100 } 
-        }));
-      }
+      // Insight box (light red background)
       body.push(new Table({
         rows: [
           new TableRow({
-            children: s.headers.map((h, hIdx) => {
-              const hexColor = HEADER_PALETTE_HEX[hIdx % HEADER_PALETTE_HEX.length].substring(2);
-              return new TableCell({
-                children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, color: 'FFFFFF', size: 20 })] })],
-                shading: { type: ShadingType.CLEAR, fill: hexColor },
-                margins: { top: 100, bottom: 100, left: 100, right: 100 }
-              });
-            }),
+            children: [
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: s.text || '', size: 20, bold: true, color: '991B1B' })],
+                    spacing: { before: 100, after: 100 }
+                  })
+                ],
+                shading: { type: ShadingType.CLEAR, fill: 'FEF2F2' },
+                margins: { top: 150, bottom: 150, left: 200, right: 200 },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 3, color: 'DC2626' },
+                  bottom: { style: BorderStyle.SINGLE, size: 1, color: 'FECACA' },
+                  left: { style: BorderStyle.SINGLE, size: 3, color: 'DC2626' },
+                  right: { style: BorderStyle.SINGLE, size: 1, color: 'FECACA' },
+                }
+              })
+            ]
+          })
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      }));
+      body.push(new Paragraph({ text: '', spacing: { after: 200 } }));
+
+    } else if (s.type === 'table' && s.headers && s.rows) {
+      if (s.title) {
+        body.push(new Paragraph({
+          children: [new TextRun({ text: s.title, bold: true, size: 24, color: '1E1E1E' })],
+          spacing: { before: 200, after: 100 }
+        }));
+      }
+
+      // Use single consistent header color (first palette color) matching PDF
+      const headerFill = '1A1F36';
+
+      body.push(new Table({
+        rows: [
+          new TableRow({
+            tableHeader: true,
+            children: s.headers.map(h => new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: h, bold: true, color: 'FFFFFF', size: 18 })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { type: ShadingType.CLEAR, fill: headerFill },
+              margins: { top: 120, bottom: 120, left: 120, right: 120 },
+              borders: cellBorders
+            })),
           }),
           ...s.rows.map((row, rIdx) => new TableRow({
-            children: row.map(cell => new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: String(cell), size: 20, color: '333333' })] })],
-              shading: { type: ShadingType.CLEAR, fill: rIdx % 2 === 0 ? 'FFFFFF' : 'F9FAFB' },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
+            children: row.map((cell, cIdx) => new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: String(cell), size: 18, color: '222222' })],
+                alignment: cIdx === 0 ? AlignmentType.LEFT : AlignmentType.CENTER
+              })],
+              shading: { type: ShadingType.CLEAR, fill: rIdx % 2 === 0 ? 'FFFFFF' : 'F8FAFC' },
+              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              borders: cellBorders
             })),
           })),
         ],
         width: { size: 100, type: WidthType.PERCENTAGE },
-        borders,
       }));
       body.push(new Paragraph({ text: '', spacing: { after: 300 } }));
-      
-    } else if ((s.type === 'bar_chart' || s.type === 'pie_chart') && s.labels && s.values) {
-      if (s.title) {
-        body.push(new Paragraph({ children: [new TextRun({ text: s.title, bold: true, size: 22 })], spacing: { after: 150 } }));
-      }
-      
-      const maxVal = Math.max(...s.values) * 1.15 || 1;
-      const chartRows: any[] = [];
-      const noBorders = {
-        top: { style: BorderStyle.NONE, size: 0, color: "auto" },
-        bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
-        left: { style: BorderStyle.NONE, size: 0, color: "auto" },
-        right: { style: BorderStyle.NONE, size: 0, color: "auto" },
-        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
-        insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" }
-      };
 
-      s.labels.forEach((lbl, i) => {
+    } else if (s.type === 'bar_chart' && s.labels && s.values) {
+      if (s.title) {
+        body.push(new Paragraph({
+          children: [new TextRun({ text: s.title, bold: true, size: 22, color: '1E1E1E' })],
+          spacing: { before: 200, after: 120 }
+        }));
+      }
+
+      // Try to render as canvas image
+      const imgBuffer = await renderBarChartToImage(s.labels, s.values, s.title || '', s.unit);
+      if (imgBuffer) {
+        body.push(new Paragraph({
+          children: [new ImageRun({
+            data: imgBuffer,
+            transformation: { width: 600, height: Math.max(120, s.labels.length * 44 + 100) },
+            type: 'png',
+          } as any)],
+          spacing: { after: 300 }
+        }));
+      } else {
+        // Fallback: visual table bar chart
+        const maxVal = Math.max(...s.values) * 1.15 || 1;
+        const noBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' };
+        const noBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder };
+        const barHexColors = ['DC2626','2563EB','F59E0B','10B981','8B5CF6','EC4899','06B6D4','F97316','84CC16','6366F1'];
+        const chartRows: any[] = [];
+        s.labels.forEach((lbl, i) => {
           const val = s.values![i] || 0;
-          const pct = Math.max(1, Math.round((val / maxVal) * 100));
-          const color = HEADER_PALETTE_HEX[(i + 1) % HEADER_PALETTE_HEX.length].substring(2);
-          
+          const pct = Math.max(1, Math.round((val / maxVal) * 55));
+          const barColor = barHexColors[i % barHexColors.length];
           chartRows.push(new TableRow({
             children: [
               new TableCell({
@@ -836,44 +1047,72 @@ export const generateWordReport = async (
               }),
               new TableCell({
                 children: [new Paragraph({ text: '' })],
-                width: { size: Math.floor(pct * 0.55), type: WidthType.PERCENTAGE },
-                shading: { type: ShadingType.CLEAR, fill: color },
+                width: { size: pct, type: WidthType.PERCENTAGE },
+                shading: { type: ShadingType.CLEAR, fill: barColor },
                 borders: noBorders
               }),
               new TableCell({
                 children: [new Paragraph({ text: '' })],
-                width: { size: 55 - Math.floor(pct * 0.55), type: WidthType.PERCENTAGE },
+                width: { size: 55 - pct, type: WidthType.PERCENTAGE },
                 borders: noBorders
               }),
               new TableCell({
-                children: [new Paragraph({ children: [new TextRun({ text: ' ' + fmtNum(val, s.unit), size: 18, color: '555555' })] })],
+                children: [new Paragraph({ children: [new TextRun({ text: fmtNum(val, s.unit), size: 18, color: '555555' })] })],
                 width: { size: 15, type: WidthType.PERCENTAGE },
-                margins: { top: 60, bottom: 60, left: 100, right: 100 },
+                margins: { top: 60, bottom: 60, left: 80, right: 80 },
                 borders: noBorders
               })
             ]
           }));
-          
-          // Spacer row to separate bars
-          chartRows.push(new TableRow({
-             children: [
-               new TableCell({ children: [new Paragraph({ text: '' })], borders: noBorders }),
-               new TableCell({ children: [new Paragraph({ text: '' })], borders: noBorders }),
-               new TableCell({ children: [new Paragraph({ text: '' })], borders: noBorders }),
-               new TableCell({ children: [new Paragraph({ text: '' })], borders: noBorders })
-             ],
-             height: { value: 60, rule: 'exact' }
-          }));
-      });
+        });
+        body.push(new Table({ rows: chartRows, width: { size: 100, type: WidthType.PERCENTAGE }, borders: noBorders }));
+        body.push(new Paragraph({ text: '', spacing: { after: 300 } }));
+      }
 
-      body.push(new Table({
-        rows: chartRows,
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        borders: noBorders,
-      }));
-      body.push(new Paragraph({ text: '', spacing: { after: 300 } }));
+    } else if (s.type === 'pie_chart' && s.labels && s.values) {
+      if (s.title) {
+        body.push(new Paragraph({
+          children: [new TextRun({ text: s.title, bold: true, size: 22, color: '1E1E1E' })],
+          spacing: { before: 200, after: 120 }
+        }));
+      }
+
+      const imgBuffer = await renderPieChartToImage(s.labels, s.values, s.title || '');
+      if (imgBuffer) {
+        body.push(new Paragraph({
+          children: [new ImageRun({
+            data: imgBuffer,
+            transformation: { width: 500, height: 500 },
+            type: 'png',
+          } as any)],
+          spacing: { after: 300 }
+        }));
+      } else {
+        // Fallback: data table for pie chart
+        const total = s.values.reduce((a, b) => a + b, 0) || 1;
+        const noBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' };
+        const noBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder };
+        body.push(new Table({
+          rows: [
+            new TableRow({ children: ['Nama', 'Nilai', '%'].map(h => new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, color: 'FFFFFF', size: 18 })] })],
+              shading: { type: ShadingType.CLEAR, fill: '1A1F36' },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              borders: cellBorders
+            })) }),
+            ...s.labels.map((lbl, i) => new TableRow({ children: [lbl, fmtNum(s.values![i], s.unit), `${((s.values![i] / total) * 100).toFixed(1)}%`].map((cell, ci) => new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: String(cell), size: 18, color: '333333' })] })],
+              shading: { type: ShadingType.CLEAR, fill: i % 2 === 0 ? 'FFFFFF' : 'F8FAFC' },
+              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              borders: cellBorders
+            }))}))
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        }));
+        body.push(new Paragraph({ text: '', spacing: { after: 300 } }));
+      }
     }
-  });
+  }
 
   // END OF REPORT
   body.push(new Paragraph({ children: [new PageBreak()] }));
@@ -886,14 +1125,31 @@ export const generateWordReport = async (
   body.push(new Paragraph({
     children: [new TextRun({ text: 'Thank You', bold: true, size: 48, color: '333333' })],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 4000 }
+    spacing: { after: 1600 }
   }));
   body.push(new Paragraph({
-    children: [new TextRun({ text: 'GENERATED BY TIFA', bold: true, size: 20, color: '888888' })],
-    alignment: AlignmentType.CENTER
+    children: [new TextRun({ text: 'GENERATED BY', bold: true, size: 18, color: '888888' })],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 80 }
+  }));
+  if (logoArrayBuffer) {
+    body.push(new Paragraph({
+      children: [new ImageRun({
+        data: logoArrayBuffer,
+        transformation: { width: 80, height: 80 },
+        type: 'png',
+      } as any)],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 80 }
+    }));
+  }
+  body.push(new Paragraph({
+    children: [new TextRun({ text: 'TIFA (TelkomInfra AI Financial Assistant)', bold: true, size: 16, color: 'DC2626' })],
+    alignment: AlignmentType.CENTER,
   }));
 
   const wordDoc = new Document({ sections: [{ properties: {}, children: body }] });
   const blob = await Packer.toBlob(wordDoc);
   return { url: URL.createObjectURL(blob), size: blob.size };
 };
+

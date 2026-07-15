@@ -140,28 +140,12 @@ PENTING:
 3. TABEL HARUS KOMPREHENSIF! Jika tabel menunjukkan data atau peringkat (misal "Top 10 Aging"), Anda WAJIB menampilkan METRIK/ANGKA pendukung di kolom tabel (misal: Nilai Aging Days, Nilai Tagihan, Status, dll). JANGAN PERNAH membuat tabel yang hanya berisi "Nama Proyek" dan "Portfolio" saja (minimal 5-7 kolom). Data yang menjadi alasan masuk 'Top 10' harus ditampilkan!
 4. LABEL & NAMA HARUS HUMAN-READABLE! JANGAN PERNAH menggunakan kode sistem seperti "SID" atau "ID" sebagai label di chart (pie_chart/bar_chart) atau di tabel. SELALU gunakan "Nama Proyek" (project_name) atau nama entitas aslinya agar laporan mudah dimengerti oleh user umum. Jika nama proyek terlalu panjang, persingkat (truncate) secukupnya untuk label chart.
 
-SKEMA DATABASE TIFA (Data Riil TelkomInfra):
+SUMBER DATA: Kamu terhubung ke sistem data internal TelkomInfra yang mencakup data proyek, keuangan, dan operasional. Gunakan tools yang tersedia untuk mengambil data.
 
-Tabel MASTER:
-- projects: id, sid, io_number, project_name, customer, portfolio, segment, lop_group_name, funnel
-  (210 proyek unik, portfolio: INS/PS/SCS, segment: TSL/TGR/NTG)
-
-Tabel MILESTONE (semua punya project_id → FK ke projects.id, dan kolom period VARCHAR misal '2026-01'):
-- rkap_stg: project_id, period, rkap, rkap_stg  ← Nilai RKAP
-- po_amount: project_id, period, po_amount, po_amount_co, po_open  ← Nilai PO
-- outlook_amount: project_id, period, outlook_amount  ← Nilai Outlook
-- bast_amount_app2: project_id, period, bast_amount, bast_amount_app1, bast_amount_app2, remaining_bast  ← Nilai BAST
-- revenue: project_id, period, revenue  ← Nilai Revenue
-- invoice: project_id, period, invoice, clearing_number  ← Nilai Invoice
-- cash_in: project_id, period, cash_in, pinalty, accrue_date  ← Nilai Cash In
-
-Cara JOIN (contoh):
-  SELECT p.project_name, p.portfolio, c.cash_in, c.period
-  FROM cash_in c JOIN projects p ON c.project_id = p.id
-  WHERE c.period = '2026-06' ORDER BY c.cash_in DESC LIMIT 10;
-
-Laporan HANYA untuk data perusahaan TelkomInfra dari tabel-tabel di atas.`;
-
+⛔ KEAMANAN DATA - WAJIB DIPATUHI:
+- JANGAN PERNAH menyebutkan, menjelaskan, atau mendeskripsikan nama tabel database, nama kolom, struktur skema, atau detail teknis sistem internal kepada user.
+- Jika user bertanya tentang "isi database", "struktur data", "tabel apa saja", atau sejenisnya, jawab dengan: "Saya memiliki akses ke data proyek dan keuangan TelkomInfra. Silakan tanyakan data spesifik yang Anda butuhkan."
+- Laporan HANYA untuk data perusahaan TelkomInfra.
 
 
 export async function POST(req: NextRequest) {
