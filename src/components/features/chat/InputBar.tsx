@@ -33,6 +33,10 @@ export default function InputBar({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [finalTranscript, setFinalTranscript] = useState('');
+
   const recognitionRef = useRef<any>(null);
   const currentInputRef = useRef(inputText);
 
@@ -48,21 +52,25 @@ export default function InputBar({
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
-        recognition.interimResults = false; // Using only final results for stability
+        recognition.interimResults = true; // Enable live text
         recognition.lang = 'id-ID'; // Set to Indonesian
 
         recognition.onresult = (event: any) => {
-          let newTranscript = '';
+          let newFinal = '';
+          let interim = '';
+          
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
-              newTranscript += event.results[i][0].transcript + ' ';
+              newFinal += event.results[i][0].transcript + ' ';
+            } else {
+              interim += event.results[i][0].transcript;
             }
           }
           
-          if (newTranscript) {
-            const current = currentInputRef.current;
-            onInputChange(current + (current && !current.endsWith(' ') ? ' ' : '') + newTranscript.trim());
+          if (newFinal) {
+            setFinalTranscript(prev => prev + newFinal);
           }
+          setLiveTranscript(interim);
         };
 
         recognition.onerror = (event: any) => {
@@ -77,7 +85,7 @@ export default function InputBar({
         recognitionRef.current = recognition;
       }
     }
-  }, [onInputChange]);
+  }, []);
 
   const toggleRecording = () => {
     if (!recognitionRef.current) {
@@ -86,16 +94,42 @@ export default function InputBar({
     }
     
     if (isRecording) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
+      stopRecordingAndApply();
     } else {
       try {
+        setFinalTranscript('');
+        setLiveTranscript('');
         recognitionRef.current.start();
         setIsRecording(true);
+        setShowVoiceModal(true);
       } catch (e) {
         console.error("Microphone start error:", e);
       }
     }
+  };
+
+  const stopRecordingAndApply = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsRecording(false);
+    setShowVoiceModal(false);
+    
+    const current = currentInputRef.current;
+    const addedText = (finalTranscript + ' ' + liveTranscript).trim();
+    if (addedText) {
+      onInputChange(current + (current && !current.endsWith(' ') ? ' ' : '') + addedText);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsRecording(false);
+    setShowVoiceModal(false);
+    setFinalTranscript('');
+    setLiveTranscript('');
   };
 
   // Auto-resize textarea
@@ -305,6 +339,70 @@ export default function InputBar({
           </button>
         </div>
       </div>
+
+      {/* Voice Modal Overlay */}
+      {showVoiceModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <style>{`
+            @keyframes soundWave {
+              0% { transform: scaleY(0.3); opacity: 0.5; }
+              100% { transform: scaleY(1); opacity: 1; }
+            }
+            .audio-bar {
+              animation: soundWave 0.4s infinite alternate ease-in-out;
+              transform-origin: bottom;
+            }
+          `}</style>
+          <div className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}>
+            <div className="p-6 flex flex-col items-center">
+              {/* Audio Visualizer */}
+              <div className="flex items-end justify-center gap-1.5 h-16 mb-6">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <div
+                    key={i}
+                    className={`w-2.5 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} audio-bar`}
+                    style={{
+                      height: `${100 - Math.abs(4 - i) * 15}%`,
+                      animationDelay: `${i * 0.1}s`
+                    }}
+                  />
+                ))}
+              </div>
+              
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Mendengarkan...
+              </h3>
+              
+              {/* Live Text Area */}
+              <div className={`w-full p-4 min-h-[100px] max-h-[200px] overflow-y-auto rounded-xl text-center italic transition-colors mb-6 shadow-inner
+                ${darkMode ? 'bg-black/20 text-gray-300' : 'bg-gray-50 text-gray-600'}
+              `}>
+                {finalTranscript} <span className="opacity-70">{liveTranscript}</span>
+                {!finalTranscript && !liveTranscript && (
+                  <span className="opacity-50">Silakan mulai berbicara...</span>
+                )}
+              </div>
+              
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={cancelRecording}
+                  className={`flex-1 py-3 rounded-full font-medium transition-colors ${
+                    darkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={stopRecordingAndApply}
+                  className="flex-[2] py-3 bg-telkom-red hover:bg-telkom-red-dark text-white rounded-full font-medium transition-colors shadow-lg shadow-telkom-red/20"
+                >
+                  Selesai & Masukkan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Disclaimer */}
       <p
