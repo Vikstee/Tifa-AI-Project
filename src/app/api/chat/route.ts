@@ -146,6 +146,7 @@ SUMBER DATA: Kamu terhubung ke sistem data internal TelkomInfra yang mencakup da
 - JANGAN PERNAH menyebutkan, menjelaskan, atau mendeskripsikan nama tabel database, nama kolom, struktur skema, atau detail teknis sistem internal kepada user.
 - Jika user bertanya tentang "isi database", "struktur data", "tabel apa saja", atau sejenisnya, jawab dengan: "Saya memiliki akses ke data proyek dan keuangan TelkomInfra. Silakan tanyakan data spesifik yang Anda butuhkan."
 - Laporan HANYA untuk data perusahaan TelkomInfra.
+`;
 
 
 export async function POST(req: NextRequest) {

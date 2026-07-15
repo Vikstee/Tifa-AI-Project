@@ -1,4 +1,4 @@
-// reportGenerator.ts — TIFA writes structured PDF/Excel/Word from AI sections
+// reportGenerator.ts â€” TIFA writes structured PDF/Excel/Word from AI sections
 // Each section type (heading, text, table, bar_chart, pie_chart, insight) is rendered
 // programmatically with clean, professional layout. No screenshots.
 
@@ -67,9 +67,9 @@ async function fetchImageAsBase64(url: string): Promise<string> {
   }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // PDF GENERATOR
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function drawHeader(doc: any, title: string, period: string) {
   doc.setFillColor(...RED);
@@ -103,7 +103,7 @@ function drawFooter(doc: any, pageNum: number, total: number) {
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(160, 160, 160);
-  doc.text('TelkomInfra — TIFA AI Financial Assistant | RAHASIA', MARGIN, PAGE_H - 6);
+  doc.text('TelkomInfra â€” TIFA AI Financial Assistant | RAHASIA', MARGIN, PAGE_H - 6);
   doc.text(`Halaman ${pageNum} / ${total}`, PAGE_W - MARGIN, PAGE_H - 6, { align: 'right' });
 }
 
@@ -434,7 +434,7 @@ export const generatePDFReport = async (
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(160, 160, 160);
-      doc.text('TelkomInfra — RAHASIA', MARGIN, PAGE_H - 6);
+      doc.text('TelkomInfra â€” RAHASIA', MARGIN, PAGE_H - 6);
     } else {
       drawFooter(doc, p, totalPages);
     }
@@ -470,9 +470,9 @@ export const generatePDFReport = async (
 };
 
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // EXCEL GENERATOR
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const generateExcelReport = async (
   title: string,
@@ -655,9 +655,9 @@ export const generateExcelReport = async (
 };
 
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // WORD GENERATOR
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Render a horizontal bar chart to a PNG ArrayBuffer using Canvas API */
 async function renderBarChartToImage(
@@ -915,10 +915,9 @@ export const generateWordReport = async (
     right:  { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
   };
 
-  // Header palette (uniform per column, matching PDF palette)
-  const WORD_HEADER_HEX = ['1A1F36', '14305C', '114A2B', '6B1414', '4C1D6B', '135C52', '0C4A6E', '7C2D12', '365314', '312E81'];
-
-  for (const [idx, s] of (sections || []).entries()) {
+  const sectionList = sections || [];
+  for (let idx = 0; idx < sectionList.length; idx++) {
+    const s = sectionList[idx];
     if (s.pageBreakBefore || idx === 0) {
       body.push(new Paragraph({ children: [new PageBreak()] }));
     }
@@ -1100,7 +1099,7 @@ export const generateWordReport = async (
               margins: { top: 100, bottom: 100, left: 100, right: 100 },
               borders: cellBorders
             })) }),
-            ...s.labels.map((lbl, i) => new TableRow({ children: [lbl, fmtNum(s.values![i], s.unit), `${((s.values![i] / total) * 100).toFixed(1)}%`].map((cell, ci) => new TableCell({
+            ...s.labels.map((lbl, i) => new TableRow({ children: [lbl, fmtNum(s.values![i], s.unit), `${((s.values![i] / total) * 100).toFixed(1)}%`].map((cell) => new TableCell({
               children: [new Paragraph({ children: [new TextRun({ text: String(cell), size: 18, color: '333333' })] })],
               shading: { type: ShadingType.CLEAR, fill: i % 2 === 0 ? 'FFFFFF' : 'F8FAFC' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
