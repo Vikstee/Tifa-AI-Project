@@ -51,7 +51,12 @@ export default function InputBar({
 
   const startVisualizer = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          noiseSuppression: true,
+          echoCancellation: true,
+        } 
+      });
       streamRef.current = stream;
       
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -81,14 +86,21 @@ export default function InputBar({
             
             // Use different frequency bins to keep organic movement, but symmetrical
             const freqIndex = 1 + distance;
-            const rawValue = dataArrayRef.current[freqIndex] || 0; 
+            let rawValue = dataArrayRef.current[freqIndex] || 0; 
+            
+            // Apply Noise Gate Threshold to ignore background noise
+            if (rawValue < 60) {
+              rawValue = 0;
+            } else {
+              rawValue = rawValue - 60; // Smooth scaling above threshold
+            }
             
             // Apply a bell-curve weighting so the center is highest
             const weights = [1.0, 0.75, 0.45, 0.25];
             const weight = weights[distance];
             
             // Normalize to 10% - 100% height (boosted slightly)
-            const heightPercent = Math.max(10, Math.min(100, (rawValue / 255) * 180 * weight)); 
+            const heightPercent = Math.max(10, Math.min(100, (rawValue / 195) * 200 * weight)); 
             barsRef.current[i]!.style.height = `${heightPercent}%`;
           }
         }
