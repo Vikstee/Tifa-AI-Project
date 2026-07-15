@@ -58,3 +58,28 @@ export const aggregateRecords = async (tableName: string, sumColumn: string, fil
     return { error: error.message };
   }
 };
+
+export const getUserMemory = async (userId: string) => {
+  try {
+    const { data, error } = await supabase.from('user_memories').select('memory_text').eq('user_id', userId).single();
+    if (error && error.code !== 'PGRST116') return { error: error.message }; // PGRST116 is not found
+    return { data: data?.memory_text || '' };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+};
+
+export const updateUserMemory = async (userId: string, memoryText: string) => {
+  try {
+    const { error } = await supabase.from('user_memories').upsert({
+      user_id: userId,
+      memory_text: memoryText,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    
+    if (error) return { error: error.message };
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+};

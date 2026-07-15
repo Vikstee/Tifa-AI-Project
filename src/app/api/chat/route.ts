@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
-import { lookupRecord, filterRecords, aggregateRecords } from '@/lib/db/supabaseQueries';
+import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory } from '@/lib/db/supabaseQueries';
 import { aggregateChartPython, predictCashflowPython, detectAnomalyPython } from '@/lib/api/pythonClient';
 
 const apiKeyString = process.env.GEMINI_API_KEY || '';
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { message, files, history } = await req.json();
+    const { message, files, history, userId } = await req.json();
 
     // Sanitize history for Gemini:
     // 1. Map roles (ai → model)
@@ -239,9 +239,18 @@ export async function POST(req: NextRequest) {
         const complexity = classifyPrompt(userMessageText);
         const selectedModel = complexity === 'full' ? FULL_MODEL : LITE_MODEL;
         console.log(`[Tifa] Using model: ${selectedModel} | ${keyLabel}`);
+        
+        let dynamicSystemInstruction = SYSTEM_INSTRUCTION;
+        if (userId) {
+          const memRes = await getUserMemory(userId);
+          if (memRes.data) {
+            dynamicSystemInstruction += `\n\n[INFO TAMBAHAN PERMANEN DARI PENGGUNA INI]:\n${memRes.data}\nKamu HARUS mengingat dan mematuhi instruksi khusus dari pengguna ini di seluruh percakapan.`;
+          }
+        }
+        
         const model = genAI.getGenerativeModel({
           model: selectedModel,
-          systemInstruction: SYSTEM_INSTRUCTION,
+          systemInstruction: dynamicSystemInstruction,
           tools: [{ functionDeclarations: dbToolsDefinitions as any }]
         });
 
@@ -267,6 +276,12 @@ export async function POST(req: NextRequest) {
             funcRes = await predictCashflowPython(args.months_ahead);
           } else if (call.name === 'detect_anomaly') {
             funcRes = await detectAnomalyPython(args.table, args.amount_col);
+          } else if (call.name === 'update_user_memory') {
+            if (userId) {
+              funcRes = await updateUserMemory(userId, args.memory_text);
+            } else {
+              funcRes = { error: 'Gagal: User tidak ditemukan atau belum login.' };
+            }
           }
 
           console.log(`[Tifa] Function response:`, funcRes);

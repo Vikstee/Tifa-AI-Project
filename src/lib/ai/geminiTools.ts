@@ -1,5 +1,16 @@
 export const dbToolsDefinitions = [
   {
+    name: 'update_user_memory',
+    description: 'Menyimpan atau memperbarui ingatan AI tentang pengguna (profil, preferensi, instruksi khusus). Gunakan tool ini jika pengguna memberitahu sesuatu tentang dirinya yang harus diingat AI untuk obrolan berikutnya.',
+    parameters: {
+      type: 'object',
+      properties: {
+        memory_text: { type: 'string', description: 'Teks ingatan yang ingin disimpan (contoh: "Pengguna ingin dipanggil Pak Bos", "Pengguna suka laporan Excel"). Teks ini akan menimpa ingatan lama, jadi pastikan teks ini mencakup ringkasan semua ingatan penting.' }
+      },
+      required: ['memory_text']
+    }
+  },
+  {
     name: 'lookupRecord',
     description: 'Mencari satu baris data spesifik berdasarkan ID atau primary key.',
     parameters: {

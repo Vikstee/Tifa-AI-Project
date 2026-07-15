@@ -266,7 +266,8 @@ export default function ChatArea({
         body: JSON.stringify({ 
           message: currentInput,
           files: validFiles,
-          history: [...currentHistory, userMsg].slice(-10) // Send last 10 messages for context
+          history: [...currentHistory, userMsg].slice(-10), // Send last 10 messages for context
+          userId: userProfile?.id
         }),
       });
 
