@@ -84,15 +84,15 @@ export default function InputBar({
             // Calculate distance from center bar (index 3)
             const distance = Math.abs(3 - i);
             
-            // Use different frequency bins to keep organic movement, but symmetrical
-            const freqIndex = 1 + distance;
+            // Use higher frequency bins to ignore low-frequency wind rumble (0-300Hz)
+            const freqIndex = 3 + distance;
             let rawValue = dataArrayRef.current[freqIndex] || 0; 
             
-            // Apply Noise Gate Threshold to ignore background noise
-            if (rawValue < 60) {
+            // Apply strict Noise Gate Threshold to completely ignore background wind/noise
+            if (rawValue < 80) {
               rawValue = 0;
             } else {
-              rawValue = rawValue - 60; // Smooth scaling above threshold
+              rawValue = rawValue - 80; // Smooth scaling above threshold
             }
             
             // Apply a bell-curve weighting so the center is highest
@@ -439,12 +439,12 @@ export default function InputBar({
           <div className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}>
             <div className="p-6 flex flex-col items-center">
               {/* Audio Visualizer */}
-              <div className="flex items-end justify-center gap-1.5 h-16 mb-6">
+              <div className="flex items-end justify-center gap-3 h-16 mb-6">
                 {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
                     ref={(el) => { barsRef.current[i] = el; }}
-                    className={`w-2.5 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
+                    className={`w-3 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
                     style={{ height: '10%' }}
                   />
                 ))}
