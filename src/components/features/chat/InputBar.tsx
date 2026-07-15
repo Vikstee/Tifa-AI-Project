@@ -76,10 +76,19 @@ export default function InputBar({
         // Update the 7 bars
         for (let i = 0; i < 7; i++) {
           if (barsRef.current[i]) {
-            // Pick frequencies from the lower end (where human voice mostly is)
-            const value = dataArrayRef.current[i * 2 + 1] || 0; 
+            // Calculate distance from center bar (index 3)
+            const distance = Math.abs(3 - i);
+            
+            // Use different frequency bins to keep organic movement, but symmetrical
+            const freqIndex = 1 + distance;
+            const rawValue = dataArrayRef.current[freqIndex] || 0; 
+            
+            // Apply a bell-curve weighting so the center is highest
+            const weights = [1.0, 0.75, 0.45, 0.25];
+            const weight = weights[distance];
+            
             // Normalize to 10% - 100% height (boosted slightly)
-            const heightPercent = Math.max(10, Math.min(100, (value / 255) * 150)); 
+            const heightPercent = Math.max(10, Math.min(100, (rawValue / 255) * 180 * weight)); 
             barsRef.current[i]!.style.height = `${heightPercent}%`;
           }
         }
