@@ -78,11 +78,11 @@ export default function InputBar({
         
         analyserRef.current.getByteFrequencyData(dataArrayRef.current);
         
-        // Update the 7 bars
-        for (let i = 0; i < 7; i++) {
+        // Update the 13 bars
+        for (let i = 0; i < 13; i++) {
           if (barsRef.current[i]) {
-            // Calculate distance from center bar (index 3)
-            const distance = Math.abs(3 - i);
+            // Calculate distance from center bar (index 6)
+            const distance = Math.abs(6 - i);
             
             // Use higher frequency bins to ignore low-frequency wind rumble (0-300Hz)
             const freqIndex = 3 + distance;
@@ -95,8 +95,8 @@ export default function InputBar({
               rawValue = rawValue - 80; // Smooth scaling above threshold
             }
             
-            // Apply a bell-curve weighting so the center is highest
-            const weights = [1.0, 0.75, 0.45, 0.25];
+            // Apply a bell-curve weighting so the center is highest (7 weights for distance 0-6)
+            const weights = [1.0, 0.85, 0.7, 0.55, 0.4, 0.25, 0.15];
             const weight = weights[distance];
             
             // Normalize to 10% - 100% height (boosted slightly)
@@ -439,12 +439,12 @@ export default function InputBar({
           <div className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}>
             <div className="p-6 flex flex-col items-center">
               {/* Audio Visualizer */}
-              <div className="flex items-end justify-center gap-3 h-16 mb-6">
-                {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <div className="flex items-end justify-center gap-1.5 h-16 mb-6">
+                {[...Array(13)].map((_, i) => (
                   <div
                     key={i}
                     ref={(el) => { barsRef.current[i] = el; }}
-                    className={`w-3 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
+                    className={`w-2.5 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
                     style={{ height: '10%' }}
                   />
                 ))}
