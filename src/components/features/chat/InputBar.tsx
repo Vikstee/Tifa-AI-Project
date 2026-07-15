@@ -32,6 +32,71 @@ export default function InputBar({
 }: InputBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const currentInputRef = useRef(inputText);
+
+  // Sync inputText to ref for the speech recognition callback
+  useEffect(() => {
+    currentInputRef.current = inputText;
+  }, [inputText]);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false; // Using only final results for stability
+        recognition.lang = 'id-ID'; // Set to Indonesian
+
+        recognition.onresult = (event: any) => {
+          let newTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              newTranscript += event.results[i][0].transcript + ' ';
+            }
+          }
+          
+          if (newTranscript) {
+            const current = currentInputRef.current;
+            onInputChange(current + (current && !current.endsWith(' ') ? ' ' : '') + newTranscript.trim());
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error', event.error);
+          setIsRecording(false);
+        };
+
+        recognition.onend = () => {
+          setIsRecording(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+  }, [onInputChange]);
+
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      alert("Browser Anda tidak mendukung fitur input suara (Gunakan Chrome/Edge/Safari terbaru).");
+      return;
+    }
+    
+    if (isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsRecording(true);
+      } catch (e) {
+        console.error("Microphone start error:", e);
+      }
+    }
+  };
 
   // Auto-resize textarea
   useEffect(() => {
@@ -53,7 +118,6 @@ export default function InputBar({
       textarea.style.overflowY = 'hidden';
     }
   }, [inputText]);
-  const [isRecording, setIsRecording] = useState(false);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -177,7 +241,7 @@ export default function InputBar({
 
           {/* Voice input */}
           <button
-            onClick={() => setIsRecording(!isRecording)}
+            onClick={toggleRecording}
             title="Input suara"
             className={`p-2 rounded-xl transition-colors flex-shrink-0 mb-0.5
               ${isRecording
