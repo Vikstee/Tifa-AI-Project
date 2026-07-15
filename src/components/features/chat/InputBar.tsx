@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface UploadedFile {
   name: string;
@@ -401,9 +402,9 @@ export default function InputBar({
         </div>
       </div>
 
-      {/* Voice Modal Overlay */}
-      {showVoiceModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      {/* Voice Modal Overlay via Portal */}
+      {showVoiceModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <style>{`
             @keyframes soundWave {
               0% { transform: scaleY(0.3); opacity: 0.5; }
@@ -460,7 +461,8 @@ export default function InputBar({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Disclaimer */}
