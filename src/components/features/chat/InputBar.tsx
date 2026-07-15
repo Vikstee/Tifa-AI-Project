@@ -48,7 +48,7 @@ export default function InputBar({
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const barsRef = useRef<(HTMLDivElement | null)[]>([]);
-  const historyRef = useRef<number[]>(new Array(30).fill(0));
+  const historyRef = useRef<number[]>(new Array(60).fill(0));
 
   const startVisualizer = async () => {
     try {
@@ -93,21 +93,20 @@ export default function InputBar({
         historyRef.current.unshift(centerValue);
         historyRef.current.pop();
         
-        // Update the 13 bars
-        for (let i = 0; i < 13; i++) {
+        // Update the 31 bars for a wide waveform
+        for (let i = 0; i < 31; i++) {
           if (barsRef.current[i]) {
-            // Calculate distance from center bar (index 6)
-            const distance = Math.abs(6 - i);
+            // Calculate distance from center bar (index 15)
+            const distance = Math.abs(15 - i);
             
             // Fetch the historical volume for this bar to create an outward moving wave
             const delayIndex = distance * 2; // Outer bars read older volumes
             const historicalValue = historyRef.current[delayIndex] || 0;
             
-            // Apply a bell-curve weighting so the center is highest (7 weights for distance 0-6)
-            const weights = [1.0, 0.85, 0.7, 0.55, 0.4, 0.25, 0.15];
-            const weight = weights[distance];
+            // Flat weighting so the wave travels to the edges strongly (W shape)
+            const weight = 1.0 - (distance * 0.03); // Center is 1.0, Edge (15) is 0.55
             
-            // Normalize to 10% - 100% height (boosted slightly)
+            // Normalize to 10% - 100% height
             const heightPercent = Math.max(10, Math.min(100, (historicalValue / 195) * 200 * weight)); 
             barsRef.current[i]!.style.height = `${heightPercent}%`;
           }
@@ -447,12 +446,12 @@ export default function InputBar({
           <div className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}>
             <div className="p-6 flex flex-col items-center">
               {/* Audio Visualizer */}
-              <div className="flex items-end justify-center gap-1.5 h-16 mb-6">
-                {[...Array(13)].map((_, i) => (
+              <div className="flex items-center justify-center gap-1 h-16 mb-6">
+                {[...Array(31)].map((_, i) => (
                   <div
                     key={i}
                     ref={(el) => { barsRef.current[i] = el; }}
-                    className={`w-2.5 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
+                    className={`w-1 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
                     style={{ height: '10%' }}
                   />
                 ))}
