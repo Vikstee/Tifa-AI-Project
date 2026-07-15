@@ -83,6 +83,63 @@ export default function HomePage() {
     }
   }, [userProfile?.id]);
 
+  useEffect(() => {
+    // Clone Logic
+    const params = new URLSearchParams(window.location.search);
+    const cloneId = params.get('clone');
+    if (cloneId) {
+      if (userProfile?.id) {
+        handleCloneChat(cloneId);
+      } else {
+        setShowLoginModal(true);
+      }
+    }
+  }, [userProfile?.id]); // Re-run when user logs in to handle clone after login
+
+  const handleCloneChat = async (sourceId: string) => {
+    if (!userProfile?.id) return;
+    
+    try {
+      // Fetch source session
+      const { data: sourceSession } = await supabase.from('chat_sessions').select('*').eq('id', sourceId).single();
+      if (!sourceSession) return;
+      
+      // Fetch source msgs
+      const { data: sourceMsgs } = await supabase.from('chat_messages').select('*').eq('session_id', sourceId).order('created_at', { ascending: true });
+      
+      // Create new session
+      const { data: newSession } = await supabase.from('chat_sessions').insert({
+        user_id: userProfile.id,
+        title: `${sourceSession.title} (Cloned)`
+      }).select().single();
+      
+      if (newSession && sourceMsgs) {
+        // Insert cloned msgs with stripped files
+        const newMsgs = sourceMsgs.map((msg: any) => ({
+          session_id: newSession.id,
+          user_id: userProfile.id, // Reassign to current user
+          role: msg.role,
+          content: msg.content,
+          files: [], // CRITICAL: Strip files for privacy
+        }));
+        
+        if (newMsgs.length > 0) {
+          await supabase.from('chat_messages').insert(newMsgs);
+        }
+        
+        // Clean up URL
+        window.history.replaceState({}, '', '/');
+        
+        // Load new session
+        await loadHistory();
+        setActiveConversation(newSession.id);
+      }
+    } catch (e) {
+      console.error('Failed to clone chat:', e);
+    }
+  };
+
+
   const loadHistory = async () => {
     // Try updated_at first (if column exists). Fallback to created_at.
     let { data, error } = await supabase
