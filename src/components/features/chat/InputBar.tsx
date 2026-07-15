@@ -39,6 +39,64 @@ export default function InputBar({
 
   const recognitionRef = useRef<any>(null);
   const currentInputRef = useRef(inputText);
+  
+  // Audio Visualizer Refs
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const barsRef = useRef<(HTMLDivElement | null)[]>([]);
+
+  const startVisualizer = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContext();
+      audioContextRef.current = audioCtx;
+      
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64; // Small size for just a few bars
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      dataArrayRef.current = dataArray;
+      
+      const draw = () => {
+        if (!analyserRef.current || !dataArrayRef.current) return;
+        
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        
+        // Update the 7 bars
+        for (let i = 0; i < 7; i++) {
+          if (barsRef.current[i]) {
+            // Pick frequencies from the lower end (where human voice mostly is)
+            const value = dataArrayRef.current[i * 2 + 1] || 0; 
+            // Normalize to 10% - 100% height (boosted slightly)
+            const heightPercent = Math.max(10, Math.min(100, (value / 255) * 150)); 
+            barsRef.current[i]!.style.height = `${heightPercent}%`;
+          }
+        }
+        
+        animationFrameRef.current = requestAnimationFrame(draw);
+      };
+      
+      draw();
+    } catch (err) {
+      console.error("Microphone visualizer error:", err);
+    }
+  };
+
+  const stopVisualizer = () => {
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+    if (audioContextRef.current) audioContextRef.current.close();
+  };
 
   // Sync inputText to ref for the speech recognition callback
   useEffect(() => {
@@ -102,6 +160,7 @@ export default function InputBar({
         recognitionRef.current.start();
         setIsRecording(true);
         setShowVoiceModal(true);
+        startVisualizer();
       } catch (e) {
         console.error("Microphone start error:", e);
       }
@@ -112,6 +171,7 @@ export default function InputBar({
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+    stopVisualizer();
     setIsRecording(false);
     setShowVoiceModal(false);
     
@@ -126,6 +186,7 @@ export default function InputBar({
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+    stopVisualizer();
     setIsRecording(false);
     setShowVoiceModal(false);
     setFinalTranscript('');
@@ -357,14 +418,12 @@ export default function InputBar({
             <div className="p-6 flex flex-col items-center">
               {/* Audio Visualizer */}
               <div className="flex items-end justify-center gap-1.5 h-16 mb-6">
-                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
-                    className={`w-2.5 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} audio-bar`}
-                    style={{
-                      height: `${100 - Math.abs(4 - i) * 15}%`,
-                      animationDelay: `${i * 0.1}s`
-                    }}
+                    ref={(el) => { barsRef.current[i] = el; }}
+                    className={`w-2.5 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
+                    style={{ height: '10%' }}
                   />
                 ))}
               </div>
