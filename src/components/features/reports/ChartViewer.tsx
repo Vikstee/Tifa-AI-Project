@@ -141,10 +141,7 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
               stroke={textColor}
               fontSize={11}
               tickLine={false}
-              interval={0}
-              angle={-35}
-              textAnchor="end"
-              height={60}
+              height={30}
               tick={{ fill: textColor }}
             />
             <YAxis
@@ -157,7 +154,7 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
               tick={{ fill: textColor }}
               width={55}
             />
-            <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
+            <Tooltip cursor={false} content={<CustomTooltip darkMode={darkMode} />} />
             <Legend content={(props) => <CustomLegend {...props} darkMode={darkMode} />} />
             {keys.map((key, index) => (
               <Bar
@@ -180,9 +177,7 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
               stroke={textColor}
               fontSize={11}
               tickLine={false}
-              angle={-35}
-              textAnchor="end"
-              height={60}
+              height={30}
               tick={{ fill: textColor }}
             />
             <YAxis
@@ -248,8 +243,47 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
     <div
       className={`w-full my-4 rounded-xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 
       ${darkMode ? 'border-telkom-border-dark bg-[#252525] shadow-md shadow-black/20' : 'border-gray-100 bg-white shadow-md shadow-gray-200/50'} 
-      overflow-hidden`}
+      overflow-hidden chart-container type-${type}`}
     >
+      <style>{`
+        /* Hilangkan garis kotak hitam (focus ring) bawaan browser pada SVG */
+        svg *:focus {
+          outline: none !important;
+        }
+        
+        /* Animasi untuk batang grafik (Bar) */
+        .recharts-bar-rectangle path {
+          transition: all 0.2s ease-in-out;
+          cursor: pointer;
+          transform-origin: bottom;
+        }
+        .recharts-bar-rectangle path:hover {
+          transform: scaleY(1.03);
+          filter: brightness(1.15) drop-shadow(0px -2px 6px rgba(0,0,0,0.15));
+        }
+
+        /* Animasi untuk lingkaran grafik (Pie) */
+        .recharts-pie-sector path {
+          transition: all 0.2s ease-in-out;
+          cursor: pointer;
+          transform-origin: 50% 45%;
+        }
+        .recharts-pie-sector path:hover {
+          transform: scale(1.04);
+          filter: brightness(1.15) drop-shadow(0px 4px 6px rgba(0,0,0,0.25));
+        }
+
+        /* Khusus Bar Chart: Sembunyikan tooltip kecuali batang sedang di-hover secara fisik */
+        .chart-container.type-bar .recharts-tooltip-wrapper {
+          opacity: 0 !important;
+          visibility: hidden !important;
+          transition: opacity 0.2s ease, visibility 0.2s;
+        }
+        .chart-container.type-bar:has(.recharts-bar-rectangle path:hover) .recharts-tooltip-wrapper {
+          opacity: 1 !important;
+          visibility: visible !important;
+        }
+      `}</style>
       {title && (
         <div
           className={`px-5 py-4 border-b font-semibold text-sm tracking-wide
