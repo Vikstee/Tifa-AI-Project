@@ -3,7 +3,7 @@
 // programmatically with clean, professional layout. No screenshots.
 
 export interface ReportSection {
-  type: 'heading' | 'text' | 'table' | 'bar_chart' | 'pie_chart' | 'line_chart' | 'insight';
+  type: 'heading' | 'text' | 'table' | 'bar_chart' | 'pie_chart' | 'line_chart' | 'scatter' | 'candlestick' | 'gantt' | 'insight';
   text?: string;
   title?: string;
   headers?: string[];
@@ -548,6 +548,39 @@ export const generatePDFReport = async (
         case 'line_chart': {
           need(90);
           curY = renderLineChart(doc, s, curY);
+          break;
+        }
+        case 'scatter':
+        case 'candlestick':
+        case 'gantt': {
+          if (!s.labels || !s.values) break;
+          const chartRows = s.labels.map((lbl, i) => [
+            lbl, 
+            fmtNum(s.values![i], s.unit)
+          ]);
+          
+          if (s.title) {
+            need(12);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...DARK);
+            doc.text(`${s.title} (Data Tabel)`, MARGIN, curY);
+            curY += 6;
+          }
+          need(40);
+          autoTable(doc, {
+            startY: curY,
+            head: [['Kategori', 'Nilai']],
+            body: chartRows,
+            theme: 'grid',
+            margin: { left: MARGIN, right: MARGIN },
+            headStyles: { fillColor: RED, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+            bodyStyles: { fontSize: 9, textColor: DARK },
+            alternateRowStyles: { fillColor: LIGHT },
+            tableLineColor: BORDER,
+            tableLineWidth: 0.2,
+          });
+          curY = (doc as any).lastAutoTable.finalY + 10;
           break;
         }
       }

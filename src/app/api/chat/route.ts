@@ -110,11 +110,15 @@ Jika user meminta beberapa hal sekaligus (contoh: "buatkan tabel X, pie chart Y,
 </multi_request_handling>
 
 <chart_format>
-Gunakan blok kode \`\`\`json_chart\`\`\` untuk SETIAP permintaan grafik. Maksimal 10-15 item per grafik; gabungkan sisanya sebagai "Lainnya".
+TANPA PERLU DIMINTA, kamu WAJIB otomatis menampilkan visual/grafik (menggunakan blok json_chart) jika data yang disajikan mendukung untuk divisualisasikan. Pilih tipe grafik yang paling pas secara otomatis.
 
-**Aturan pemilihan tipe grafik:**
-- Perbandingan **hanya 2 item** (contoh: "Januari vs Februari", "Sudah vs Belum", "RKAP vs PO") → WAJIB pie.
-- Perbandingan **lebih dari 2 item** → bar (kategorikal) atau line (tren waktu).
+**Aturan pemilihan tipe grafik (type):**
+- **line**: Terbaik untuk menunjukkan tren atau perubahan data dari waktu ke waktu (time-series).
+- **bar**: Paling ideal untuk membandingkan nilai antar kategori yang berbeda.
+- **pie**: Menunjukkan proporsi persentase dari keseluruhan total. Paling pas jika jumlah kategori sedikit (maksimal 5-6).
+- **scatter**: Untuk melihat hubungan/korelasi antar dua variabel numerik. (Membutuhkan 2 keys/nilai).
+- **candlestick**: Spesifik untuk analisis keuangan (membutuhkan keys: open, high, low, close).
+- **gantt**: Terbaik untuk menjadwalkan tugas atau memantau progres proyek (membutuhkan keys: start, duration).
 
 Format:
 \`\`\`json_chart
@@ -160,6 +164,9 @@ Tipe section yang tersedia:
 {"type": "bar_chart", "title": "Judul", "labels": ["A","B"], "values": [100,200], "unit": "Jt"}
 {"type": "pie_chart", "title": "Judul", "labels": ["A","B"], "values": [604,596]}
 {"type": "line_chart", "title": "Judul", "labels": ["A","B","C"], "values": [10,20,30], "unit": "Jt"}
+{"type": "scatter", "title": "Judul", "labels": ["A","B"], "values": [10,20], "unit": "Jt"}
+{"type": "candlestick", "title": "Judul", "labels": ["A"], "values": [10], "unit": "Jt"}
+{"type": "gantt", "title": "Judul", "labels": ["A"], "values": [10], "unit": "Jt"}
 {"type": "insight", "text": "Kesimpulan dan rekomendasi konkret..."}
 \`\`\`
 

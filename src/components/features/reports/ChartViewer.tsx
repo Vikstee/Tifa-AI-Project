@@ -14,10 +14,13 @@ import {
   Legend,
   ResponsiveContainer,
   LabelList,
+  ScatterChart,
+  Scatter,
+  ZAxis,
 } from 'recharts';
 
 export interface ChartData {
-  type: 'bar' | 'line' | 'pie';
+  type: 'bar' | 'line' | 'pie' | 'scatter' | 'candlestick' | 'gantt';
   title?: string;
   data: any[];
   keys: string[]; // Data keys to render (e.g., ["Produk A", "Produk B"])
@@ -230,6 +233,62 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
           </PieChart>
         );
       }
+
+      case 'scatter':
+        return (
+          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+            <XAxis dataKey={keys[0] || 'x'} type="number" name={keys[0]} stroke={textColor} fontSize={11} tick={{ fill: textColor }} />
+            <YAxis dataKey={keys[1] || 'y'} type="number" name={keys[1]} stroke={textColor} fontSize={11} tickFormatter={isIDR ? formatIDR : undefined} tick={{ fill: textColor }} width={55} />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip darkMode={darkMode} />} />
+            <Scatter name="Data" data={data} fill={COLORS[1]} />
+          </ScatterChart>
+        );
+
+      case 'candlestick':
+        return (
+          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+            <XAxis dataKey={xAxisKey} type="category" stroke={textColor} fontSize={11} tick={{ fill: textColor }} />
+            <YAxis domain={['auto', 'auto']} type="number" stroke={textColor} fontSize={11} tickFormatter={isIDR ? formatIDR : undefined} tick={{ fill: textColor }} width={55} />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip darkMode={darkMode} />} />
+            <Scatter 
+              name="Candle" 
+              data={data} 
+              shape={(props: any) => {
+                const { cx, payload, yAxis } = props;
+                if (!yAxis || !yAxis.scale || !payload) return <g></g>;
+                const { open, close, high, low } = payload;
+                if (open === undefined) return <g></g>;
+                const o = yAxis.scale(open);
+                const c = yAxis.scale(close);
+                const h = yAxis.scale(high);
+                const l = yAxis.scale(low);
+                const isUp = close >= open;
+                const color = isUp ? '#10B981' : '#E4002B';
+                const bw = 12;
+                return (
+                  <g>
+                    <line x1={cx} y1={h} x2={cx} y2={l} stroke={color} strokeWidth={1.5} />
+                    <rect x={cx - bw/2} y={Math.min(o, c)} width={bw} height={Math.max(2, Math.abs(o - c))} fill={color} />
+                  </g>
+                );
+              }} 
+            />
+          </ScatterChart>
+        );
+
+      case 'gantt':
+        return (
+          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+            <XAxis type="number" stroke={textColor} fontSize={11} tick={{ fill: textColor }} />
+            <YAxis dataKey={xAxisKey} type="category" stroke={textColor} fontSize={11} tick={{ fill: textColor }} width={80} />
+            <Tooltip cursor={{ fill: darkMode ? '#374151' : '#f3f4f6' }} content={<CustomTooltip darkMode={darkMode} />} />
+            <Bar dataKey={keys[0] || 'start'} stackId="a" fill="transparent" />
+            <Bar dataKey={keys[1] || 'duration'} stackId="a" fill={COLORS[3]} radius={[0, 4, 4, 0]} barSize={20} />
+          </BarChart>
+        );
 
       default:
         return <div className="p-4 text-center text-sm">Unsupported chart type</div>;
