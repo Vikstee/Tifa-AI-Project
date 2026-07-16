@@ -448,7 +448,12 @@ export const generatePDFReport = async (
   const { default: autoTable } = await import('jspdf-autotable');
   
   const logoB64 = await fetchImageAsBase64('/tifa_light.png');
-  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    compress: true
+  });
   
   renderCoverPage(doc, title, subtitle, period, logoB64);
   

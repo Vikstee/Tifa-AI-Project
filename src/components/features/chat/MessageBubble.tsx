@@ -36,7 +36,7 @@ const getInitials = (name?: string) => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
-export default function MessageBubble({ message, darkMode, onEditMessage, userProfile }: MessageBubbleProps) {
+export default React.memo(function MessageBubble({ message, darkMode, onEditMessage, userProfile }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = React.useState(false);
   const [editContent, setEditContent] = React.useState(message.content);
@@ -344,4 +344,12 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent re-renders when onEditMessage reference changes (which happens on every keystroke)
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.darkMode === nextProps.darkMode &&
+    prevProps.userProfile?.avatar_url === nextProps.userProfile?.avatar_url
+  );
+});
