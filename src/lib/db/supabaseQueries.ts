@@ -29,7 +29,7 @@ export const filterRecords = async (tableName: string, filterColumn: string, fil
     }
     
     if (orderColumn) {
-      query = query.order(orderColumn, { ascending: orderAscending !== false });
+      query = query.order(orderColumn, { ascending: orderAscending !== false, nullsFirst: false });
     }
     
     const { data, error } = await query.limit(limitAmount || 15);

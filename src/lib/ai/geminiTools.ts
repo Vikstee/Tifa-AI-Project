@@ -16,10 +16,10 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in)' },
-        idColumn: { type: 'string', description: 'Nama kolom ID (contoh: id, project_id, po_id)' },
+        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, project_metrics)' },
+        idColumn: { type: 'string', description: 'Nama kolom ID (contoh: id, project_id)' },
         idValue: { type: 'string', description: 'Nilai ID yang dicari' },
-        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom. Jika ingin mengambil nama proyek, gunakan JOIN: "*, projects(project_name)".' }
+        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom. Jika ingin mengambil nama proyek dari tabel project_metrics, gunakan JOIN: "*, projects(project_name)".' }
       },
       required: ['tableName', 'idColumn', 'idValue']
     }
@@ -30,15 +30,15 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in). Untuk JOIN pakai tabel milestone + joinTable.' },
+        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, project_metrics). Untuk JOIN pakai project_metrics + joinTable.' },
         filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
-        filterValue: { type: 'string', description: 'Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
-        selectColumns: { type: 'string', description: 'Opsional. SANGAT PENTING: Untuk mendapatkan nama proyek, kamu WAJIB gunakan syntax JOIN Supabase: "*, projects(project_name)". Contoh lain: "revenue, projects(project_name, customer)"' },
+        filterValue: { type: 'string', description: 'Opsional. Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
+        selectColumns: { type: 'string', description: 'Opsional. SANGAT PENTING: Untuk mendapatkan nama proyek dari tabel project_metrics, kamu WAJIB gunakan syntax JOIN Supabase: "*, projects(project_name, portfolio)". Contoh lain: "revenue, projects(project_name)"' },
         limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 15). Hemat token dengan membatasi baris.' },
         orderColumn: { type: 'string', description: 'Opsional. Nama kolom untuk mengurutkan (contoh: created_at, amount). Sangat berguna untuk mencari nilai Terbesar, Terkecil, Terbaru, atau Terlama.' },
         orderAscending: { type: 'boolean', description: 'Opsional. True untuk naik (Terkecil/Terlama), False untuk turun (Terbesar/Terbaru). Default: True.' }
       },
-      required: ['tableName', 'filterColumn', 'filterValue']
+      required: ['tableName']
     }
   },
   {
@@ -47,7 +47,7 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in)' },
+        tableName: { type: 'string', description: 'Nama tabel (contoh: project_metrics)' },
         sumColumn: { type: 'string', description: 'Nama kolom yang akan dijumlahkan (contoh: cash_in, revenue, po_amount, rkap_stg, invoice)' },
         filterColumn: { type: 'string', description: 'Kolom untuk filter opsional' },
         filterValue: { type: 'string', description: 'Nilai filter opsional' }
@@ -63,7 +63,7 @@ export const dbToolsDefinitions = [
       properties: {
         table: {
           type: "string",
-          description: "Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in)"
+          description: "Nama tabel (contoh: projects, project_metrics)"
         },
         group_by: {
           type: "string",

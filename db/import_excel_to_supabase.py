@@ -4,6 +4,7 @@ import sys
 import json
 import requests
 from datetime import datetime
+import time
 
 # -------------------------------------
 # CONFIG
@@ -21,16 +22,22 @@ HEADERS = {
     "Prefer": "return=representation",
 }
 
-import time
-
-def rest_insert(table: str, rows: list, retries: int = 3):
-    """Insert rows via Supabase REST API with retry on transient errors"""
+def rest_insert(table: str, rows: list, retries: int = 3, prefer: str = "return=representation", on_conflict: str = None):
+    """Insert rows via Supabase REST API with retry on transient errors. Can be configured for UPSERT."""
     url = f"{SUPABASE_URL}/rest/v1/{table}"
+    if on_conflict:
+        url += f"?on_conflict={on_conflict}"
+    
+    headers = {**HEADERS, "Prefer": prefer}
     for attempt in range(retries):
         try:
-            res = requests.post(url, headers=HEADERS, data=json.dumps(rows), timeout=30)
+            res = requests.post(url, headers=headers, data=json.dumps(rows), timeout=30)
             if res.status_code in (200, 201):
-                return res.json()
+                # Return json if it returns representation
+                if prefer == "return=representation" or "resolution=merge-duplicates" in prefer:
+                    if res.text.strip():
+                        return res.json()
+                return []
             elif res.status_code in (522, 524, 502, 503):
                 wait = 2 ** attempt
                 print(f"\n  [RETRY] HTTP {res.status_code} on {table}, waiting {wait}s...")
@@ -52,7 +59,6 @@ def rest_insert(table: str, rows: list, retries: int = 3):
 # HELPERS
 # -------------------------------------
 def to_float(val):
-    """Convert ke float, None jika tidak valid atau 0"""
     if val is None:
         return None
     try:
@@ -68,7 +74,6 @@ def to_str(val):
     return s if s else None
 
 def to_datetime_str(val):
-    """Convert datetime/date ke ISO string untuk Supabase"""
     if val is None:
         return None
     if isinstance(val, datetime):
@@ -76,7 +81,6 @@ def to_datetime_str(val):
     return str(val)
 
 def normalize_period(period_str):
-    """Normalize '2026-1' -> '2026-01'"""
     if not period_str:
         return None
     parts = str(period_str).split('-')
@@ -86,7 +90,6 @@ def normalize_period(period_str):
     return str(period_str)
 
 def batch_insert(table: str, rows: list, label: str):
-    """Insert rows in batches with progress reporting"""
     if not rows:
         print(f"  [{label}] No rows to insert, skipping.")
         return
@@ -95,24 +98,29 @@ def batch_insert(table: str, rows: list, label: str):
     inserted = 0
     errors = 0
     
+    # Use UPSERT (resolution=merge-duplicates) so we don't duplicate on re-run
+    # For project_metrics, the UNIQUE constraint is on (project_id, period), we don't strictly need on_conflict in url if we use primary key, wait, we need it if we are conflicting on unique constraint.
+    # The unique constraint is on (project_id, period)
+    prefer_header = "resolution=merge-duplicates,return=minimal"
+    
     for i in range(0, total, BATCH_SIZE):
         batch = rows[i:i + BATCH_SIZE]
         try:
-            rest_insert(table, batch)
+            rest_insert(table, batch, prefer=prefer_header, on_conflict="project_id,period")
             inserted += len(batch)
-            print(f"  [{label}] Inserted {inserted}/{total}...", end='\r')
+            print(f"  [{label}] Inserted/Updated {inserted}/{total}...", end='\r')
         except Exception as e:
             errors += len(batch)
             print(f"\n  [{label}] ERROR at batch {i//BATCH_SIZE + 1}: {e}")
     
-    print(f"\n  [{label}] Done: {inserted} inserted, {errors} failed out of {total}")
+    print(f"\n  [{label}] Done: {inserted} inserted/updated, {errors} failed out of {total}")
 
 # -------------------------------------
 # MAIN
 # -------------------------------------
 def main():
     print("=" * 60)
-    print("TIFA Database Import: Cash-In-Report.xlsx -> Supabase")
+    print("TIFA Database Import V2: Cash-In-Report.xlsx -> Supabase (Star Schema)")
     print("=" * 60)
     
     # 1. Test connection
@@ -125,23 +133,6 @@ def main():
     else:
         print(f"  Connection test: {test_res.status_code} - {test_res.text[:200]}")
     
-    # 1b. Clear existing data
-    print("\n  Clearing existing data...")
-    delete_headers = {**HEADERS, "Prefer": "return=minimal"}
-    tables_to_clear = ["rkap_stg", "po_amount", "outlook_amount", "bast_amount_app2", "revenue", "invoice", "cash_in", "projects"]
-    for tbl in tables_to_clear:
-        try:
-            del_res = requests.delete(
-                f"{SUPABASE_URL}/rest/v1/{tbl}?id=neq.00000000-0000-0000-0000-000000000000",
-                headers=delete_headers,
-                timeout=30
-            )
-            print(f"  Cleared {tbl}: HTTP {del_res.status_code}")
-        except requests.exceptions.Timeout:
-            print(f"  [WARNING] Timeout clearing {tbl}, skipping (will use upsert)")
-        except Exception as e:
-            print(f"  [WARNING] Error clearing {tbl}: {e}")
-    
     # 2. Read Excel
     print(f"\n[2/3] Reading Excel: {EXCEL_PATH}")
     wb = openpyxl.load_workbook(EXCEL_PATH, data_only=True)
@@ -149,14 +140,6 @@ def main():
     
     all_rows = list(ws.iter_rows(min_row=2, values_only=True))
     print(f"  OK Read {len(all_rows)} rows")
-    
-    # Columns (0-indexed):
-    # 0:id, 1:period, 2:accrue_date, 3:funnel, 4:lop_group_name, 5:portfolio,
-    # 6:segment, 7:sid, 8:io_number, 9:project_name, 10:customer, 11:rkap,
-    # 12:rkap_stg, 13:po_amount, 14:po_amount_co, 15:bast_amount, 16:po_open,
-    # 17:outlook_amount, 18:bast_amount_app1, 19:bast_amount_app2, 20:revenue,
-    # 21:remaining_bast, 22:invoice, 23:clearing_number, 24:cash_in,
-    # 25:pinalty, 26:created_at, 27:updated_at
     
     # 3. Extract unique projects
     print("\n[3/3] Processing data...")
@@ -182,24 +165,23 @@ def main():
     
     print(f"  Found {len(unique_projects)} unique projects")
     
-    # Insert projects and capture returned IDs
-    print("  Inserting projects table...")
+    # Insert projects using UPSERT
+    print("  Inserting/Updating projects table...")
     project_rows = list(unique_projects.values())
     
-    all_inserted_projects = []
     for i in range(0, len(project_rows), BATCH_SIZE):
         batch = project_rows[i:i + BATCH_SIZE]
         try:
-            result = rest_insert("projects", batch)
-            all_inserted_projects.extend(result)
-            print(f"  [projects] Inserted {min(i+BATCH_SIZE, len(project_rows))}/{len(project_rows)}...", end='\r')
+            # UPSERT on conflict
+            rest_insert("projects", batch, prefer="resolution=merge-duplicates,return=minimal", on_conflict="sid")
+            print(f"  [projects] Upserted {min(i+BATCH_SIZE, len(project_rows))}/{len(project_rows)}...", end='\r')
         except Exception as e:
             print(f"\n  [projects] ERROR: {e}")
             sys.exit(1)
     
-    print(f"\n  [projects] OK {len(all_inserted_projects)} projects inserted")
+    print(f"\n  [projects] OK")
     
-    # Fetch ALL projects from DB to get confirmed UUIDs (more reliable than insert return)
+    # Fetch ALL projects from DB to get confirmed UUIDs
     print("  Fetching confirmed project IDs from DB...")
     confirmed_projects = []
     page = 0
@@ -221,19 +203,12 @@ def main():
     
     print(f"  Confirmed {len(confirmed_projects)} projects in DB")
     
-    # Build sid -> id map from confirmed DB data
     for p in confirmed_projects:
         project_map[p['sid']] = p['id']
     
-    # 4. Build milestone rows
-    print("\n  Building milestone rows...")
-    rkap_rows       = []
-    po_rows         = []
-    outlook_rows    = []
-    bast_rows       = []
-    revenue_rows    = []
-    invoice_rows    = []
-    cash_in_rows    = []
+    # 4. Build project_metrics rows
+    print("\n  Building project_metrics rows (Aggregating duplicates)...")
+    metrics_dict = {}
     
     skipped = 0
     for row in all_rows:
@@ -245,85 +220,81 @@ def main():
             continue
         
         period = normalize_period(row[1])
+        key = (project_id, period)
         
-        rkap_rows.append({
-            "project_id": project_id,
-            "period":     period,
-            "rkap":       to_float(row[11]),
-            "rkap_stg":   to_float(row[12]),
-        })
+        if key not in metrics_dict:
+            metrics_dict[key] = {
+                "project_id":        project_id,
+                "period":            period,
+                "rkap":              0.0,
+                "rkap_stg":          0.0,
+                "po_amount":         0.0,
+                "po_amount_co":      0.0,
+                "po_open":           0.0,
+                "outlook_amount":    0.0,
+                "bast_amount":       0.0,
+                "bast_amount_app1":  0.0,
+                "bast_amount_app2":  0.0,
+                "remaining_bast":    0.0,
+                "revenue":           0.0,
+                "invoice":           0.0,
+                "clearing_number":   None,
+                "cash_in":           0.0,
+                "pinalty":           0.0,
+                "accrue_date":       None,
+            }
         
-        po_rows.append({
-            "project_id":   project_id,
-            "period":       period,
-            "po_amount":    to_float(row[13]),
-            "po_amount_co": to_float(row[14]),
-            "po_open":      to_float(row[16]),
-        })
+        m = metrics_dict[key]
         
-        outlook_rows.append({
-            "project_id":     project_id,
-            "period":         period,
-            "outlook_amount": to_float(row[17]),
-        })
+        def add_val(current, new_val):
+            v = to_float(new_val)
+            return current + v if v else current
+            
+        m["rkap"] = add_val(m["rkap"], row[11])
+        m["rkap_stg"] = add_val(m["rkap_stg"], row[12])
+        m["po_amount"] = add_val(m["po_amount"], row[13])
+        m["po_amount_co"] = add_val(m["po_amount_co"], row[14])
+        m["po_open"] = add_val(m["po_open"], row[16])
+        m["outlook_amount"] = add_val(m["outlook_amount"], row[17])
+        m["bast_amount"] = add_val(m["bast_amount"], row[15])
+        m["bast_amount_app1"] = add_val(m["bast_amount_app1"], row[18])
+        m["bast_amount_app2"] = add_val(m["bast_amount_app2"], row[19])
+        m["remaining_bast"] = add_val(m["remaining_bast"], row[21])
+        m["revenue"] = add_val(m["revenue"], row[20])
+        m["invoice"] = add_val(m["invoice"], row[22])
+        m["cash_in"] = add_val(m["cash_in"], row[24])
+        m["pinalty"] = add_val(m["pinalty"], row[25])
         
-        bast_rows.append({
-            "project_id":        project_id,
-            "period":            period,
-            "bast_amount":       to_float(row[15]),
-            "bast_amount_app1":  to_float(row[18]),
-            "bast_amount_app2":  to_float(row[19]),
-            "remaining_bast":    to_float(row[21]),
-        })
+        c_num = to_str(row[23])
+        if c_num:
+            m["clearing_number"] = c_num
+            
+        a_date = to_datetime_str(row[2])
+        if a_date:
+            m["accrue_date"] = a_date
+
+    # Clean up 0.0 back to None for cleaner DB
+    metrics_rows = []
+    for m in metrics_dict.values():
+        for k, v in m.items():
+            if isinstance(v, float) and v == 0.0:
+                m[k] = None
+        metrics_rows.append(m)
         
-        revenue_rows.append({
-            "project_id": project_id,
-            "period":     period,
-            "revenue":    to_float(row[20]),
-        })
-        
-        invoice_rows.append({
-            "project_id":     project_id,
-            "period":         period,
-            "invoice":        to_float(row[22]),
-            "clearing_number": to_str(row[23]),
-        })
-        
-        cash_in_rows.append({
-            "project_id": project_id,
-            "period":     period,
-            "cash_in":    to_float(row[24]),
-            "pinalty":    to_float(row[25]),
-            "accrue_date": to_datetime_str(row[2]),
-        })
-    
     if skipped:
         print(f"  [WARNING] Skipped {skipped} rows (SID not found in projects)")
     
-    print(f"  OK Built {len(rkap_rows)} rows for each milestone table")
+    print(f"  OK Built {len(metrics_rows)} rows for project_metrics table")
     
-    # 5. Insert milestone tables
-    print("\n  Inserting milestone tables...")
-    batch_insert("rkap_stg",        rkap_rows,     "rkap_stg")
-    batch_insert("po_amount",        po_rows,       "po_amount")
-    batch_insert("outlook_amount",   outlook_rows,  "outlook_amount")
-    batch_insert("bast_amount_app2", bast_rows,     "bast_amount_app2")
-    batch_insert("revenue",          revenue_rows,  "revenue")
-    batch_insert("invoice",          invoice_rows,  "invoice")
-    batch_insert("cash_in",          cash_in_rows,  "cash_in")
+    # 5. Insert project_metrics
+    print("\n  Inserting project_metrics table...")
+    batch_insert("project_metrics", metrics_rows, "project_metrics")
     
     print("\n" + "=" * 60)
-    print("[OK] IMPORT SELESAI!")
-    print(f"   Projects   : {len(all_inserted_projects)} baris")
-    print(f"   rkap_stg   : {len(rkap_rows)} baris")
-    print(f"   po_amount  : {len(po_rows)} baris")
-    print(f"   outlook    : {len(outlook_rows)} baris")
-    print(f"   bast_app2  : {len(bast_rows)} baris")
-    print(f"   revenue    : {len(revenue_rows)} baris")
-    print(f"   invoice    : {len(invoice_rows)} baris")
-    print(f"   cash_in    : {len(cash_in_rows)} baris")
+    print("[OK] IMPORT SELESAI (V2)!")
+    print(f"   Projects        : {len(project_rows)} baris")
+    print(f"   Project Metrics : {len(metrics_rows)} baris")
     print("=" * 60)
 
 if __name__ == "__main__":
     main()
-

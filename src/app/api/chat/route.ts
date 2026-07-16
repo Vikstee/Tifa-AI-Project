@@ -19,8 +19,8 @@ let currentKeyIndex = 0;
 // Classifies prompt complexity locally (zero tokens) to pick the right model.
 // LITE model = fast response for simple queries.
 // FULL model = powerful model for heavy analysis/charts.
-const LITE_MODEL = 'gemini-flash-lite-latest';
-const FULL_MODEL = 'gemini-flash-lite-latest'; // fallback: same model until flash-latest quota resets
+const LITE_MODEL = 'gemini-3.1-flash-lite-preview';
+const FULL_MODEL = 'gemini-3.5-flash';
 
 function classifyPrompt(text: string): 'lite' | 'full' {
   const lower = text.toLowerCase();
@@ -60,23 +60,19 @@ Berikan jawaban yang terstruktur, rapi, dan enak dibaca. Gunakan poin-poin (bull
 2. Jika pengguna meminta BEBERAPA hal sekaligus (misalnya tabel + pie chart + bar chart + insight), kamu WAJIB menyelesaikan SEMUA permintaan tersebut tanpa terkecuali. TIDAK BOLEH melewati salah satunya.
 3. JANGAN PERNAH memberikan alasan seperti "sistem sedang maintenance", "fitur tidak tersedia", "grafik tidak bisa ditampilkan". Semua fitur SELALU tersedia asalkan kamu menggunakan tool.
 4. Jangan pernah mengatakan kamu "tidak bisa" menghasilkan grafik. Kamu SELALU bisa menghasilkan json_chart dengan data asli.
+5. SANGAT PENTING: Saat membuat tabel, TULIS SEMUA ANGKA/NOMINAL SECARA LENGKAP di dalam sel tabel. DILARANG KERAS menuliskan "Data terlampir", "Lihat grafik", atau menyembunyikan angka. Tampilkan angka aslinya (contoh: Rp 26.413.752.429).
+6. JIKA DATA TIDAK ADA / DI LUAR DATABASE: Jika user menanyakan informasi yang TIDAK ADA di tabel (contoh: absen pegawai, detail operasional yang tidak tercatat), JANGAN mencoba mengiyakan atau menyarankan hal yang tidak bisa kamu penuhi. Kamu WAJIB menolak dengan sopan, katakan data tersebut tidak ada, dan arahkan user HANYA ke metrik yang benar-benar kamu miliki. (Contoh arahan yang benar: "Saya hanya bisa menganalisa data keuangan proyek. Apakah Anda ingin saya menampilkan Total Cash In atau Perbandingan RKAP dengan PO?").
 ═══════════════════════════════════════
 
 KONEKSI DATABASE & SKEMA DATA (SANGAT PENTING):
 Kamu terhubung ke database asli TelkomInfra melalui Function Calling (tools). Berikut skema tabelnya:
 - Tabel 'projects': Data master proyek. Kolom: id (UUID), sid, io_number, project_name, customer, portfolio, segment.
-- Tabel 'revenue': Kolom: id, project_id, period, revenue
-- Tabel 'rkap_stg': Kolom: id, project_id, period, rkap, rkap_stg
-- Tabel 'po_amount': Kolom: id, project_id, period, po_amount, po_amount_co, po_open
-- Tabel 'outlook_amount': Kolom: id, project_id, period, outlook_amount
-- Tabel 'bast_amount_app2': Kolom: id, project_id, period, bast_amount, bast_amount_app1, bast_amount_app2, remaining_bast
-- Tabel 'invoice': Kolom: id, project_id, period, invoice
-- Tabel 'cash_in': Kolom: id, project_id, period, cash_in
+- Tabel 'project_metrics': Menyimpan semua angka metrik. Kolom: id, project_id, period, rkap, rkap_stg, po_amount, po_amount_co, po_open, outlook_amount, bast_amount, bast_amount_app1, bast_amount_app2, remaining_bast, revenue, invoice, clearing_number, cash_in, pinalty, accrue_date.
 
 CARA JOIN TABEL UNTUK MENDAPATKAN NAMA PROYEK (SANGAT PENTING):
-Tabel-tabel milestone (revenue, invoice, dll) hanya memiliki 'project_id'. Untuk mendapatkan nama proyeknya, kamu harus melakukan JOIN melalui parameter 'selectColumns'.
+Tabel metrik (project_metrics) hanya memiliki 'project_id'. Untuk mendapatkan nama proyeknya, kamu harus melakukan JOIN melalui parameter 'selectColumns'.
 CONTOH: Jika user meminta "top 5 revenue", gunakan tool filterRecords dengan:
-- tableName = 'revenue'
+- tableName = 'project_metrics'
 - selectColumns = 'revenue, projects(project_name, portfolio, customer)'  <-- INI CARA JOINNYA!
 - orderColumn = 'revenue'
 - orderAscending = false
@@ -248,17 +244,17 @@ export async function POST(req: NextRequest) {
     const totalKeys = apiKeys.length;
     let attempts = 0;
 
-    while (attempts < totalKeys) {
+    while (attempts < totalKeys * 2) {
       const selectedKey = apiKeys[currentKeyIndex];
+      const isFallback = attempts >= totalKeys;
       const keyLabel = `Key #${currentKeyIndex + 1}/${totalKeys}`;
 
       try {
         const genAI = new GoogleGenerativeAI(selectedKey);
-        // Smart model routing: pick lite or full based on prompt complexity
-        const userMessageText = typeof message === 'string' ? message : (message?.text || '');
-        const complexity = classifyPrompt(userMessageText);
-        const selectedModel = complexity === 'full' ? FULL_MODEL : LITE_MODEL;
-        console.log(`[Tifa] Using model: ${selectedModel} | ${keyLabel}`);
+        
+        // Use 3.5 as primary, if all keys fail, fallback to 3.1
+        const selectedModel = isFallback ? LITE_MODEL : FULL_MODEL;
+        console.log(`[Tifa] Using model: ${selectedModel} | ${keyLabel} | Fallback: ${isFallback}`);
         
         let dynamicSystemInstruction = SYSTEM_INSTRUCTION;
         if (userId) {
