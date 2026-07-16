@@ -31,7 +31,7 @@ export const dbToolsDefinitions = [
       type: 'object',
       properties: {
         tableName: { type: 'string', description: 'Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in). Untuk JOIN pakai tabel milestone + joinTable.' },
-        filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
+        filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: portfolio, customer, segment, period)' },
         filterValue: { type: 'string', description: 'Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
         selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (contoh: "id, total_amount"). Gunakan untuk hemat token!' },
         limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 15). Hemat token dengan membatasi baris.' },
@@ -67,7 +67,7 @@ export const dbToolsDefinitions = [
         },
         group_by: {
           type: "string",
-          description: "Kolom yang dikelompokkan (contoh: status, client_name)"
+          description: "Kolom yang dikelompokkan. HANYA GUNAKAN kolom yang ADA di tabel. (misal: project_name, portfolio, customer, segment, period). DILARANG KERAS menggunakan kolom 'status' karena tidak ada di DB."
         },
         sum_col: {
           type: "string",
