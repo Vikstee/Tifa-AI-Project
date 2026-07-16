@@ -108,5 +108,19 @@ export const dbToolsDefinitions = [
       },
       required: ["table", "amount_col"]
     }
+  },
+  {
+    name: "update_user_memory",
+    description: "Menyimpan atau memperbarui ingatan/fakta permanen tentang user (misalnya nama panggilan, peran, preferensi, kebiasaan, dll). Fakta ini akan diingat terus-menerus di semua percakapan di masa depan.",
+    parameters: {
+      type: "object",
+      properties: {
+        memory_text: {
+          type: "string",
+          description: "Teks yang berisi SEMUA ingatan/fakta tentang user saat ini (akan menimpa ingatan lama). Jangan hanya menambahkan data baru, tapi pertahankan juga data lama yang masih relevan (rangkum semuanya)."
+        }
+      },
+      required: ["memory_text"]
+    }
   }
 ];
