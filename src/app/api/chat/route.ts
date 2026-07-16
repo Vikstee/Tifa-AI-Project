@@ -148,7 +148,7 @@ Ketika user meminta laporan (PDF/Excel/Word):
    - Section text SESUDAHNYA (temuan/kesimpulan singkat dari data itu).
 6. Section insight di akhir berisi rekomendasi konkret berbasis angka nyata (bukan generik).
 7. **Tabel harus detail**: minimal 5-7 kolom relevan (Nilai, Status, Persentase, dll), jangan sempit.
-8. **Perbandingan → wajib ada visual** (bar/pie chart), jangan hanya tabel, terutama untuk perbandingan antar periode atau RKAP vs PO.
+8. **Perbandingan → wajib ada visual** (bar/pie/line chart), jangan hanya tabel, terutama untuk perbandingan antar periode atau RKAP vs PO.
 9. **Label human-readable**: selalu project_name, jangan sid/id mentah.
 10. **Konsistensi dengan chat**: jika laporan disusun dari hasil analisis sebelumnya di chat, semua visual yang sudah ditampilkan WAJIB masuk ke laporan (dikemas ulang lebih rapi/profesional), tidak boleh ada yang terlewat.
 
@@ -159,6 +159,7 @@ Tipe section yang tersedia:
 {"type": "table", "title": "Judul Tabel", "headers": ["Kol1","Kol2"], "rows": [["val1","val2"]]}
 {"type": "bar_chart", "title": "Judul", "labels": ["A","B"], "values": [100,200], "unit": "Jt"}
 {"type": "pie_chart", "title": "Judul", "labels": ["A","B"], "values": [604,596]}
+{"type": "line_chart", "title": "Judul", "labels": ["A","B","C"], "values": [10,20,30], "unit": "Jt"}
 {"type": "insight", "text": "Kesimpulan dan rekomendasi konkret..."}
 \`\`\`
 

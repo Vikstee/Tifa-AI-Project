@@ -3,7 +3,7 @@
 // programmatically with clean, professional layout. No screenshots.
 
 export interface ReportSection {
-  type: 'heading' | 'text' | 'table' | 'bar_chart' | 'pie_chart' | 'insight';
+  type: 'heading' | 'text' | 'table' | 'bar_chart' | 'pie_chart' | 'line_chart' | 'insight';
   text?: string;
   title?: string;
   headers?: string[];
@@ -285,6 +285,159 @@ function renderHorizontalBarChart(doc: any, section: ReportSection, y: number): 
   return y + BOX_H;
 }
 
+function renderPieChart(doc: any, section: ReportSection, curY: number): number {
+  const labels = section.labels || [];
+  const values = section.values || [];
+  if (!labels.length || !values.length) return curY;
+  
+  const total = values.reduce((a, b) => a + b, 0) || 1;
+  
+  if (section.title) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...DARK);
+    doc.text(section.title, MARGIN, curY + 8);
+    curY += 16;
+  }
+
+  const cx = MARGIN + 40;
+  const cy = curY + 25;
+  const r = 25;
+  
+  let currentAngle = 0;
+  
+  values.forEach((val, i) => {
+    const sliceAngle = (val / total) * 360;
+    if (sliceAngle <= 0) return;
+
+    const startAngle = currentAngle;
+    const color = PALETTE[i % PALETTE.length];
+    
+    doc.setFillColor(...color);
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.5);
+    
+    if (sliceAngle >= 359.9) {
+      doc.circle(cx, cy, r, 'FD');
+    } else {
+      const points = [{x: cx, y: cy}];
+      const steps = Math.max(2, Math.floor(sliceAngle));
+      for(let step = 0; step <= steps; step++) {
+         const a = startAngle + (sliceAngle * step / steps);
+         const rad = (a - 90) * Math.PI / 180;
+         points.push({x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad)});
+      }
+      points.push({x: cx, y: cy});
+      
+      const lines = [];
+      for(let j = 1; j < points.length; j++) {
+         lines.push([points[j].x - points[j-1].x, points[j].y - points[j-1].y]);
+      }
+      doc.lines(lines, points[0].x, points[0].y, [1, 1], 'FD', true);
+    }
+    
+    // Legend
+    const legX = cx + 50;
+    const legY = curY + 5 + (i * 8);
+    doc.setFillColor(...color);
+    doc.rect(legX, legY, 4, 4, 'F');
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...DARK);
+    
+    const pct = ((val / total) * 100).toFixed(1) + '%';
+    const text = `${labels[i]} - ${fmtNum(val, section.unit)} (${pct})`;
+    doc.text(text, legX + 7, legY + 3.5);
+    
+    currentAngle += sliceAngle;
+  });
+  
+  return curY + Math.max(60, values.length * 8 + 15);
+}
+
+function renderLineChart(doc: any, section: ReportSection, y: number): number {
+  const labels = section.labels || [];
+  const values = section.values || [];
+  if (!labels.length || !values.length) return y;
+
+  const BOX_H = 80;
+  
+  if (section.title) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...DARK);
+    doc.text(section.title, MARGIN, y + 8);
+  }
+  
+  if (section.unit) {
+    doc.setFillColor(209, 250, 229); 
+    doc.roundedRect(CONTENT_W + MARGIN - 20, y + 4, 20, 6, 3, 3, 'F');
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(6, 95, 70); 
+    doc.text(section.unit.toUpperCase(), CONTENT_W + MARGIN - 10, y + 8.5, { align: 'center' });
+  }
+
+  const chartX = MARGIN + 10; 
+  const chartY = y + 25;
+  const chartW = CONTENT_W - 20;
+  const chartH = 35;
+  const maxVal = Math.max(...values) * 1.15 || 1;
+
+  // Grid
+  doc.setDrawColor(230, 230, 230);
+  doc.setLineWidth(0.2);
+  const gridCount = 4;
+  for (let i = 0; i <= gridCount; i++) {
+    const gy = chartY + chartH - (chartH / gridCount) * i;
+    doc.line(chartX, gy, chartX + chartW, gy);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(160, 160, 160);
+    doc.text(fmtNum((maxVal / gridCount) * i), chartX - 2, gy + 2, { align: 'right' });
+  }
+
+  const stepX = chartW / Math.max(1, (labels.length - 1));
+  const points: {x: number, y: number}[] = [];
+  
+  labels.forEach((label, i) => {
+    const val = values[i] || 0;
+    const px = chartX + i * stepX;
+    const py = chartY + chartH - (val / maxVal) * chartH;
+    points.push({x: px, y: py});
+    
+    // Label
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text(label, px, chartY + chartH + 6, { align: 'center' });
+  });
+
+  // Draw line
+  if (points.length > 1) {
+    doc.setDrawColor(...RED);
+    doc.setLineWidth(1.2);
+    const lines = [];
+    for(let j=1; j<points.length; j++){
+      lines.push([points[j].x - points[j-1].x, points[j].y - points[j-1].y]);
+    }
+    doc.lines(lines, points[0].x, points[0].y, [1,1], 'S', false);
+  }
+  
+  // Draw dots
+  doc.setFillColor(...RED);
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.5);
+  points.forEach((p, i) => {
+    doc.circle(p.x, p.y, 2, 'FD');
+    doc.setFontSize(7);
+    doc.setTextColor(...DARK);
+    doc.text(fmtNum(values[i]), p.x, p.y - 4, { align: 'center' });
+  });
+
+  return y + BOX_H;
+}
+
 export const generatePDFReport = async (
   title: string,
   subtitle: string,
@@ -388,36 +541,13 @@ export const generatePDFReport = async (
           break;
         }
         case 'pie_chart': {
-          if (!s.labels || !s.values) break;
-          const total = s.values.reduce((a, b) => a + b, 0);
-          const chartRows = s.labels.map((lbl, i) => [
-            lbl, 
-            fmtNum(s.values![i], s.unit), 
-            `${((s.values![i] / total) * 100).toFixed(2)}%`
-          ]);
-          
-          if (s.title) {
-            need(12);
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...DARK);
-            doc.text(s.title + ' (Data)', MARGIN, curY);
-            curY += 6;
-          }
-          need(40);
-          autoTable(doc, {
-            startY: curY,
-            head: [['Label', 'Nilai', 'Persentase']],
-            body: chartRows,
-            theme: 'grid',
-            margin: { left: MARGIN, right: MARGIN },
-            headStyles: { fillColor: RED, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-            bodyStyles: { fontSize: 9, textColor: DARK },
-            alternateRowStyles: { fillColor: LIGHT },
-            tableLineColor: BORDER,
-            tableLineWidth: 0.2,
-          });
-          curY = (doc as any).lastAutoTable.finalY + 10;
+          need(70);
+          curY = renderPieChart(doc, s, curY);
+          break;
+        }
+        case 'line_chart': {
+          need(90);
+          curY = renderLineChart(doc, s, curY);
           break;
         }
       }
