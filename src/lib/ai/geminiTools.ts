@@ -19,7 +19,7 @@ export const dbToolsDefinitions = [
         tableName: { type: 'string', description: 'Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in)' },
         idColumn: { type: 'string', description: 'Nama kolom ID (contoh: id, project_id, po_id)' },
         idValue: { type: 'string', description: 'Nilai ID yang dicari' },
-        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (koma). Contoh: "id, name, amount". Gunakan ini untuk menghemat kuota token!' }
+        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom. Jika ingin mengambil nama proyek, gunakan JOIN: "*, projects(project_name)".' }
       },
       required: ['tableName', 'idColumn', 'idValue']
     }
@@ -31,9 +31,9 @@ export const dbToolsDefinitions = [
       type: 'object',
       properties: {
         tableName: { type: 'string', description: 'Nama tabel (contoh: projects, rkap_stg, po_amount, outlook_amount, bast_amount_app2, revenue, invoice, cash_in). Untuk JOIN pakai tabel milestone + joinTable.' },
-        filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: portfolio, customer, segment, period)' },
+        filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
         filterValue: { type: 'string', description: 'Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
-        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ditarik (contoh: "id, total_amount"). Gunakan untuk hemat token!' },
+        selectColumns: { type: 'string', description: 'Opsional. SANGAT PENTING: Untuk mendapatkan nama proyek, kamu WAJIB gunakan syntax JOIN Supabase: "*, projects(project_name)". Contoh lain: "revenue, projects(project_name, customer)"' },
         limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 15). Hemat token dengan membatasi baris.' },
         orderColumn: { type: 'string', description: 'Opsional. Nama kolom untuk mengurutkan (contoh: created_at, amount). Sangat berguna untuk mencari nilai Terbesar, Terkecil, Terbaru, atau Terlama.' },
         orderAscending: { type: 'boolean', description: 'Opsional. True untuk naik (Terkecil/Terlama), False untuk turun (Terbesar/Terbaru). Default: True.' }
@@ -67,7 +67,7 @@ export const dbToolsDefinitions = [
         },
         group_by: {
           type: "string",
-          description: "Kolom yang dikelompokkan. HANYA GUNAKAN kolom yang ADA di tabel. (misal: project_name, portfolio, customer, segment, period). DILARANG KERAS menggunakan kolom 'status' karena tidak ada di DB."
+          description: "Kolom yang dikelompokkan (contoh: status, client_name)"
         },
         sum_col: {
           type: "string",
