@@ -61,6 +61,14 @@ export default function ChatArea({
   const [dynamicSubtitle, setDynamicSubtitle] = useState<string>('Asisten AI Keuangan TelkomInfra\nDomain: PO to Cash In Financial');
   const [dynamicPrompts, setDynamicPrompts] = useState<any[]>([]);
   const [isSubtitleLoading, setIsSubtitleLoading] = useState(false);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    // Hide disclaimer if scrolled up by more than 50px
+    const isUp = target.scrollHeight - target.scrollTop - target.clientHeight > 50;
+    setIsScrolledUp(isUp);
+  };
 
   const isEmpty = chatHistory.length === 0;
 
@@ -354,35 +362,31 @@ export default function ChatArea({
     <div
       className={`flex flex-col flex-1 min-w-0 h-full relative ${darkMode ? 'bg-telkom-charcoal' : 'bg-telkom-surface-light'}`}
     >
-      {/* Top bar (Solid) */}
+      {/* Top bar (Glassmorphism) */}
       <div
-        className={`absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 flex-shrink-0 transition-colors border-b ${darkMode ? 'bg-telkom-charcoal border-telkom-border-dark' : 'bg-telkom-surface-light border-gray-200/60'}`}
+        className={`absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b backdrop-blur-lg transition-all duration-300 ${darkMode ? 'bg-gray-900/85 border-white/5' : 'bg-white/85 border-black/5'}`}
       >
         {/* Hamburger for mobile / collapsed sidebar */}
-        {!sidebarOpen && (
-          <button
-            onClick={onToggleSidebar}
-            className={`p-2 rounded-xl transition-colors ${darkMode ? 'hover:bg-telkom-border-dark text-telkom-gray' : 'hover:bg-gray-100 text-gray-500'}`}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
-        )}
+        <button
+          onClick={onToggleSidebar}
+          className={`absolute left-4 p-2 rounded-xl transition-all duration-300 origin-center z-10
+            ${sidebarOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}
+            ${darkMode ? 'hover:bg-telkom-border-dark text-telkom-gray' : 'hover:bg-gray-100 text-gray-500'}
+          `}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
 
         {/* Logo for collapsed state */}
-        {!sidebarOpen && (
-          <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-transparent">
-            <AppImage src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"} alt="TIFA Logo" width={28} height={28} className="object-contain" />
-          </div>
-        )}
+        <div className={`absolute left-[64px] flex-shrink-0 flex items-center justify-center bg-transparent transition-all duration-300 origin-center z-10
+          ${sidebarOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100 w-7 h-7'}
+        `}>
+          <AppImage src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"} alt="TIFA Logo" width={28} height={28} className="object-contain" />
+        </div>
 
-        <div className="flex-1 min-w-0">
+        <div className={`flex-1 min-w-0 transition-all duration-300 ${sidebarOpen ? 'lg:pl-[336px]' : 'pl-[88px]'}`}>
           <h1
             className={`text-sm font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}
           >
@@ -396,16 +400,11 @@ export default function ChatArea({
         {/* Action buttons */}
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setShowReportPanel(!showReportPanel)}
+            onClick={() => setShowReportPanel(true)}
             title="Generate Laporan"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors
-              ${
-                showReportPanel
-                  ? 'bg-telkom-red text-white'
-                  : darkMode
-                    ? 'hover:bg-telkom-border-dark text-telkom-gray'
-                    : 'hover:bg-gray-100 text-gray-600'
-              }
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-300 origin-center
+              ${showReportPanel ? 'scale-0 opacity-0 pointer-events-none absolute right-4' : 'scale-100 opacity-100 relative'}
+              ${darkMode ? 'bg-telkom-red text-white' : 'bg-telkom-red text-white hover:bg-red-700'}
             `}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -424,8 +423,11 @@ export default function ChatArea({
       {/* Main content area */}
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Chat messages */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6 pt-20 space-y-6">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          <div 
+            className={`flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-20 space-y-6 transition-all duration-300 ${sidebarOpen ? 'lg:pl-[352px]' : ''} ${showReportPanel ? 'lg:pr-[352px]' : ''}`}
+            onScroll={handleScroll}
+          >
             {isEmpty ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4">
@@ -478,17 +480,17 @@ export default function ChatArea({
                 {isLoading && <TypingIndicator darkMode={darkMode} />}
               </>
             )}
+            {/* Spacer so the last message is not covered by the InputBar */}
+            <div className="h-40 flex-shrink-0" />
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input bar */}
-          <div
-            className={`px-4 pb-4 pt-2 flex-shrink-0 relative overflow-visible`}
-          >
-            {/* Animated Smoky Gradient */}
-            <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-telkom-red/20 via-blue-400/10 to-transparent blur-2xl animate-bottom-smoke pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 flex-shrink-0 overflow-visible pointer-events-none">
+            {/* Animated Smoky Gradient - Changed to subtle tech indigo/blue to avoid clashing with red elements */}
+            <div className={`absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t ${darkMode ? 'from-indigo-500/20 via-blue-500/10' : 'from-indigo-500/10 via-blue-500/5'} to-transparent blur-2xl animate-bottom-smoke pointer-events-none`} />
 
-            <div className="relative z-10">
+            <div className={`pointer-events-auto relative z-10 px-4 pb-6 pt-2 transition-all duration-300 ${sidebarOpen ? 'lg:pl-[352px]' : ''} ${showReportPanel ? 'lg:pr-[352px]' : ''}`}>
 
             <InputBar
               darkMode={darkMode}
@@ -499,29 +501,41 @@ export default function ChatArea({
               uploadedFiles={uploadedFiles}
               onRemoveFile={(idx) => setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))}
               isLoading={isLoading}
+              isScrolledUp={isScrolledUp}
             />
             </div>
           </div>
         </div>
 
-        {/* Report generation panel */}
+        {/* Mobile overlay for Report Panel */}
         {showReportPanel && (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden transition-all duration-300" onClick={() => setShowReportPanel(false)} />
+        )}
+
+        {/* Report generation panel */}
+        <div
+          className={`absolute z-50 w-[calc(100%-2rem)] md:w-80 flex flex-col overflow-hidden
+          top-4 right-4 bottom-4 rounded-[2rem]
+          transition-all duration-300 ease-in-out
+          ${showReportPanel ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}
+          ${darkMode 
+            ? 'bg-gray-900/60 lg:bg-black/10 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]' 
+            : 'bg-white/80 lg:bg-white/10 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]'}
+          backdrop-blur-2xl
+        `}
+          style={{ transformOrigin: 'calc(100% - 24px) 24px' }}
+        >
+          {/* Panel header */}
           <div
-            className={`absolute md:relative inset-y-0 right-0 z-30 w-full md:w-80 flex-shrink-0 border-l flex flex-col overflow-hidden animate-slideIn
-            ${darkMode ? 'bg-telkom-sidebar border-telkom-border-dark' : 'bg-white border-gray-200'}
-          `}
+            className={`flex items-center justify-between px-4 py-3 border-b border-white/10`}
           >
-            {/* Panel header */}
-            <div
-              className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? 'border-telkom-border-dark' : 'border-gray-200'}`}
+            <h3 className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Generate Laporan
+            </h3>
+            <button
+              onClick={() => setShowReportPanel(false)}
+              className={`p-1.5 rounded-full transition-colors ${darkMode ? 'hover:bg-white/10 text-white/70' : 'hover:bg-black/5 text-gray-700'}`}
             >
-              <h3 className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Generate Laporan
-              </h3>
-              <button
-                onClick={() => setShowReportPanel(false)}
-                className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'hover:bg-telkom-border-dark text-telkom-gray' : 'hover:bg-gray-100 text-gray-500'}`}
-              >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
@@ -604,8 +618,7 @@ export default function ChatArea({
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
       {/* Login Modal (soft-gate) is now handled in page.tsx */}
     </div>

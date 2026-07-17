@@ -18,7 +18,8 @@ interface InputBarProps {
   onFileUpload: (files: UploadedFile[]) => void;
   uploadedFiles: UploadedFile[];
   onRemoveFile: (index: number) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
+  isScrolledUp?: boolean;
 }
 
 export default function InputBar({
@@ -29,7 +30,8 @@ export default function InputBar({
   onFileUpload,
   uploadedFiles,
   onRemoveFile,
-  isLoading,
+  isLoading = false,
+  isScrolledUp = false,
 }: InputBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -77,7 +79,7 @@ export default function InputBar({
       const draw = () => {
         if (!analyserRef.current || !dataArrayRef.current) return;
         
-        analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current as any);
         
         // Capture the core voice frequency (around bin 4, ignoring 0-300Hz wind rumble)
         let centerValue = dataArrayRef.current[4] || 0;
@@ -135,7 +137,7 @@ export default function InputBar({
   // Initialize Speech Recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -311,21 +313,25 @@ export default function InputBar({
         </div>
       )}
 
-      {/* Input container with animated gradient border */}
-      <div className="gradient-border-input">
-        <div
-          className={`
-          flex items-end gap-2 px-3 py-2.5 rounded-2xl transition-all duration-200
-          ${darkMode ? 'bg-telkom-surface-dark' : 'bg-white shadow-sm'}
-        `}
-        >
+      {/* Input container with frosted glass pill design */}
+      <div className="relative max-w-4xl mx-auto">
+        <div className={`gradient-border-pill ${inputText.trim() ? 'is-active' : ''}`}>
+          <div
+            className={`
+            flex items-center gap-3 px-4 py-2.5 rounded-[32px] transition-all duration-300
+            backdrop-blur-2xl border
+            ${darkMode 
+              ? 'bg-black/10 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]' 
+              : 'bg-white/10 border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]'}
+          `}
+          >
           {/* File upload button */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadedFiles.length >= 10}
             title="Upload file (maks. 10)"
-            className={`p-2 rounded-xl transition-colors flex-shrink-0 mb-0.5
-              ${darkMode ? 'text-telkom-gray hover:text-white hover:bg-telkom-border-dark' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}
+            className={`p-2 rounded-full transition-colors flex-shrink-0
+              ${darkMode ? 'text-telkom-gray hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'}
               disabled:opacity-40 disabled:cursor-not-allowed
             `}
           >
@@ -356,8 +362,8 @@ export default function InputBar({
             placeholder="Tanyakan Saja Ke Tifa..."
             rows={1}
             className={`
-              flex-1 resize-none bg-transparent outline-none text-base sm:text-sm leading-relaxed py-1.5
-              placeholder-telkom-gray/50
+              flex-1 resize-none bg-transparent outline-none text-base sm:text-sm leading-relaxed py-2
+              placeholder-gray-500/70 dark:placeholder-gray-400/70
               ${darkMode ? 'text-white' : 'text-gray-900'}
             `}
             style={{ minHeight: '36px', overflowY: 'hidden' }}
@@ -367,12 +373,12 @@ export default function InputBar({
           <button
             onClick={toggleRecording}
             title="Input suara"
-            className={`p-2 rounded-xl transition-colors flex-shrink-0 mb-0.5
+            className={`p-2 rounded-full transition-colors flex-shrink-0
               ${isRecording
                 ? 'text-telkom-red bg-telkom-red/10 animate-pulse'
                 : darkMode
-                  ? 'text-telkom-gray hover:text-white hover:bg-telkom-border-dark'
-                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                  ? 'text-telkom-gray hover:text-white hover:bg-white/10'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
               }
             `}
           >
@@ -391,12 +397,12 @@ export default function InputBar({
             onClick={() => onSend()}
             disabled={(!inputText.trim() && uploadedFiles.length === 0) || isLoading}
             className={`
-              p-2 rounded-xl transition-all duration-200 flex-shrink-0 mb-0.5
+              p-2 rounded-full transition-all duration-200 flex-shrink-0
               ${(inputText.trim() || uploadedFiles.length > 0) && !isLoading
-                ? 'bg-telkom-red hover:bg-telkom-red-dark text-white shadow-lg shadow-telkom-red/20'
+                ? darkMode ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-black/5'
                 : darkMode
                   ? 'text-telkom-gray/40 cursor-not-allowed'
-                  : 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-400 cursor-not-allowed'
               }
             `}
           >
@@ -427,6 +433,7 @@ export default function InputBar({
               </svg>
             )}
           </button>
+          </div>
         </div>
       </div>
 
@@ -494,11 +501,13 @@ export default function InputBar({
       )}
 
       {/* Disclaimer */}
-      <p
-        className={`text-center text-xs mt-2 ${darkMode ? 'text-telkom-gray/50' : 'text-gray-400'}`}
-      >
-        TIFA dapat membuat kesalahan. Verifikasi informasi penting sebelum digunakan.
-      </p>
+      <div className={`transition-opacity duration-300 ${isScrolledUp ? 'opacity-0 pointer-events-none' : 'opacity-100'} mt-2`}>
+        <p
+          className={`text-center text-xs ${darkMode ? 'text-telkom-gray/50' : 'text-gray-400'}`}
+        >
+          TIFA dapat membuat kesalahan. Verifikasi informasi penting sebelum digunakan.
+        </p>
+      </div>
     </div>
   );
 }

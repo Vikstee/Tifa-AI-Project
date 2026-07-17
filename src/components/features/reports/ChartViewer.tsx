@@ -220,8 +220,8 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
               nameKey={xAxisKey}
               cx="50%"
               cy="45%"
-              innerRadius={65}
-              outerRadius={100}
+              innerRadius="35%"
+              outerRadius="60%"
               paddingAngle={3}
               labelLine
               label={renderPieLabel}
@@ -351,10 +351,12 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
           {title}
         </div>
       )}
-      <div className="w-full p-4 pt-6" style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart()}
-        </ResponsiveContainer>
+      <div className="w-full overflow-x-auto" style={{ height: chartHeight }}>
+        <div className="p-4 pt-6" style={{ minWidth: type === 'pie' ? '450px' : '600px', height: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {renderChart()}
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
