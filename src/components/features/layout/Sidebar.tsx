@@ -208,12 +208,12 @@ export default function Sidebar({
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 lg:hidden transition-all duration-300" onClick={onToggle} />}
+      {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[50] lg:hidden transition-all duration-300" onClick={onToggle} />}
 
       {/* Sidebar */}
       <motion.aside
         className={`
-          fixed z-40
+          fixed z-[50]
           flex flex-col
           top-4 left-4 bottom-4
           ${darkMode 

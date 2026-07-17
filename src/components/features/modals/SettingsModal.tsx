@@ -61,7 +61,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden" 
+            className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-sm md:hidden" 
             onClick={onClose} 
           />
 
@@ -69,7 +69,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
             layoutId="settings-modal"
             transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
             className="
-              fixed z-50 flex flex-col overflow-hidden
+              fixed z-[70] flex flex-col overflow-hidden
               m-auto inset-0 h-fit w-[calc(100%-2rem)] md:w-[480px] p-8
               bg-white/90 dark:bg-gray-900/90 lg:dark:bg-black/40
               border border-white/40 dark:border-white/20
