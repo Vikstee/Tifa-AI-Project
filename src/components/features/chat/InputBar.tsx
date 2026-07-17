@@ -286,44 +286,44 @@ export default function InputBar({
 
   return (
     <div className="w-full">
-      {/* File preview chips */}
-      {uploadedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2 px-1">
-          {uploadedFiles.map((file, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors
-                ${darkMode ? 'bg-telkom-surface-dark border-telkom-border-dark text-telkom-gray-light' : 'bg-gray-100 border-gray-200 text-gray-700'}
-              `}
-            >
-              <span>{fileIconMap(file.type)}</span>
-              <span className="max-w-[120px] truncate">{file.name}</span>
-              <span className={`${darkMode ? 'text-telkom-gray/60' : 'text-gray-400'}`}>
-                ({file.size})
-              </span>
-              <button
-                onClick={() => onRemoveFile(idx)}
-                className={`ml-0.5 rounded-full hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          ))}
-          {uploadedFiles.length >= 10 && (
-            <span className="text-xs text-telkom-gray self-center">Maks. 10 file</span>
-          )}
-        </div>
-      )}
-
       {/* Input container with frosted glass pill design */}
       <div className="relative max-w-4xl mx-auto">
+        {/* File preview chips */}
+        {uploadedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2 px-1">
+            {uploadedFiles.map((file, idx) => (
+              <div
+                key={idx}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors
+                  ${darkMode ? 'bg-telkom-surface-dark border-telkom-border-dark text-telkom-gray-light' : 'bg-gray-100 border-gray-200 text-gray-700'}
+                `}
+              >
+                <span>{fileIconMap(file.type)}</span>
+                <span className="max-w-[120px] truncate">{file.name}</span>
+                <span className={`${darkMode ? 'text-telkom-gray/60' : 'text-gray-400'}`}>
+                  ({file.size})
+                </span>
+                <button
+                  onClick={() => onRemoveFile(idx)}
+                  className={`ml-0.5 rounded-full hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            {uploadedFiles.length >= 10 && (
+              <span className="text-xs text-telkom-gray self-center">Maks. 10 file</span>
+            )}
+          </div>
+        )}
+
         <div className={`gradient-border-pill ${inputText.trim() ? 'is-active' : ''}`}>
           <div
             className={`

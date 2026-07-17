@@ -251,9 +251,13 @@ export async function POST(req: NextRequest) {
     let parts: any[] = [];
     if (message) parts.push(message);
     if (files && files.length > 0) {
-      // Instead of sending URL to Gemini directly (which fails), we use Python RAG parsing
       for (const file of files) {
-        if (file.url) {
+        // If file is sent as base64 inlineData (from frontend processFileForGemini)
+        if (file.inlineData) {
+          parts.push(file);
+        }
+        // If file is sent as URL (legacy / fallback via python RAG)
+        else if (file.url) {
           try {
             const parseRes = await fetch(process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/parse_document` : 'http://localhost:4028/api/parse_document', {
               method: 'POST',
