@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UploadedFile {
   name: string;
@@ -165,8 +166,14 @@ export default function InputBar({
         };
 
         recognition.onerror = (event: any) => {
-          console.error('Speech recognition error', event.error);
+          if (event.error === 'not-allowed') {
+            console.warn('Microphone access denied:', event.error);
+            alert('Tifa membutuhkan izin mikrofon untuk mendengar suara Anda. Silakan klik ikon gembok di sebelah URL browser dan izinkan akses mikrofon.');
+          } else {
+            console.warn('Speech recognition error:', event.error);
+          }
           setIsRecording(false);
+          setShowVoiceModal(false);
         };
 
         recognition.onend = () => {
@@ -372,27 +379,32 @@ export default function InputBar({
           />
 
           {/* Voice input */}
-          <button
-            onClick={toggleRecording}
-            title="Input suara"
-            className={`p-2 rounded-full transition-colors flex-shrink-0
-              ${isRecording
-                ? 'text-telkom-red bg-telkom-red/10 animate-pulse'
-                : darkMode
-                  ? 'text-telkom-gray hover:text-white hover:bg-white/10'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
-              }
-            `}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
-          </button>
+          {!showVoiceModal ? (
+            <motion.button
+              layoutId="voice-modal"
+              onClick={toggleRecording}
+              title="Input suara"
+              className={`p-2 rounded-full transition-colors flex-shrink-0
+                ${isRecording
+                  ? 'text-telkom-red bg-telkom-red/10 animate-pulse'
+                  : darkMode
+                    ? 'text-telkom-gray hover:text-white hover:bg-white/10'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
+                }
+              `}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+            </motion.button>
+          ) : (
+            <div className="w-[36px] h-[36px] flex-shrink-0" />
+          )}
 
           {/* Send button */}
           <button
@@ -451,65 +463,83 @@ export default function InputBar({
       </div>
 
       {/* Voice Modal Overlay via Portal */}
-      {showVoiceModal && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <style>{`
-            @keyframes soundWave {
-              0% { transform: scaleY(0.3); opacity: 0.5; }
-              100% { transform: scaleY(1); opacity: 1; }
-            }
-            .audio-bar {
-              animation: soundWave 0.4s infinite alternate ease-in-out;
-              transform-origin: bottom;
-            }
-          `}</style>
-          <div className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}>
-            <div className="p-6 flex flex-col items-center">
-              {/* Audio Visualizer */}
-              <div className="flex items-center justify-center gap-1 h-16 mb-6">
-                {[...Array(31)].map((_, i) => (
-                  <div
-                    key={i}
-                    ref={(el) => { barsRef.current[i] = el; }}
-                    className={`w-1 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
-                    style={{ height: '10%' }}
-                  />
-                ))}
-              </div>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showVoiceModal && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center">
+              {/* Backdrop */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={cancelRecording}
+              />
+
+              <style>{`
+                @keyframes soundWave {
+                  0% { transform: scaleY(0.3); opacity: 0.5; }
+                  100% { transform: scaleY(1); opacity: 1; }
+                }
+                .audio-bar {
+                  animation: soundWave 0.4s infinite alternate ease-in-out;
+                  transform-origin: bottom;
+                }
+              `}</style>
               
-              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Mendengarkan...
-              </h3>
-              
-              {/* Live Text Area */}
-              <div className={`w-full p-4 min-h-[100px] max-h-[200px] overflow-y-auto rounded-xl text-center italic transition-colors mb-6 shadow-inner
-                ${darkMode ? 'bg-black/20 text-gray-300' : 'bg-gray-50 text-gray-600'}
-              `}>
-                {finalTranscript} <span className="opacity-70">{liveTranscript}</span>
-                {!finalTranscript && !liveTranscript && (
-                  <span className="opacity-50">Silakan mulai berbicara...</span>
-                )}
-              </div>
-              
-              <div className="flex w-full gap-3">
-                <button
-                  onClick={cancelRecording}
-                  className={`flex-1 py-3 rounded-full font-medium transition-colors ${
-                    darkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  }`}
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={stopRecordingAndApply}
-                  className="flex-[2] py-3 bg-telkom-red hover:bg-telkom-red-dark text-white rounded-full font-medium transition-colors shadow-lg shadow-telkom-red/20"
-                >
-                  Selesai & Masukkan
-                </button>
-              </div>
+              <motion.div 
+                layoutId="voice-modal"
+                transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
+                className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative z-10 ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}
+              >
+                <div className="p-6 flex flex-col items-center">
+                  {/* Audio Visualizer */}
+                  <div className="flex items-center justify-center gap-1 h-16 mb-6">
+                    {[...Array(31)].map((_, i) => (
+                      <div
+                        key={i}
+                        ref={(el) => { barsRef.current[i] = el; }}
+                        className={`w-1 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
+                        style={{ height: '10%' }}
+                      />
+                    ))}
+                  </div>
+                  
+                  <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Mendengarkan...
+                  </h3>
+                  
+                  {/* Live Text Area */}
+                  <div className={`w-full p-4 min-h-[100px] max-h-[200px] overflow-y-auto rounded-xl text-center italic transition-colors mb-6 shadow-inner
+                    ${darkMode ? 'bg-black/20 text-gray-300' : 'bg-gray-50 text-gray-600'}
+                  `}>
+                    {finalTranscript} <span className="opacity-70">{liveTranscript}</span>
+                    {!finalTranscript && !liveTranscript && (
+                      <span className="opacity-50">Silakan mulai berbicara...</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex w-full gap-3">
+                    <button
+                      onClick={cancelRecording}
+                      className={`flex-1 py-3 rounded-full font-medium transition-colors ${
+                        darkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={stopRecordingAndApply}
+                      className="flex-[2] py-3 bg-telkom-red hover:bg-telkom-red-dark text-white rounded-full font-medium transition-colors shadow-lg shadow-telkom-red/20"
+                    >
+                      Selesai & Masukkan
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             </div>
-          </div>
-        </div>,
+          )}
+        </AnimatePresence>,
         document.body
       )}
 

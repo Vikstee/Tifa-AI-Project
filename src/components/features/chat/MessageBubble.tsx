@@ -19,6 +19,7 @@ export interface Message {
   content: string;
   type?: 'text' | 'table' | 'report' | 'combined';
   timestamp: string;
+  created_at?: string;
   files?: { name: string; size: string; type: string }[];
 }
 
@@ -58,7 +59,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
 
   if (isUser) {
     return (
-      <div className="flex justify-end animate-fadeIn">
+      <div className="flex justify-end animate-fadeIn message-item" data-date={message.created_at || new Date().toISOString()}>
         <div className="max-w-[75%] flex flex-col items-end gap-1 group">
           {message.files && message.files.length > 0 && (
             <div className="flex flex-wrap justify-end gap-2 mb-1">
@@ -143,7 +144,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
   }
 
   return (
-    <div className="flex items-start gap-3 animate-fadeIn">
+    <div className="flex items-start gap-3 animate-fadeIn message-item" data-date={message.created_at || new Date().toISOString()}>
       {/* TIFA Avatar */}
       <div className="w-8 h-8 rounded-full bg-telkom-red flex items-center justify-center flex-shrink-0 shadow-lg shadow-telkom-red/20 mt-0.5">
         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

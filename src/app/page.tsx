@@ -204,6 +204,7 @@ export default function HomePage() {
         content: msg.content,
         type: 'text',
         timestamp: new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        created_at: msg.created_at,
         files: msg.files || [],
       })));
     } else {
@@ -273,7 +274,9 @@ export default function HomePage() {
         history={history}
         onNewChat={handleNewChat}
         onOpenSettings={() => setShowSettingsModal(true)}
+        isSettingsOpen={showSettingsModal}
         onOpenProfile={() => setShowProfileModal(true)}
+        isProfileOpen={showProfileModal}
         onRequireLogin={() => setShowLoginModal(true)}
         isLoggedIn={!!authToken}
         userProfile={userProfile}

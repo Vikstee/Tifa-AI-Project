@@ -6,6 +6,37 @@
   color-scheme: dark;
 }
 
+/* iOS Specific Layout Fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS only CSS */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 20px) !important;
+  }
+  .h-screen-safe {
+    height: -webkit-fill-available;
+    height: 100dvh;
+  }
+  .min-h-screen-safe {
+    min-height: -webkit-fill-available;
+    min-height: 100dvh;
+  }
+  /* Remove tap highlight on iOS */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* General Safe Area Classes for Android/iOS cross-compat */
+.pb-safe-generic {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe-generic {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

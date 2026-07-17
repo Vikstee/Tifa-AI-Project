@@ -168,6 +168,8 @@ interface SidebarProps {
   userProfile: any;
   onDeleteConversation?: (id: string) => void;
   onShareConversation?: (id: string) => void;
+  isSettingsOpen?: boolean;
+  isProfileOpen?: boolean;
 }
 
 export default function Sidebar({
@@ -186,6 +188,8 @@ export default function Sidebar({
   userProfile,
   onDeleteConversation,
   onShareConversation,
+  isSettingsOpen,
+  isProfileOpen
 }: SidebarProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [hoveredConversation, setHoveredConversation] = useState<string | null>(null);
@@ -351,57 +355,31 @@ export default function Sidebar({
             )}
           </div>
 
-          {/* Bottom: User Profile */}
-          <div className="p-3">
-            {/* Dark mode toggle */}
-            <button
-              onClick={onToggleDarkMode}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl mb-2 transition-colors text-sm ${
-                darkMode
-                  ? 'hover:bg-telkom-border-dark text-telkom-gray'
-                  : 'hover:bg-gray-100 text-gray-600'
-              }`}
-            >
-              {darkMode ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                  />
-                </svg>
-              )}
-              <span>{darkMode ? 'Mode Terang' : 'Mode Gelap'}</span>
-            </button>
+
 
             {/* User profile */}
             <div
               className="flex items-center gap-3 p-3 rounded-xl transition-all"
             >
-              <div 
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer overflow-hidden ${
-                  isLoggedIn ? 'bg-primary' : 'bg-telkom-red'
-                }`}
-                onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
-              >
-                {isLoggedIn && userProfile?.avatar_url ? (
-                  <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-white text-sm font-bold">
-                    {isLoggedIn ? getInitials(userProfile?.name) : '?'}
-                  </span>
-                )}
-              </div>
+              {!isProfileOpen ? (
+                <motion.div 
+                  layoutId="profile-modal"
+                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer overflow-hidden ${
+                    isLoggedIn ? 'bg-primary' : 'bg-telkom-red'
+                  }`}
+                  onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
+                >
+                  {isLoggedIn && userProfile?.avatar_url ? (
+                    <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white text-sm font-bold">
+                      {isLoggedIn ? getInitials(userProfile?.name) : '?'}
+                    </span>
+                  )}
+                </motion.div>
+              ) : (
+                <div className="w-10 h-10 rounded-full flex-shrink-0" />
+              )}
               <div
                 className="flex-1 min-w-0 cursor-pointer"
                 onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
@@ -415,9 +393,55 @@ export default function Sidebar({
                   {isLoggedIn ? 'Staff' : 'Belum Masuk'}
                 </p>
               </div>
-              <div className="flex items-center gap-1">
-                {isLoggedIn && (
-                  <button
+              <div className="flex items-center gap-2">
+                {/* Neomorphic Icon-only Gooey Switch inside Profile Row */}
+                <div
+                  onClick={onToggleDarkMode}
+                  className="relative w-[48px] h-[24px] rounded-full cursor-pointer flex items-center transition-colors duration-500 shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.2)] flex-shrink-0"
+                  style={{
+                    backgroundColor: darkMode ? '#5A6789' : '#D1D5DB'
+                  }}
+                >
+                  {/* Inactive Icons inside track */}
+                  <div className="absolute inset-0 flex justify-between items-center px-2 pointer-events-none">
+                    {/* Faded Sun (Left) - visible in dark mode */}
+                    <svg className={`w-3.5 h-3.5 transition-opacity duration-500 ${darkMode ? 'text-white/50 opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    {/* Faded Moon (Right) - visible in light mode */}
+                    <svg className={`w-3.5 h-3.5 transition-opacity duration-500 ${!darkMode ? 'text-slate-500/30 opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  </div>
+
+                  {/* Absolute positioned Thumb */}
+                  <motion.div
+                    animate={{ x: darkMode ? 26 : 2 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 25, mass: 1 }}
+                    whileTap={{ scaleX: 1.2 }}
+                    className="absolute w-[20px] h-[20px] bg-white rounded-full flex-shrink-0 flex items-center justify-center shadow-[0_1.5px_4px_rgba(0,0,0,0.25),-1px_-1px_2px_rgba(255,255,255,0.8)] z-10 origin-center"
+                  >
+                    <motion.div
+                      initial={false}
+                      animate={{ rotate: darkMode ? -45 : 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    >
+                      {darkMode ? (
+                        <svg className="w-3.5 h-3.5 text-[#4C62B0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5 text-[#F99F0B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      )}
+                    </motion.div>
+                  </motion.div>
+                </div>
+
+                {isLoggedIn && !isSettingsOpen ? (
+                  <motion.button
+                    layoutId="settings-modal"
                     onClick={onOpenSettings}
                     className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'hover:bg-telkom-border-dark text-telkom-gray' : 'hover:bg-gray-100 text-gray-500'}`}
                   >
@@ -440,13 +464,14 @@ export default function Sidebar({
                         d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                       />
                     </svg>
-                  </button>
-                )}
+                  </motion.button>
+                ) : isLoggedIn && isSettingsOpen ? (
+                  <div className="w-7 h-7" />
+                ) : null}
               </div>
             </div>
           </div>
-        </div>
-      </motion.aside>
-    </>
+        </motion.aside>
+      </>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon } from '@heroicons/react/24/solid';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import AppImage from '@/components/ui/AppImage';
 import MessageBubble, { Message } from './MessageBubble';
 import PromptChips from './PromptChips';
@@ -67,8 +67,32 @@ export default function ChatArea({
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const formatStickyDate = (isoString: string): string => {
+    const date = new Date(isoString);
+    const now = new Date();
+    
+    // Normalize to midnight for accurate day diffs
+    const dateMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const diffTime = Math.abs(nowMidnight.getTime() - dateMidnight.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Hari ini';
+    if (diffDays === 1) return 'Kemarin';
+    
+    if (diffDays < 7) {
+      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      return days[date.getDay()];
+    }
+    
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
+    
     // Hide disclaimer if scrolled up by more than 50px
     const isUp = target.scrollHeight - target.scrollTop - target.clientHeight > 50;
     setIsScrolledUp(isUp);
@@ -233,6 +257,7 @@ export default function ChatArea({
       content: currentInput || `[${currentFiles.length} file diunggah]`,
       type: 'text',
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      created_at: new Date().toISOString(),
       files: userMsgFiles.length > 0 ? userMsgFiles : undefined
     };
 
@@ -248,6 +273,7 @@ export default function ChatArea({
       content: '',
       type: 'text',
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      created_at: new Date().toISOString()
     }]);
 
     try {
@@ -384,7 +410,7 @@ export default function ChatArea({
     >
       {/* Top bar (Glassmorphism) */}
       <div
-        className={`absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b backdrop-blur-lg transition-all duration-300 ${darkMode ? 'bg-gray-900/85 border-white/5' : 'bg-white/85 border-black/5'}`}
+        className={`absolute top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b backdrop-blur-lg transition-all duration-300 ${darkMode ? 'bg-gray-900/85 border-white/5' : 'bg-white/85 border-black/5'}`}
       >
         {/* Hamburger for mobile / collapsed sidebar */}
         <button
@@ -442,6 +468,7 @@ export default function ChatArea({
 
       {/* Main content area */}
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
+
         {/* Chat messages */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           <div 
@@ -522,18 +549,46 @@ export default function ChatArea({
               </div>
             ) : (
               /* Messages */
-              <>
-                {chatHistory.map((msg) => (
-                  <MessageBubble 
-                    key={msg.id} 
-                    message={msg} 
-                    darkMode={darkMode} 
-                    onEditMessage={handleEditMessage} 
-                    userProfile={userProfile}
-                  />
-                ))}
+              <div className="flex flex-col gap-6">
+                {(() => {
+                  const groups: { dateStr: string, messages: Message[] }[] = [];
+                  let currentGroup: { dateStr: string, messages: Message[] } | null = null;
+                  
+                  chatHistory.forEach(msg => {
+                    const dStr = formatStickyDate(msg.created_at || new Date().toISOString());
+                    if (!currentGroup || currentGroup.dateStr !== dStr) {
+                      currentGroup = { dateStr: dStr, messages: [] };
+                      groups.push(currentGroup);
+                    }
+                    currentGroup.messages.push(msg);
+                  });
+
+                  return groups.map((group, groupIdx) => (
+                    <div key={`group-${group.dateStr}-${groupIdx}`} className="relative flex flex-col gap-6">
+                      {/* Sticky Date Header for this group */}
+                      <div className="sticky top-2 z-20 flex justify-center pointer-events-none">
+                        <div className={`px-3 py-1.5 rounded-lg text-xs font-medium shadow-[0_4px_12px_rgba(0,0,0,0.05)] backdrop-blur-xl transition-all duration-300 ${darkMode ? 'bg-[#1E2024]/80 text-gray-300 border border-white/10' : 'bg-white/80 text-gray-700 border border-black/5'}`}>
+                          {group.dateStr}
+                        </div>
+                      </div>
+                      
+                      {/* Messages in this group */}
+                      <div className="flex flex-col gap-6">
+                        {group.messages.map((msg) => (
+                          <MessageBubble 
+                            key={msg.id} 
+                            message={msg} 
+                            darkMode={darkMode} 
+                            onEditMessage={handleEditMessage} 
+                            userProfile={userProfile}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
                 {isLoading && <TypingIndicator darkMode={darkMode} />}
-              </>
+              </div>
             )}
             {/* Spacer so the last message is not covered by the InputBar */}
             <div className="h-40 flex-shrink-0" />
@@ -545,7 +600,7 @@ export default function ChatArea({
             {/* Animated Smoky Gradient - Changed to subtle tech indigo/blue to avoid clashing with red elements */}
             <div className={`absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t ${darkMode ? 'from-indigo-500/20 via-blue-500/10' : 'from-indigo-500/10 via-blue-500/5'} to-transparent blur-2xl animate-bottom-smoke pointer-events-none`} />
 
-            <div className={`pointer-events-auto relative z-10 px-4 pb-6 pt-2 transition-all duration-300 ${sidebarOpen ? 'lg:pl-[352px]' : ''} ${showReportPanel ? 'lg:pr-[352px]' : ''}`}>
+            <div className={`pointer-events-auto relative z-30 px-4 pb-6 pb-safe pt-2 transition-all duration-300 ${sidebarOpen ? 'lg:pl-[352px]' : ''} ${showReportPanel ? 'lg:pr-[352px]' : ''}`}>
 
             <InputBar
               darkMode={darkMode}
