@@ -29,6 +29,7 @@ export default function HomePage() {
   // Chat state
   const [history, setHistory] = useState<any[]>([]);
   const [currentChatHistory, setCurrentChatHistory] = useState<any[]>([]);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -186,6 +187,8 @@ export default function HomePage() {
 
   const handleSelectConversation = async (id: string) => {
     setActiveConversation(id);
+    setCurrentChatHistory([]); // Segera kosongkan chat lama agar tidak nge-lag saat merender ulang
+    setIsFetchingHistory(true);
     
     // Fetch messages for this session
     const { data, error } = await supabase
@@ -206,6 +209,7 @@ export default function HomePage() {
     } else {
       setCurrentChatHistory([]);
     }
+    setIsFetchingHistory(false);
   };
 
   const handleNewChat = () => {
@@ -289,6 +293,7 @@ export default function HomePage() {
         activeConversation={activeConversation}
         globalHistory={history}
         onConversationActivity={handleConversationActivity}
+        isFetchingHistory={isFetchingHistory}
       />
 
       <AuthModal

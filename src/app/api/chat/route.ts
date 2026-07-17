@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
-import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory } from '@/lib/db/supabaseQueries';
+import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory, enrichWithProjectNames } from '@/lib/db/supabaseQueries';
 import { aggregateChartPython, predictCashflowPython, detectAnomalyPython } from '@/lib/api/pythonClient';
 
 const apiKeyString = process.env.GEMINI_API_KEY || '';
@@ -157,15 +157,17 @@ Ketika user meminta laporan (PDF/Excel/Word):
 6. Section insight di akhir berisi rekomendasi konkret berbasis angka nyata (bukan generik).
 7. **Tabel harus detail**: minimal 5-7 kolom relevan (Nilai, Status, Persentase, dll), jangan sempit.
 8. **Perbandingan → wajib ada visual** (bar/pie/line chart), jangan hanya tabel, terutama untuk perbandingan antar periode atau RKAP vs PO.
-9. **Label human-readable**: selalu project_name, jangan sid/id mentah.
+9. **Label human-readable**: JIKA data/tabel mengandung project_id (UUID), kamu WAJIB mencari nama proyek aslinya dari tabel projects (lakukan JOIN atau lookupRecord tambahan jika perlu). JANGAN PERNAH merender tabel/chart yang hanya berisi UUID mentah tanpa Nama Proyek. Tampilkan dengan format "Nama Proyek (ID)" atau nama proyeknya saja.
 10. **Konsistensi dengan chat**: jika laporan disusun dari hasil analisis sebelumnya di chat, semua visual yang sudah ditampilkan WAJIB masuk ke laporan (dikemas ulang lebih rapi/profesional), tidak boleh ada yang terlewat.
 11. **Rangkuman Menyeluruh (Holistic Report)**: Jika user meminta 'buatkan laporan dari seluruh pembahasan di chat ini', kamu WAJIB membaca SELURUH history chat dari awal sampai akhir, dan merangkum SEMUA topik, data, dan visual yang pernah dibahas ke dalam SATU laporan komprehensif. JANGAN HANYA mengambil topik terakhir saja.
+
+12. **FULL DATA PDF EXPORT**: Jika tabel dipotong/disembunyikan karena batas 25 baris, kamu WAJIB menambahkan field "query_meta" ke dalam section tabel tersebut. Isinya adalah parameter pencarian agar sistem bisa mendownload seluruh sisa datanya di belakang layar. Contoh: "query_meta": {"tableName": "project_metrics", "filterColumn": "status", "filterValue": "Ongoing"}.
 
 Tipe section yang tersedia:
 \`\`\`
 {"type": "heading", "text": "1. Judul Section", "pageBreakBefore": boolean}
 {"type": "text", "text": "Narasi penjelasan..."}
-{"type": "table", "title": "Judul Tabel", "headers": ["Kol1","Kol2"], "rows": [["val1","val2"]]}
+{"type": "table", "title": "Judul Tabel", "headers": ["Kol1","Kol2"], "rows": [["val1","val2"]], "query_meta": {"tableName": "...", "filterColumn": "...", "filterValue": "..."}}
 {"type": "bar_chart", "title": "Judul", "labels": ["A","B"], "values": [100,200], "unit": "Jt"}
 {"type": "pie_chart", "title": "Judul", "labels": ["A","B"], "values": [604,596]}
 {"type": "line_chart", "title": "Judul", "labels": ["A","B","C"], "values": [10,20,30], "unit": "Jt"}
@@ -337,17 +339,22 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          // Enforce Human-Readable Project Names automatically
+          funcRes = await enrichWithProjectNames(funcRes);
+          
           console.log(`[Tifa] Function response:`, funcRes);
 
-          // Prevent massive token usage by truncating large arrays
+          // Prevent massive token usage by truncating extremely large arrays
           let safeFuncRes = funcRes;
+          const truncateNote = (hiddenCount: number) => `Batas 25 baris tercapai untuk efisiensi chat (ada sisa ${hiddenCount} baris). PERINGATAN KERAS: JANGAN PERNAH MEMINTA MAAF ATAU BILANG DATA GAGAL DIAMBIL! Meskipun user meminta "TAMPILKAN SEMUA", kamu WAJIB membalas dengan \`\`\`json_report\`\`\` berisi tabel 25 baris ini, dan isi field "query_meta" di tabel tersebut. Di bagian text, beritahu user: "Berikut 25 data pertama. Untuk melihat SELURUH data, silakan klik tombol Download PDF/Excel di laporan ini."`;
+
           if (Array.isArray(funcRes)) {
-            safeFuncRes = funcRes.length > 15 ? { data: funcRes.slice(0, 15), note: `Terdapat ${funcRes.length - 15} data lainnya yang disembunyikan. Tolong kelompokkan sisanya sebagai 'Lainnya'.` } : funcRes;
+            safeFuncRes = funcRes.length > 25 ? { data: funcRes.slice(0, 25), note: truncateNote(funcRes.length - 25) } : funcRes;
           } else if (funcRes && Array.isArray(funcRes.data)) {
             safeFuncRes = { ...funcRes };
-            if (safeFuncRes.data.length > 15) {
-              safeFuncRes.note = `Terdapat ${safeFuncRes.data.length - 15} data lainnya yang disembunyikan. Tolong kelompokkan sisanya sebagai 'Lainnya'.`;
-              safeFuncRes.data = safeFuncRes.data.slice(0, 15);
+            if (safeFuncRes.data.length > 25) {
+              safeFuncRes.note = truncateNote(safeFuncRes.data.length - 25);
+              safeFuncRes.data = safeFuncRes.data.slice(0, 25);
             }
           }
 

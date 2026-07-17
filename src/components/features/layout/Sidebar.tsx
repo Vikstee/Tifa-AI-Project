@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, EllipsisVerticalIcon, TrashIcon, ShareIcon } from '@heroicons/react/24/solid';
+import { motion } from 'framer-motion';
 import AppImage from '@/components/ui/AppImage';
 
 const getInitials = (name?: string) => {
@@ -16,6 +17,140 @@ interface ConversationItem {
   title: string;
   timestamp: string;
 }
+
+const MemoizedConversationItem = React.memo(({ 
+  conv, isActive, isHovered, darkMode, isMenuOpen, menuRef,
+  onHover, onSelect, onMenuToggle, onShare, onDelete, onToggleSidebarMobile 
+}: {
+  conv: ConversationItem;
+  isActive: boolean;
+  isHovered: boolean;
+  darkMode: boolean;
+  isMenuOpen: boolean;
+  menuRef: React.RefObject<HTMLDivElement | null>;
+  onHover: (id: string) => void;
+  onSelect: (id: string) => void;
+  onMenuToggle: (e: React.MouseEvent, id: string | null) => void;
+  onShare?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onToggleSidebarMobile: () => void;
+}) => (
+  <div 
+    className="relative group"
+    onMouseEnter={() => onHover(conv.id)}
+  >
+    {isActive && (
+      <motion.div
+        layoutId="activeChat"
+        className={`absolute inset-0 rounded-xl z-0 ${
+          darkMode 
+            ? 'bg-telkom-red/15 border border-telkom-red/30 shadow-[0_4px_12px_rgba(228,0,43,0.15)]' 
+            : 'bg-red-50/90 border border-telkom-red/20 shadow-[0_4px_12px_rgba(228,0,43,0.08)]'
+        }`}
+        initial={false}
+        transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
+      />
+    )}
+    {isHovered && !isActive && (
+      <motion.div
+        layoutId="hoverChat"
+        className={`absolute inset-0 rounded-xl z-0 ${
+          darkMode 
+            ? 'bg-white/5 border border-white/10' 
+            : 'bg-black/5 border border-black/5'
+        }`}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      />
+    )}
+    <button
+      onClick={() => {
+        onSelect(conv.id);
+        if (window.innerWidth < 1024) onToggleSidebarMobile();
+      }}
+      className={`
+        w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative z-10
+        ${
+          isActive
+            ? 'border-l-2 border-telkom-red'
+            : darkMode
+              ? 'hover:bg-telkom-border-dark/60'
+              : 'hover:bg-gray-100'
+        }
+      `}
+    >
+      <div className="flex items-start gap-2.5">
+        <span className="text-base flex-shrink-0 mt-0.5">💬</span>
+        <div className="min-w-0 flex-1 pr-6">
+          <p
+            className={`text-sm font-medium truncate ${
+              isActive
+                ? 'text-telkom-red'
+                : darkMode
+                  ? 'text-white'
+                  : 'text-gray-900'
+            }`}
+          >
+            {conv.title}
+          </p>
+          <p
+            className={`text-xs truncate mt-0.5 ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}
+          >
+            {new Date(conv.timestamp).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+    </button>
+    
+    {/* 3-dot menu button */}
+    <button
+      onClick={(e) => onMenuToggle(e, isMenuOpen ? null : conv.id)}
+      className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20
+        ${isMenuOpen ? 'opacity-100' : ''}
+        ${darkMode ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-500'}
+      `}
+    >
+      <EllipsisVerticalIcon className="w-4 h-4" />
+    </button>
+
+    {/* Dropdown Menu */}
+    {isMenuOpen && (
+      <div 
+        ref={menuRef as React.RefObject<HTMLDivElement>}
+        className={`absolute right-8 top-1/2 -translate-y-1/2 z-50 w-36 rounded-xl shadow-lg border py-1 animate-in fade-in zoom-in-95 duration-150
+          ${darkMode ? 'bg-[#2A2B2E] border-white/10' : 'bg-white border-gray-100'}
+        `}
+      >
+        <button
+          onClick={(e) => {
+            onMenuToggle(e, null);
+            onShare?.(conv.id);
+          }}
+          className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors
+            ${darkMode ? 'text-gray-200 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'}
+          `}
+        >
+          <ShareIcon className="w-4 h-4" />
+          Bagikan
+        </button>
+        <button
+          onClick={(e) => {
+            onMenuToggle(e, null);
+            onDelete?.(conv.id);
+          }}
+          className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors
+            ${darkMode ? 'text-red-400 hover:bg-white/10' : 'text-red-600 hover:bg-red-50'}
+          `}
+        >
+          <TrashIcon className="w-4 h-4" />
+          Hapus
+        </button>
+      </div>
+    )}
+  </div>
+));
 
 interface SidebarProps {
   isOpen: boolean;
@@ -53,6 +188,7 @@ export default function Sidebar({
   onShareConversation,
 }: SidebarProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [hoveredConversation, setHoveredConversation] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,20 +207,26 @@ export default function Sidebar({
       {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 lg:hidden transition-all duration-300" onClick={onToggle} />}
 
       {/* Sidebar */}
-      <aside
+      <motion.aside
         className={`
           fixed z-40
           flex flex-col
           top-4 left-4 bottom-4
-          transition-all duration-300 ease-in-out
           ${darkMode 
             ? 'bg-gray-900/60 lg:bg-black/10 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]' 
             : 'bg-white/80 lg:bg-white/10 border border-white/40 shadow-[0_16px_48px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]'}
           backdrop-blur-2xl rounded-[2rem]
-          ${isOpen ? 'w-72 scale-100 opacity-100 visible' : 'w-72 scale-0 opacity-0 invisible'}
           overflow-hidden
+          ${!isOpen ? 'pointer-events-none' : ''}
         `}
         style={{ WebkitBackdropFilter: 'blur(24px)', transformOrigin: '18px 14px' }}
+        initial={false}
+        animate={{
+          width: 288,
+          scale: isOpen ? 1 : 0.4,
+          opacity: isOpen ? 1 : 0,
+        }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
       >
         <div className="flex flex-col h-full min-w-[288px] lg:min-w-0">
           {/* Header */}
@@ -169,101 +311,26 @@ export default function Sidebar({
                     </p>
                   </div>
                 )}
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 relative" onMouseLeave={() => setHoveredConversation(null)}>
                   {history.map((conv) => (
-                    <div key={conv.id} className="relative group">
-                      <button
-                        onClick={() => {
-                          onSelectConversation(conv.id);
-                          if (window.innerWidth < 1024) onToggle();
-                        }}
-                        className={`
-                          w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative
-                          ${
-                            activeConversation === conv.id
-                              ? darkMode
-                                ? 'bg-telkom-red/10 border-l-2 border-telkom-red'
-                                : 'bg-red-50 border-l-2 border-telkom-red'
-                              : darkMode
-                                ? 'hover:bg-telkom-border-dark/60'
-                                : 'hover:bg-gray-100'
-                          }
-                        `}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <span className="text-base flex-shrink-0 mt-0.5">💬</span>
-                          <div className="min-w-0 flex-1 pr-6">
-                            <p
-                              className={`text-sm font-medium truncate ${
-                                activeConversation === conv.id
-                                  ? 'text-telkom-red'
-                                  : darkMode
-                                    ? 'text-white'
-                                    : 'text-gray-900'
-                              }`}
-                            >
-                              {conv.title}
-                            </p>
-                            <p
-                              className={`text-xs truncate mt-0.5 ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}
-                            >
-                              {new Date(conv.timestamp).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                      
-                      {/* 3-dot menu button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMenuOpenId(menuOpenId === conv.id ? null : conv.id);
-                        }}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity
-                          ${menuOpenId === conv.id ? 'opacity-100' : ''}
-                          ${darkMode ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-500'}
-                        `}
-                      >
-                        <EllipsisVerticalIcon className="w-4 h-4" />
-                      </button>
-
-                      {/* Dropdown Menu */}
-                      {menuOpenId === conv.id && (
-                        <div 
-                          ref={menuRef}
-                          className={`absolute right-8 top-1/2 -translate-y-1/2 z-50 w-36 rounded-xl shadow-lg border py-1 animate-in fade-in zoom-in-95 duration-150
-                            ${darkMode ? 'bg-[#2A2B2E] border-white/10' : 'bg-white border-gray-100'}
-                          `}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMenuOpenId(null);
-                              onShareConversation?.(conv.id);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors
-                              ${darkMode ? 'text-gray-200 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'}
-                            `}
-                          >
-                            <ShareIcon className="w-4 h-4" />
-                            Bagikan
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMenuOpenId(null);
-                              onDeleteConversation?.(conv.id);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors
-                              ${darkMode ? 'text-red-400 hover:bg-white/10' : 'text-red-600 hover:bg-red-50'}
-                            `}
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                            Hapus
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <MemoizedConversationItem
+                      key={conv.id}
+                      conv={conv}
+                      isActive={activeConversation === conv.id}
+                      isHovered={hoveredConversation === conv.id}
+                      darkMode={darkMode}
+                      isMenuOpen={menuOpenId === conv.id}
+                      menuRef={menuRef}
+                      onHover={setHoveredConversation}
+                      onSelect={onSelectConversation}
+                      onMenuToggle={(e, id) => {
+                        e.stopPropagation();
+                        setMenuOpenId(id);
+                      }}
+                      onShare={onShareConversation}
+                      onDelete={onDeleteConversation}
+                      onToggleSidebarMobile={onToggle}
+                    />
                   ))}
                 </div>
               </>
@@ -379,7 +446,7 @@ export default function Sidebar({
             </div>
           </div>
         </div>
-      </aside>
+      </motion.aside>
     </>
   );
 }

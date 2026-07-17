@@ -20,6 +20,7 @@ interface InputBarProps {
   onRemoveFile: (index: number) => void;
   isLoading?: boolean;
   isScrolledUp?: boolean;
+  onCancel?: () => void;
 }
 
 export default function InputBar({
@@ -32,6 +33,7 @@ export default function InputBar({
   onRemoveFile,
   isLoading = false,
   isScrolledUp = false,
+  onCancel,
 }: InputBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -394,34 +396,45 @@ export default function InputBar({
 
           {/* Send button */}
           <button
-            onClick={() => onSend()}
-            disabled={(!inputText.trim() && uploadedFiles.length === 0) || isLoading}
+            onClick={(e) => {
+              if (isLoading) {
+                if (onCancel) onCancel();
+              } else {
+                onSend();
+              }
+            }}
+            disabled={!isLoading && !inputText.trim() && uploadedFiles.length === 0}
             className={`
               p-2 rounded-full transition-all duration-200 flex-shrink-0
-              ${(inputText.trim() || uploadedFiles.length > 0) && !isLoading
-                ? darkMode ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-black/5'
-                : darkMode
-                  ? 'text-telkom-gray/40 cursor-not-allowed'
-                  : 'text-gray-400 cursor-not-allowed'
+              ${isLoading
+                ? darkMode ? 'text-red-400 hover:bg-red-400/10' : 'text-red-500 hover:bg-red-50'
+                : (inputText.trim() || uploadedFiles.length > 0)
+                  ? darkMode ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-black/5'
+                  : darkMode
+                    ? 'text-telkom-gray/40 cursor-not-allowed'
+                    : 'text-gray-400 cursor-not-allowed'
               }
             `}
           >
             {isLoading ? (
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
+              <div className="relative w-5 h-5 flex items-center justify-center">
+                <svg className="w-5 h-5 animate-spin absolute inset-0" fill="none" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                <div className="w-2 h-2 bg-currentColor rounded-[2px] z-10" style={{ backgroundColor: 'currentColor' }}></div>
+              </div>
             ) : (
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path

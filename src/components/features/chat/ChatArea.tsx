@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon } from '@heroicons/react/24/solid';
+import { motion } from 'framer-motion';
 import AppImage from '@/components/ui/AppImage';
 import MessageBubble, { Message } from './MessageBubble';
 import PromptChips from './PromptChips';
@@ -33,6 +34,7 @@ interface ChatAreaProps {
   activeConversation?: string;
   globalHistory?: any[];
   onConversationActivity?: (conversationId: string) => void;
+  isFetchingHistory?: boolean;
 }
 
 export default function ChatArea({
@@ -48,6 +50,7 @@ export default function ChatArea({
   activeConversation,
   globalHistory,
   onConversationActivity,
+  isFetchingHistory = false,
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +65,7 @@ export default function ChatArea({
   const [dynamicPrompts, setDynamicPrompts] = useState<any[]>([]);
   const [isSubtitleLoading, setIsSubtitleLoading] = useState(false);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
@@ -268,6 +272,9 @@ export default function ChatArea({
       );
       const validFiles = processedFiles.filter(Boolean);
 
+      // Create a new AbortController for this request
+      abortControllerRef.current = new AbortController();
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -277,6 +284,7 @@ export default function ChatArea({
           history: [...currentHistory, userMsg].slice(-10), // Send last 10 messages for context
           userId: userProfile?.id
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -312,12 +320,24 @@ export default function ChatArea({
         onConversationActivity?.(currentSessionId);
       }
     } catch (error: any) {
-      console.error(error);
-      setChatHistory((prev) =>
-        prev.map((msg) => (msg.id === aiMsgId ? { ...msg, content: `Error: ${error.message}` } : msg))
-      );
+      if (error.name === 'AbortError') {
+        console.log('Request aborted');
+        // Do not display error message if manually aborted
+      } else {
+        console.error(error);
+        setChatHistory((prev) =>
+          prev.map((msg) => (msg.id === aiMsgId ? { ...msg, content: `Error: ${error.message}` } : msg))
+        );
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
@@ -428,9 +448,44 @@ export default function ChatArea({
             className={`flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-20 space-y-6 transition-all duration-300 ${sidebarOpen ? 'lg:pl-[352px]' : ''} ${showReportPanel ? 'lg:pr-[352px]' : ''}`}
             onScroll={handleScroll}
           >
-            {isEmpty ? (
+            {isFetchingHistory ? (
+              <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] relative">
+                {/* SVG Filter for Gooey Effect */}
+                <svg width="0" height="0" className="absolute">
+                  <filter id="goo">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+                    <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+                    <feBlend in="SourceGraphic" in2="goo" />
+                  </filter>
+                </svg>
+                
+                {/* Gooey Bubbles Container */}
+                <div 
+                  className="relative flex items-center justify-center mb-6 opacity-60 mix-blend-multiply dark:mix-blend-screen" 
+                  style={{ filter: 'url(#goo)', width: '80px', height: '80px' }}
+                >
+                  <motion.div
+                    animate={{ x: [-15, 15, -15], y: [-15, 15, -15] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                    className="absolute w-9 h-9 bg-telkom-red rounded-full"
+                  />
+                  <motion.div
+                    animate={{ x: [15, -15, 15], y: [-15, 15, -15] }}
+                    transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                    className="absolute w-12 h-12 bg-red-400 rounded-full"
+                  />
+                  <motion.div
+                    animate={{ x: [0, 0, 0], y: [15, -15, 15], scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                    className="absolute w-10 h-10 bg-red-300 rounded-full"
+                  />
+                </div>
+                
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'} animate-pulse`}>Memuat riwayat percakapan...</p>
+              </div>
+            ) : isEmpty ? (
               /* Empty state */
-              <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4">
+              <div className="flex flex-col items-center mt-4 md:mt-12 lg:mt-20 text-center px-4">
                 <div className="w-32 h-32 mb-2 relative">
                   <AppImage
                     src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"}
@@ -502,6 +557,7 @@ export default function ChatArea({
               onRemoveFile={(idx) => setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))}
               isLoading={isLoading}
               isScrolledUp={isScrolledUp}
+              onCancel={handleCancel}
             />
             </div>
           </div>
@@ -513,17 +569,22 @@ export default function ChatArea({
         )}
 
         {/* Report generation panel */}
-        <div
+        <motion.div
           className={`absolute z-50 w-[calc(100%-2rem)] md:w-80 flex flex-col overflow-hidden
           top-4 right-4 bottom-4 rounded-[2rem]
-          transition-all duration-300 ease-in-out
-          ${showReportPanel ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}
           ${darkMode 
             ? 'bg-gray-900/60 lg:bg-black/10 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]' 
             : 'bg-white/80 lg:bg-white/10 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]'}
           backdrop-blur-2xl
+          ${!showReportPanel ? 'pointer-events-none' : ''}
         `}
           style={{ transformOrigin: 'calc(100% - 24px) 24px' }}
+          initial={false}
+          animate={{
+            scale: showReportPanel ? 1 : 0.4,
+            opacity: showReportPanel ? 1 : 0,
+          }}
+          transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
         >
           {/* Panel header */}
           <div
@@ -617,7 +678,7 @@ export default function ChatArea({
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
       {/* Login Modal (soft-gate) is now handled in page.tsx */}
