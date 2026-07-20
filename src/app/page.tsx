@@ -262,7 +262,7 @@ export default function HomePage() {
 
   return (
     <div
-      className={`flex h-[100dvh] overflow-hidden ${darkMode ? 'dark bg-dark-mode' : 'bg-telkom-surface-light'}`}
+      className={`flex h-[100dvh] overflow-hidden ${darkMode ? 'dark bg-dark-mode' : 'bg-light-mode'}`}
     >
       <Sidebar
         isOpen={sidebarOpen}

@@ -425,7 +425,7 @@ export default function ChatArea({
 
   return (
     <div
-      className={`flex flex-col flex-1 min-w-0 h-full relative ${darkMode ? 'bg-transparent' : 'bg-telkom-surface-light'}`}
+      className={`flex flex-col flex-1 min-w-0 h-full relative bg-transparent`}
     >
       {/* Top bar (Glassmorphism) */}
       <div

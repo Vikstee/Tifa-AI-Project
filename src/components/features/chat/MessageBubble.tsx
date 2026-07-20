@@ -173,21 +173,21 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
               remarkPlugins={[remarkGfm]}
               components={{
                 table: ({ node, ...props }: any) => (
-                  <div className={`overflow-x-auto my-4 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-telkom-border-dark shadow-black/20' : 'border-gray-200 shadow-gray-200/50'}`}>
-                    <table className={`min-w-full divide-y ${darkMode ? 'divide-telkom-border-dark text-gray-300' : 'divide-gray-200 text-gray-700'}`} {...props} />
+                  <div className={`overflow-x-auto my-4 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-gray-700 shadow-black/30' : 'border-gray-200 shadow-gray-200/50'}`}>
+                    <table className={`!m-0 w-full text-left border-collapse ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props} />
                   </div>
                 ),
                 thead: ({ node, ...props }: any) => (
-                  <thead className={`${darkMode ? 'bg-telkom-surface-dark/80' : 'bg-gray-50'}`} {...props} />
+                  <thead className={`${darkMode ? 'bg-gray-800/80 border-b border-gray-700' : 'bg-gray-50 border-b border-gray-200'}`} {...props} />
                 ),
                 tbody: ({ node, ...props }: any) => (
-                  <tbody className={`divide-y ${darkMode ? 'divide-telkom-border-dark bg-telkom-sidebar' : 'divide-gray-200 bg-white'}`} {...props} />
+                  <tbody className={`divide-y ${darkMode ? 'divide-gray-700 bg-gray-900/50' : 'divide-gray-200 bg-white'}`} {...props} />
                 ),
                 tr: ({ node, ...props }: any) => (
-                  <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-telkom-surface-dark' : 'hover:bg-gray-50/80'}`} {...props} />
+                  <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50/80'}`} {...props} />
                 ),
                 th: ({ node, ...props }: any) => (
-                  <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-telkom-gray-light' : 'text-gray-500'}`} {...props} />
+                  <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-gray-200' : 'text-gray-600'}`} {...props} />
                 ),
                 td: ({ node, children, ...props }: any) => {
                   // Normalize status text ONLY inside table cells — safe, won't touch JSON
@@ -206,7 +206,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
                     typeof child === 'string' ? normalizeCell(child) : child
                   );
                   return (
-                    <td className={`px-4 py-3 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
+                    <td className={`px-4 py-3 text-sm whitespace-nowrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
                       {processedChildren}
                     </td>
                   );
