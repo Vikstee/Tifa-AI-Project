@@ -4,6 +4,67 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { generatePDFReport, generateExcelReport, generateWordReport } from '@/lib/reportGenerator';
 
+const hydrateSections = async (originalSections: any[]) => {
+  if (!originalSections) return originalSections;
+  const newSections = JSON.parse(JSON.stringify(originalSections));
+  
+  for (const sec of newSections) {
+    if (sec.type === 'table' && sec.query_meta) {
+      const { tableName, filterColumn, filterValue } = sec.query_meta;
+      if (tableName) {
+        try {
+          let query = supabase.from(tableName).select('*');
+          if (filterColumn && filterValue) {
+             if (filterValue.startsWith('>=') || filterValue.startsWith('<=')) {
+                const op = filterValue.substring(0, 2);
+                const val = filterValue.substring(2).trim();
+                if (op === '>=') query = query.gte(filterColumn, val);
+                else query = query.lte(filterColumn, val);
+              } else if (filterValue.startsWith('>')) {
+                query = query.gt(filterColumn, filterValue.substring(1).trim());
+              } else if (filterValue.startsWith('<')) {
+                query = query.lt(filterColumn, filterValue.substring(1).trim());
+              } else {
+                query = query.ilike(filterColumn, `%${filterValue}%`);
+              }
+          }
+          const { data, error } = await query;
+          if (!error && data && data.length > 0) {
+             let enrichedData = data;
+             // Auto-resolve project_name
+             if (data[0].project_id) {
+               const uuids = [...new Set(data.map((d: any) => d.project_id))];
+               const { data: projs } = await supabase.from('projects').select('id, project_name').in('id', uuids);
+               if (projs) {
+                 const projMap = Object.fromEntries(projs.map((p: any) => [p.id, p.project_name]));
+                 enrichedData = data.map((d: any) => ({
+                   ...d,
+                   project_id: projMap[d.project_id] ? `${projMap[d.project_id]}` : d.project_id
+                 }));
+               }
+             }
+             
+             const excludedKeys = ['id', 'created_at', 'updated_at', 'user_id'];
+             const headers = Object.keys(enrichedData[0]).filter(k => !excludedKeys.includes(k) && typeof enrichedData[0][k] !== 'object');
+             const rows = enrichedData.map((row: any) => headers.map(h => {
+                const val = row[h];
+                if (val === null || val === undefined) return '-';
+                return String(val);
+             }));
+             
+             sec.headers = headers.map(h => h.replace(/_/g, ' ').toUpperCase());
+             sec.rows = rows;
+             if (sec.title) sec.title += ` (Full Data: ${rows.length} baris)`;
+          }
+        } catch(e) {
+          console.error("Hydration error:", e);
+        }
+      }
+    }
+  }
+  return newSections;
+};
+
 interface ReportCardProps {
   darkMode: boolean;
   title: string;
@@ -42,9 +103,10 @@ export default function ReportCard({
     const preGenerate = async () => {
       try {
         let res: { url: string; size: number } | null = null;
-        if (format === 'PDF') res = await generatePDFReport(title, "", date, sections);
-        else if (format === 'Excel') res = await generateExcelReport(title, "", date, sections);
-        else if (format === 'Word') res = await generateWordReport(title, "", date, sections);
+        const fullSections = await hydrateSections(sections || []);
+        if (format === 'PDF') res = await generatePDFReport(title, "", date, fullSections);
+        else if (format === 'Excel') res = await generateExcelReport(title, "", date, fullSections);
+        else if (format === 'Word') res = await generateWordReport(title, "", date, fullSections);
         
         if (isMounted && res) {
           setUrl(res.url);
@@ -91,9 +153,10 @@ export default function ReportCard({
       try {
         const periodMatch = date;
         let res: { url: string; size: number } | null = null;
-        if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, sections);
-        else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, sections);
-        else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, sections);
+        const fullSections = await hydrateSections(sections || []);
+        if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
+        else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
+        else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
         
         if (res) {
           downloadUrl = res.url;
@@ -219,9 +282,10 @@ export default function ReportCard({
     try {
       const periodMatch = date;
       let res: { url: string; size: number } | null = null;
-      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, sections);
-      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, sections);
-      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, sections);
+      const fullSections = await hydrateSections(sections || []);
+      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
+      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
+      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
 
       if (res) {
         setUrl(res.url);
@@ -255,9 +319,10 @@ export default function ReportCard({
     try {
       let res: { url: string; size: number } | null = null;
       const periodMatch = date;
-      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, sections);
-      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, sections);
-      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, sections);
+      const fullSections = await hydrateSections(sections || []);
+      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
+      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
+      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
 
       if (res) {
         setUrl(res.url);

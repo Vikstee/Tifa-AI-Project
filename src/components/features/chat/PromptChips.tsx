@@ -48,18 +48,18 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
       {displayPrompts.map((prompt, idx) => (
         <div 
           key={idx} 
-          className="h-full gradient-border transition-all duration-300 hover:scale-[1.02] hover:shadow-md dark:hover:shadow-black/50"
+          className={`
+            h-full transition-all duration-300 hover:scale-[1.02] 
+            rounded-[2rem] border backdrop-blur-2xl
+            ${darkMode 
+              ? 'bg-black/10 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)] hover:bg-white/10' 
+              : 'bg-white/10 border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)] hover:bg-white/30'
+            }
+          `}
         >
           <button
             onClick={() => onSelectPrompt(prompt.text)}
-            className={`
-              w-full h-full text-left px-4 py-3.5 transition-colors duration-200 group
-              ${
-                darkMode
-                  ? 'bg-telkom-surface-dark'
-                  : 'bg-white'
-              }
-            `}
+            className="w-full h-full text-left px-5 py-4 group rounded-[2rem]"
           >
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
               <span className="text-xl sm:text-2xl flex-shrink-0">{prompt.icon}</span>

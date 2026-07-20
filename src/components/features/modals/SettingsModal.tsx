@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabaseClient';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,8 +23,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
       setFullName(userProfile.name || '');
     }
   }, [userProfile]);
-
-  if (!isOpen) return null;
 
   const handleSave = async () => {
     if (!userProfile) {
@@ -54,14 +53,37 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-telkom-sidebar w-full max-w-md rounded-2xl p-6 shadow-xl relative animate-in fade-in zoom-in duration-200 border border-transparent dark:border-telkom-border-dark">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:text-telkom-gray dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-telkom-border-dark transition-colors"
-        >
-          <XMarkIcon className="w-5 h-5" />
-        </button>
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Mobile Overlay (Only visible on small screens to focus on modal) */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-sm md:hidden" 
+            onClick={onClose} 
+          />
+
+          <motion.div
+            layoutId="settings-modal"
+            transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
+            className="
+              fixed z-[70] flex flex-col overflow-hidden
+              m-auto inset-0 h-fit w-[calc(100%-2rem)] md:w-[480px] p-8
+              bg-white/90 dark:bg-gray-900/90 lg:dark:bg-black/40
+              border border-white/40 dark:border-white/20
+              shadow-[0_16px_48px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]
+              dark:shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]
+              backdrop-blur-3xl rounded-[2rem]
+            "
+          >
+            <button
+              onClick={onClose}
+              className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 dark:text-telkom-gray dark:hover:text-white rounded-full hover:bg-gray-100/50 dark:hover:bg-white/10 transition-colors z-10"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
 
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1">Pengaturan</h2>
@@ -133,8 +155,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
             {isSaving ? 'Menyimpan...' : 'Simpan & Tutup'}
           </button>
         </div>
-      </div>
-    </div>
+        </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 

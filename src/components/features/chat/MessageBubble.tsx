@@ -19,6 +19,7 @@ export interface Message {
   content: string;
   type?: 'text' | 'table' | 'report' | 'combined';
   timestamp: string;
+  created_at?: string;
   files?: { name: string; size: string; type: string }[];
 }
 
@@ -36,7 +37,7 @@ const getInitials = (name?: string) => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
-export default function MessageBubble({ message, darkMode, onEditMessage, userProfile }: MessageBubbleProps) {
+export default React.memo(function MessageBubble({ message, darkMode, onEditMessage, userProfile }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = React.useState(false);
   const [editContent, setEditContent] = React.useState(message.content);
@@ -58,7 +59,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
 
   if (isUser) {
     return (
-      <div className="flex justify-end animate-fadeIn">
+      <div className="flex justify-end animate-fadeIn message-item" data-date={message.created_at || new Date().toISOString()}>
         <div className="max-w-[75%] flex flex-col items-end gap-1 group">
           {message.files && message.files.length > 0 && (
             <div className="flex flex-wrap justify-end gap-2 mb-1">
@@ -143,7 +144,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
   }
 
   return (
-    <div className="flex items-start gap-3 animate-fadeIn">
+    <div className="flex items-start gap-3 animate-fadeIn message-item" data-date={message.created_at || new Date().toISOString()}>
       {/* TIFA Avatar */}
       <div className="w-8 h-8 rounded-full bg-telkom-red flex items-center justify-center flex-shrink-0 shadow-lg shadow-telkom-red/20 mt-0.5">
         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -172,21 +173,21 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
               remarkPlugins={[remarkGfm]}
               components={{
                 table: ({ node, ...props }: any) => (
-                  <div className={`overflow-x-auto my-4 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-telkom-border-dark shadow-black/20' : 'border-gray-200 shadow-gray-200/50'}`}>
-                    <table className={`min-w-full divide-y ${darkMode ? 'divide-telkom-border-dark text-gray-300' : 'divide-gray-200 text-gray-700'}`} {...props} />
+                  <div className={`overflow-x-auto my-4 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-gray-700 shadow-black/30' : 'border-gray-200 shadow-gray-200/50'}`}>
+                    <table className={`!m-0 w-full text-left border-collapse ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props} />
                   </div>
                 ),
                 thead: ({ node, ...props }: any) => (
-                  <thead className={`${darkMode ? 'bg-telkom-surface-dark/80' : 'bg-gray-50'}`} {...props} />
+                  <thead className={`${darkMode ? 'bg-gray-800/80 border-b border-gray-700' : 'bg-gray-50 border-b border-gray-200'}`} {...props} />
                 ),
                 tbody: ({ node, ...props }: any) => (
-                  <tbody className={`divide-y ${darkMode ? 'divide-telkom-border-dark bg-telkom-sidebar' : 'divide-gray-200 bg-white'}`} {...props} />
+                  <tbody className={`divide-y ${darkMode ? 'divide-gray-700 bg-gray-900/50' : 'divide-gray-200 bg-white'}`} {...props} />
                 ),
                 tr: ({ node, ...props }: any) => (
-                  <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-telkom-surface-dark' : 'hover:bg-gray-50/80'}`} {...props} />
+                  <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50/80'}`} {...props} />
                 ),
                 th: ({ node, ...props }: any) => (
-                  <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-telkom-gray-light' : 'text-gray-500'}`} {...props} />
+                  <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-gray-200' : 'text-gray-600'}`} {...props} />
                 ),
                 td: ({ node, children, ...props }: any) => {
                   // Normalize status text ONLY inside table cells — safe, won't touch JSON
@@ -205,7 +206,7 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
                     typeof child === 'string' ? normalizeCell(child) : child
                   );
                   return (
-                    <td className={`px-4 py-3 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
+                    <td className={`px-4 py-3 text-sm whitespace-nowrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
                       {processedChildren}
                     </td>
                   );
@@ -344,4 +345,12 @@ export default function MessageBubble({ message, darkMode, onEditMessage, userPr
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent re-renders when onEditMessage reference changes (which happens on every keystroke)
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.darkMode === nextProps.darkMode &&
+    prevProps.userProfile?.avatar_url === nextProps.userProfile?.avatar_url
+  );
+});

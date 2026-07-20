@@ -1,16 +1,5 @@
 export const dbToolsDefinitions = [
   {
-    name: 'update_user_memory',
-    description: 'Menyimpan atau memperbarui ingatan AI tentang pengguna (profil, preferensi, instruksi khusus). Gunakan tool ini jika pengguna memberitahu sesuatu tentang dirinya yang harus diingat AI untuk obrolan berikutnya.',
-    parameters: {
-      type: 'object',
-      properties: {
-        memory_text: { type: 'string', description: 'Teks ingatan yang ingin disimpan (contoh: "Pengguna ingin dipanggil Pak Bos", "Pengguna suka laporan Excel"). Teks ini akan menimpa ingatan lama, jadi pastikan teks ini mencakup ringkasan semua ingatan penting.' }
-      },
-      required: ['memory_text']
-    }
-  },
-  {
     name: 'lookupRecord',
     description: 'Mencari satu baris data spesifik berdasarkan ID atau primary key.',
     parameters: {
@@ -34,7 +23,7 @@ export const dbToolsDefinitions = [
         filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
         filterValue: { type: 'string', description: 'Opsional. Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
         selectColumns: { type: 'string', description: 'Opsional. SANGAT PENTING: Untuk mendapatkan nama proyek dari tabel project_metrics, kamu WAJIB gunakan syntax JOIN Supabase: "*, projects(project_name, portfolio)". Contoh lain: "revenue, projects(project_name)"' },
-        limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 15). Hemat token dengan membatasi baris.' },
+        limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 100). Hemat token dengan membatasi baris.' },
         orderColumn: { type: 'string', description: 'Opsional. Nama kolom untuk mengurutkan (contoh: created_at, amount). Sangat berguna untuk mencari nilai Terbesar, Terkecil, Terbaru, atau Terlama.' },
         orderAscending: { type: 'boolean', description: 'Opsional. True untuk naik (Terkecil/Terlama), False untuk turun (Terbesar/Terbaru). Default: True.' }
       },
@@ -107,6 +96,20 @@ export const dbToolsDefinitions = [
         }
       },
       required: ["table", "amount_col"]
+    }
+  },
+  {
+    name: "update_user_memory",
+    description: "Menyimpan atau memperbarui ingatan/fakta permanen tentang user (misalnya nama panggilan, peran, preferensi, kebiasaan, dll). Fakta ini akan diingat terus-menerus di semua percakapan di masa depan.",
+    parameters: {
+      type: "object",
+      properties: {
+        memory_text: {
+          type: "string",
+          description: "Teks yang berisi SEMUA ingatan/fakta tentang user saat ini (akan menimpa ingatan lama). Jangan hanya menambahkan data baru, tapi pertahankan juga data lama yang masih relevan (rangkum semuanya)."
+        }
+      },
+      required: ["memory_text"]
     }
   }
 ];

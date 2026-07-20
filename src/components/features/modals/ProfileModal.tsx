@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { XMarkIcon, ArrowRightOnRectangleIcon, CameraIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabaseClient';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -20,8 +21,6 @@ const getInitials = (name?: string) => {
 const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLogout, onUserUpdate }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  if (!isOpen) return null;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,14 +97,36 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-telkom-sidebar w-full max-w-sm rounded-2xl p-6 shadow-xl relative animate-in fade-in zoom-in duration-200 border border-transparent dark:border-telkom-border-dark">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:text-telkom-gray dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-telkom-border-dark transition-colors"
-        >
-          <XMarkIcon className="w-5 h-5" />
-        </button>
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-sm md:hidden" 
+            onClick={onClose} 
+          />
+
+          <motion.div
+            layoutId="profile-modal"
+            transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
+            className="
+              fixed z-[70] flex flex-col overflow-hidden
+              m-auto inset-0 h-fit w-[calc(100%-2rem)] md:w-[480px] p-8
+              bg-white/90 dark:bg-gray-900/90 lg:dark:bg-black/40
+              border border-white/40 dark:border-white/20
+              shadow-[0_16px_48px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]
+              dark:shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]
+              backdrop-blur-3xl rounded-[2rem]
+            "
+          >
+            <button
+              onClick={onClose}
+              className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 dark:text-telkom-gray dark:hover:text-white rounded-full hover:bg-gray-100/50 dark:hover:bg-white/10 transition-colors z-10"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
 
         <div className="flex flex-col items-center mt-4 mb-6">
           <div className="relative group mb-4">
@@ -170,8 +191,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
             Keluar (Logout)
           </button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 

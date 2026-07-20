@@ -24,10 +24,12 @@ export default function HomePage() {
   // Auth state
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // Chat state
   const [history, setHistory] = useState<any[]>([]);
   const [currentChatHistory, setCurrentChatHistory] = useState<any[]>([]);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -51,6 +53,7 @@ export default function HomePage() {
           avatar_url: session.user.user_metadata?.avatar_url || null,
         });
       }
+      setIsAuthLoading(false);
     });
 
     // Listen for auth changes
@@ -68,10 +71,10 @@ export default function HomePage() {
       } else {
         setAuthToken(null);
         setUserProfile(null);
-        setHistory([]);
         setActiveConversation('');
         setCurrentChatHistory([]);
       }
+      setIsAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -85,6 +88,8 @@ export default function HomePage() {
 
   useEffect(() => {
     // Clone Logic
+    if (isAuthLoading) return;
+    
     const params = new URLSearchParams(window.location.search);
     const cloneId = params.get('clone');
     if (cloneId) {
@@ -94,7 +99,7 @@ export default function HomePage() {
         setShowLoginModal(true);
       }
     }
-  }, [userProfile?.id]); // Re-run when user logs in to handle clone after login
+  }, [userProfile?.id, isAuthLoading]); // Re-run when user logs in to handle clone after login
 
   const handleCloneChat = async (sourceId: string) => {
     if (!userProfile?.id) return;
@@ -117,14 +122,15 @@ export default function HomePage() {
         // Insert cloned msgs with stripped files
         const newMsgs = sourceMsgs.map((msg: any) => ({
           session_id: newSession.id,
-          user_id: userProfile.id, // Reassign to current user
           role: msg.role,
           content: msg.content,
-          files: [], // CRITICAL: Strip files for privacy
         }));
         
         if (newMsgs.length > 0) {
-          await supabase.from('chat_messages').insert(newMsgs);
+          const { error: insertError } = await supabase.from('chat_messages').insert(newMsgs);
+          if (insertError) {
+             console.error('Failed to insert cloned messages:', insertError);
+          }
         }
         
         // Clean up URL
@@ -181,6 +187,8 @@ export default function HomePage() {
 
   const handleSelectConversation = async (id: string) => {
     setActiveConversation(id);
+    setCurrentChatHistory([]); // Segera kosongkan chat lama agar tidak nge-lag saat merender ulang
+    setIsFetchingHistory(true);
     
     // Fetch messages for this session
     const { data, error } = await supabase
@@ -196,11 +204,13 @@ export default function HomePage() {
         content: msg.content,
         type: 'text',
         timestamp: new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        created_at: msg.created_at,
         files: msg.files || [],
       })));
     } else {
       setCurrentChatHistory([]);
     }
+    setIsFetchingHistory(false);
   };
 
   const handleNewChat = () => {
@@ -252,7 +262,7 @@ export default function HomePage() {
 
   return (
     <div
-      className={`flex h-[100dvh] overflow-hidden ${darkMode ? 'dark bg-telkom-charcoal' : 'bg-telkom-surface-light'}`}
+      className={`flex h-[100dvh] overflow-hidden ${darkMode ? 'dark bg-dark-mode' : 'bg-light-mode'}`}
     >
       <Sidebar
         isOpen={sidebarOpen}
@@ -264,7 +274,9 @@ export default function HomePage() {
         history={history}
         onNewChat={handleNewChat}
         onOpenSettings={() => setShowSettingsModal(true)}
+        isSettingsOpen={showSettingsModal}
         onOpenProfile={() => setShowProfileModal(true)}
+        isProfileOpen={showProfileModal}
         onRequireLogin={() => setShowLoginModal(true)}
         isLoggedIn={!!authToken}
         userProfile={userProfile}
@@ -284,6 +296,7 @@ export default function HomePage() {
         activeConversation={activeConversation}
         globalHistory={history}
         onConversationActivity={handleConversationActivity}
+        isFetchingHistory={isFetchingHistory}
       />
 
       <AuthModal

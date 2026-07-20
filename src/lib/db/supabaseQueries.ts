@@ -32,7 +32,7 @@ export const filterRecords = async (tableName: string, filterColumn: string, fil
       query = query.order(orderColumn, { ascending: orderAscending !== false, nullsFirst: false });
     }
     
-    const { data, error } = await query.limit(limitAmount || 15);
+    const { data, error } = await query.limit(limitAmount || 100);
     if (error) return { error: error.message };
     return { data };
   } catch (error: any) {
@@ -82,4 +82,35 @@ export const updateUserMemory = async (userId: string, memoryText: string) => {
   } catch (error: any) {
     return { error: error.message };
   }
+};
+
+/**
+ * Utility to scan JSON results for UUIDs and replace them with Project Names.
+ * This ensures Gemini always receives human-readable names for project_ids.
+ */
+export const enrichWithProjectNames = async (data: any) => {
+  if (!data) return data;
+  let strData = JSON.stringify(data);
+  const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+  const matches = strData.match(uuidRegex);
+  
+  if (!matches || matches.length === 0) return data;
+  
+  const uniqueUuids = [...new Set(matches)];
+  
+  // Query Supabase for these UUIDs in projects table
+  const { data: projects, error } = await supabase
+    .from('projects')
+    .select('id, project_name')
+    .in('id', uniqueUuids);
+    
+  if (error || !projects || projects.length === 0) return data;
+  
+  // Replace UUIDs with project_name
+  for (const proj of projects) {
+    const regex = new RegExp(proj.id, 'gi');
+    strData = strData.replace(regex, `${proj.project_name} (${proj.id.substring(0,4)})`);
+  }
+  
+  return JSON.parse(strData);
 };

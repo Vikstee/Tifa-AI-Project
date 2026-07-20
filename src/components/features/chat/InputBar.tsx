@@ -2,12 +2,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UploadedFile {
   name: string;
   size: string;
   type: string;
   file: File;
+  status?: 'loading' | 'ready';
 }
 
 interface InputBarProps {
@@ -18,7 +20,9 @@ interface InputBarProps {
   onFileUpload: (files: UploadedFile[]) => void;
   uploadedFiles: UploadedFile[];
   onRemoveFile: (index: number) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
+  isScrolledUp?: boolean;
+  onCancel?: () => void;
 }
 
 export default function InputBar({
@@ -29,7 +33,9 @@ export default function InputBar({
   onFileUpload,
   uploadedFiles,
   onRemoveFile,
-  isLoading,
+  isLoading = false,
+  isScrolledUp = false,
+  onCancel,
 }: InputBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -77,7 +83,7 @@ export default function InputBar({
       const draw = () => {
         if (!analyserRef.current || !dataArrayRef.current) return;
         
-        analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current as any);
         
         // Capture the core voice frequency (around bin 4, ignoring 0-300Hz wind rumble)
         let centerValue = dataArrayRef.current[4] || 0;
@@ -135,7 +141,7 @@ export default function InputBar({
   // Initialize Speech Recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -161,8 +167,14 @@ export default function InputBar({
         };
 
         recognition.onerror = (event: any) => {
-          console.error('Speech recognition error', event.error);
+          if (event.error === 'not-allowed') {
+            console.warn('Microphone access denied:', event.error);
+            alert('Tifa membutuhkan izin mikrofon untuk mendengar suara Anda. Silakan klik ikon gembok di sebelah URL browser dan izinkan akses mikrofon.');
+          } else {
+            console.warn('Speech recognition error:', event.error);
+          }
           setIsRecording(false);
+          setShowVoiceModal(false);
         };
 
         recognition.onend = () => {
@@ -260,72 +272,84 @@ export default function InputBar({
           : `${(f.size / 1024).toFixed(0)} KB`,
       type: f.type,
       file: f,
+      status: 'loading',
     }));
     onFileUpload(mapped);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const fileIconMap = (type: string) => {
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('sheet') || type.includes('excel') || type.includes('csv')) return '📊';
-    if (type.includes('word') || type.includes('document')) return '📝';
-    if (type.includes('image')) return '🖼️';
+  const fileIconMap = (name: string, type: string) => {
+    const lowerName = (name || '').toLowerCase();
+    const lowerType = (type || '').toLowerCase();
+
+    if (lowerType.includes('pdf') || lowerName.endsWith('.pdf')) return '📄';
+    if (lowerType.includes('sheet') || lowerType.includes('excel') || lowerType.includes('csv') || lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')) return '📊';
+    if (lowerType.includes('word') || lowerType.includes('document') || lowerName.endsWith('.doc') || lowerName.endsWith('.docx')) return '📝';
+    if (lowerType.includes('image') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png') || lowerName.endsWith('.gif')) return '🖼️';
     return '📎';
   };
 
   return (
     <div className="w-full">
-      {/* File preview chips */}
-      {uploadedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2 px-1">
-          {uploadedFiles.map((file, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors
-                ${darkMode ? 'bg-telkom-surface-dark border-telkom-border-dark text-telkom-gray-light' : 'bg-gray-100 border-gray-200 text-gray-700'}
-              `}
-            >
-              <span>{fileIconMap(file.type)}</span>
-              <span className="max-w-[120px] truncate">{file.name}</span>
-              <span className={`${darkMode ? 'text-telkom-gray/60' : 'text-gray-400'}`}>
-                ({file.size})
-              </span>
-              <button
-                onClick={() => onRemoveFile(idx)}
-                className={`ml-0.5 rounded-full hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
+      {/* Input container with frosted glass pill design */}
+      <div className="relative max-w-4xl mx-auto">
+        {/* File preview chips */}
+        {uploadedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2 px-1">
+            {uploadedFiles.map((file, idx) => (
+              <div
+                key={idx}
+                className={`relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors
+                  ${darkMode ? 'bg-telkom-surface-dark border-telkom-border-dark text-telkom-gray-light' : 'bg-gray-100 border-gray-200 text-gray-700'}
+                  ${file.status === 'loading' ? 'opacity-70 pointer-events-none' : 'opacity-100'}
+                `}
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          ))}
-          {uploadedFiles.length >= 10 && (
-            <span className="text-xs text-telkom-gray self-center">Maks. 10 file</span>
-          )}
-        </div>
-      )}
+                {file.status === 'loading' && (
+                  <div className={`absolute top-0 left-0 h-full animate-file-load ${darkMode ? 'bg-telkom-red/30' : 'bg-blue-500/20'}`} />
+                )}
+                <span className="relative z-10">{fileIconMap(file.name, file.type)}</span>
+                <span className="relative z-10 max-w-[120px] truncate">{file.name}</span>
+                <span className={`relative z-10 ${darkMode ? 'text-telkom-gray/60' : 'text-gray-400'}`}>
+                  ({file.size})
+                </span>
+                <button
+                  onClick={() => onRemoveFile(idx)}
+                  className={`relative z-10 ml-0.5 rounded-full hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            {uploadedFiles.length >= 10 && (
+              <span className="text-xs text-telkom-gray self-center">Maks. 10 file</span>
+            )}
+          </div>
+        )}
 
-      {/* Input container with animated gradient border */}
-      <div className="gradient-border-input">
-        <div
-          className={`
-          flex items-end gap-2 px-3 py-2.5 rounded-2xl transition-all duration-200
-          ${darkMode ? 'bg-telkom-surface-dark' : 'bg-white shadow-sm'}
-        `}
-        >
+        <div className={`gradient-border-pill ${inputText.trim() ? 'is-active' : ''}`}>
+          <div
+            className={`
+            flex items-center gap-3 px-4 py-2.5 rounded-[32px] transition-all duration-300
+            backdrop-blur-2xl border
+            ${darkMode 
+              ? 'bg-black/10 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]' 
+              : 'bg-white/10 border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]'}
+          `}
+          >
           {/* File upload button */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadedFiles.length >= 10}
             title="Upload file (maks. 10)"
-            className={`p-2 rounded-xl transition-colors flex-shrink-0 mb-0.5
-              ${darkMode ? 'text-telkom-gray hover:text-white hover:bg-telkom-border-dark' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}
+            className={`p-2 rounded-full transition-colors flex-shrink-0
+              ${darkMode ? 'text-telkom-gray hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'}
               disabled:opacity-40 disabled:cursor-not-allowed
             `}
           >
@@ -356,66 +380,84 @@ export default function InputBar({
             placeholder="Tanyakan Saja Ke Tifa..."
             rows={1}
             className={`
-              flex-1 resize-none bg-transparent outline-none text-base sm:text-sm leading-relaxed py-1.5
-              placeholder-telkom-gray/50
+              flex-1 resize-none bg-transparent outline-none text-base sm:text-sm leading-relaxed py-2
+              placeholder-gray-500/70 dark:placeholder-gray-400/70
               ${darkMode ? 'text-white' : 'text-gray-900'}
             `}
             style={{ minHeight: '36px', overflowY: 'hidden' }}
           />
 
           {/* Voice input */}
-          <button
-            onClick={toggleRecording}
-            title="Input suara"
-            className={`p-2 rounded-xl transition-colors flex-shrink-0 mb-0.5
-              ${isRecording
-                ? 'text-telkom-red bg-telkom-red/10 animate-pulse'
-                : darkMode
-                  ? 'text-telkom-gray hover:text-white hover:bg-telkom-border-dark'
-                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
-              }
-            `}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
-          </button>
+          {!showVoiceModal ? (
+            <motion.button
+              layoutId="voice-modal"
+              onClick={toggleRecording}
+              title="Input suara"
+              className={`p-2 rounded-full transition-colors flex-shrink-0
+                ${isRecording
+                  ? 'text-telkom-red bg-telkom-red/10 animate-pulse'
+                  : darkMode
+                    ? 'text-telkom-gray hover:text-white hover:bg-white/10'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
+                }
+              `}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+            </motion.button>
+          ) : (
+            <div className="w-[36px] h-[36px] flex-shrink-0" />
+          )}
 
           {/* Send button */}
           <button
-            onClick={() => onSend()}
-            disabled={(!inputText.trim() && uploadedFiles.length === 0) || isLoading}
+            onClick={(e) => {
+              if (isLoading) {
+                if (onCancel) onCancel();
+              } else {
+                onSend();
+              }
+            }}
+            disabled={(!isLoading && !inputText.trim() && uploadedFiles.length === 0) || uploadedFiles.some(f => f.status === 'loading')}
             className={`
-              p-2 rounded-xl transition-all duration-200 flex-shrink-0 mb-0.5
-              ${(inputText.trim() || uploadedFiles.length > 0) && !isLoading
-                ? 'bg-telkom-red hover:bg-telkom-red-dark text-white shadow-lg shadow-telkom-red/20'
-                : darkMode
-                  ? 'text-telkom-gray/40 cursor-not-allowed'
-                  : 'text-gray-300 cursor-not-allowed'
+              p-2 rounded-full transition-all duration-200 flex-shrink-0
+              ${isLoading
+                ? darkMode ? 'text-red-400 hover:bg-red-400/10' : 'text-red-500 hover:bg-red-50'
+                : (inputText.trim() || uploadedFiles.length > 0)
+                  ? uploadedFiles.some(f => f.status === 'loading') 
+                    ? darkMode ? 'text-telkom-gray/40 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed'
+                    : darkMode ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-black/5'
+                  : darkMode
+                    ? 'text-telkom-gray/40 cursor-not-allowed'
+                    : 'text-gray-400 cursor-not-allowed'
               }
             `}
           >
             {isLoading ? (
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
+              <div className="relative w-5 h-5 flex items-center justify-center">
+                <svg className="w-5 h-5 animate-spin absolute inset-0" fill="none" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                <div className="w-2 h-2 bg-currentColor rounded-[2px] z-10" style={{ backgroundColor: 'currentColor' }}></div>
+              </div>
             ) : (
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -427,78 +469,99 @@ export default function InputBar({
               </svg>
             )}
           </button>
+          </div>
         </div>
       </div>
 
       {/* Voice Modal Overlay via Portal */}
-      {showVoiceModal && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <style>{`
-            @keyframes soundWave {
-              0% { transform: scaleY(0.3); opacity: 0.5; }
-              100% { transform: scaleY(1); opacity: 1; }
-            }
-            .audio-bar {
-              animation: soundWave 0.4s infinite alternate ease-in-out;
-              transform-origin: bottom;
-            }
-          `}</style>
-          <div className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}>
-            <div className="p-6 flex flex-col items-center">
-              {/* Audio Visualizer */}
-              <div className="flex items-center justify-center gap-1 h-16 mb-6">
-                {[...Array(31)].map((_, i) => (
-                  <div
-                    key={i}
-                    ref={(el) => { barsRef.current[i] = el; }}
-                    className={`w-1 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
-                    style={{ height: '10%' }}
-                  />
-                ))}
-              </div>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showVoiceModal && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center">
+              {/* Backdrop */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={cancelRecording}
+              />
+
+              <style>{`
+                @keyframes soundWave {
+                  0% { transform: scaleY(0.3); opacity: 0.5; }
+                  100% { transform: scaleY(1); opacity: 1; }
+                }
+                .audio-bar {
+                  animation: soundWave 0.4s infinite alternate ease-in-out;
+                  transform-origin: bottom;
+                }
+              `}</style>
               
-              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Mendengarkan...
-              </h3>
-              
-              {/* Live Text Area */}
-              <div className={`w-full p-4 min-h-[100px] max-h-[200px] overflow-y-auto rounded-xl text-center italic transition-colors mb-6 shadow-inner
-                ${darkMode ? 'bg-black/20 text-gray-300' : 'bg-gray-50 text-gray-600'}
-              `}>
-                {finalTranscript} <span className="opacity-70">{liveTranscript}</span>
-                {!finalTranscript && !liveTranscript && (
-                  <span className="opacity-50">Silakan mulai berbicara...</span>
-                )}
-              </div>
-              
-              <div className="flex w-full gap-3">
-                <button
-                  onClick={cancelRecording}
-                  className={`flex-1 py-3 rounded-full font-medium transition-colors ${
-                    darkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  }`}
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={stopRecordingAndApply}
-                  className="flex-[2] py-3 bg-telkom-red hover:bg-telkom-red-dark text-white rounded-full font-medium transition-colors shadow-lg shadow-telkom-red/20"
-                >
-                  Selesai & Masukkan
-                </button>
-              </div>
+              <motion.div 
+                layoutId="voice-modal"
+                transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
+                className={`w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl relative z-10 ${darkMode ? 'bg-[#1E1F22]' : 'bg-white'}`}
+              >
+                <div className="p-6 flex flex-col items-center">
+                  {/* Audio Visualizer */}
+                  <div className="flex items-center justify-center gap-1 h-16 mb-6">
+                    {[...Array(31)].map((_, i) => (
+                      <div
+                        key={i}
+                        ref={(el) => { barsRef.current[i] = el; }}
+                        className={`w-1 rounded-full ${darkMode ? 'bg-telkom-red' : 'bg-red-500'} transition-all duration-75`}
+                        style={{ height: '10%' }}
+                      />
+                    ))}
+                  </div>
+                  
+                  <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Mendengarkan...
+                  </h3>
+                  
+                  {/* Live Text Area */}
+                  <div className={`w-full p-4 min-h-[100px] max-h-[200px] overflow-y-auto rounded-xl text-center italic transition-colors mb-6 shadow-inner
+                    ${darkMode ? 'bg-black/20 text-gray-300' : 'bg-gray-50 text-gray-600'}
+                  `}>
+                    {finalTranscript} <span className="opacity-70">{liveTranscript}</span>
+                    {!finalTranscript && !liveTranscript && (
+                      <span className="opacity-50">Silakan mulai berbicara...</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex w-full gap-3">
+                    <button
+                      onClick={cancelRecording}
+                      className={`flex-1 py-3 rounded-full font-medium transition-colors ${
+                        darkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={stopRecordingAndApply}
+                      className="flex-[2] py-3 bg-telkom-red hover:bg-telkom-red-dark text-white rounded-full font-medium transition-colors shadow-lg shadow-telkom-red/20"
+                    >
+                      Selesai & Masukkan
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             </div>
-          </div>
-        </div>,
+          )}
+        </AnimatePresence>,
         document.body
       )}
 
       {/* Disclaimer */}
-      <p
-        className={`text-center text-xs mt-2 ${darkMode ? 'text-telkom-gray/50' : 'text-gray-400'}`}
-      >
-        TIFA dapat membuat kesalahan. Verifikasi informasi penting sebelum digunakan.
-      </p>
+      <div className={`transition-opacity duration-300 ${isScrolledUp ? 'opacity-0 pointer-events-none' : 'opacity-100'} mt-2`}>
+        <p
+          className={`text-center text-xs ${darkMode ? 'text-telkom-gray/50' : 'text-gray-400'}`}
+        >
+          TIFA dapat membuat kesalahan. Verifikasi informasi penting sebelum digunakan.
+        </p>
+      </div>
     </div>
   );
 }
