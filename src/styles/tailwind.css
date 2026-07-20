@@ -223,7 +223,7 @@
 }
 
 .bg-dark-mode {
-  background-image: url('/bg-dark.png');
+  background-image: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), url('/bg-dark.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
