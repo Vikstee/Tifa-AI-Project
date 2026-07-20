@@ -16,7 +16,10 @@ interface UploadedFile {
   name: string;
   size: string;
   type: string;
-  file: File;
+  file?: File;
+  url?: string;
+  status?: 'loading' | 'ready';
+  geminiData?: { data: string; mimeType: string };
 }
 
 // Remove initialMessages since it will be handled by page.tsx or empty at start
@@ -123,6 +126,33 @@ export default function ChatArea({
       fetchDynamicSubtitle();
     }
   }, [isEmpty, isLoggedIn, userProfile, globalHistory]);
+
+  // Process files (import to memory) when they are added
+  useEffect(() => {
+    const processLoadingFiles = async () => {
+      const loadingFiles = uploadedFiles.filter(f => f.status === 'loading');
+      if (loadingFiles.length === 0) return;
+
+      const updatedFiles = await Promise.all(
+        uploadedFiles.map(async (uf) => {
+          if (uf.status === 'loading' && uf.file) {
+            try {
+              const geminiData = await processFileForGemini(uf.file);
+              return { ...uf, status: 'ready', geminiData } as UploadedFile;
+            } catch (error) {
+              console.error('Failed to import file', error);
+              return { ...uf, status: 'ready' } as UploadedFile; // Mark ready even if failed so it doesn't block forever
+            }
+          }
+          return uf;
+        })
+      );
+      
+      setUploadedFiles(updatedFiles);
+    };
+
+    processLoadingFiles();
+  }, [uploadedFiles]);
 
   const getGreeting = () => {
     if (isLoggedIn && userProfile?.name) {
@@ -277,25 +307,14 @@ export default function ChatArea({
     }]);
 
     try {
-      // Process files for Gemini
-      const processedFiles = await Promise.all(
-        currentFiles.map(async (uf) => {
-          if (uf.url) {
-            // Already uploaded, we should still try to send to Gemini? 
-            // Since we don't have the File object, Gemini can't read it easily without downloading.
-            // For now, if editing, we might just ignore the old files for Gemini unless we fetch them.
-            return null;
-          }
-          if (!uf.file) return null;
-          const { data, mimeType } = await processFileForGemini(uf.file);
-          return {
-            inlineData: {
-              data,
-              mimeType,
-            },
-          };
-        })
-      );
+      // Use pre-processed files for Gemini
+      const processedFiles = currentFiles.map((uf) => {
+        if (uf.url) return null;
+        if (!uf.geminiData) return null;
+        return {
+          inlineData: uf.geminiData,
+        };
+      });
       const validFiles = processedFiles.filter(Boolean);
 
       // Create a new AbortController for this request
@@ -406,7 +425,7 @@ export default function ChatArea({
 
   return (
     <div
-      className={`flex flex-col flex-1 min-w-0 h-full relative ${darkMode ? 'bg-telkom-charcoal' : 'bg-telkom-surface-light'}`}
+      className={`flex flex-col flex-1 min-w-0 h-full relative ${darkMode ? 'bg-transparent' : 'bg-telkom-surface-light'}`}
     >
       {/* Top bar (Glassmorphism) */}
       <div

@@ -222,6 +222,13 @@
   animation: smokyShadow 3s infinite ease-in-out;
 }
 
+.bg-dark-mode {
+  background-image: url('/bg-dark.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 @keyframes bottomSmoke {
   0% {
     opacity: 0.4;

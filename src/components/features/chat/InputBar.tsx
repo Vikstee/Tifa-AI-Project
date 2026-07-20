@@ -9,6 +9,7 @@ interface UploadedFile {
   size: string;
   type: string;
   file: File;
+  status?: 'loading' | 'ready';
 }
 
 interface InputBarProps {
@@ -271,16 +272,20 @@ export default function InputBar({
           : `${(f.size / 1024).toFixed(0)} KB`,
       type: f.type,
       file: f,
+      status: 'loading',
     }));
     onFileUpload(mapped);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const fileIconMap = (type: string) => {
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('sheet') || type.includes('excel') || type.includes('csv')) return '📊';
-    if (type.includes('word') || type.includes('document')) return '📝';
-    if (type.includes('image')) return '🖼️';
+  const fileIconMap = (name: string, type: string) => {
+    const lowerName = (name || '').toLowerCase();
+    const lowerType = (type || '').toLowerCase();
+
+    if (lowerType.includes('pdf') || lowerName.endsWith('.pdf')) return '📄';
+    if (lowerType.includes('sheet') || lowerType.includes('excel') || lowerType.includes('csv') || lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')) return '📊';
+    if (lowerType.includes('word') || lowerType.includes('document') || lowerName.endsWith('.doc') || lowerName.endsWith('.docx')) return '📝';
+    if (lowerType.includes('image') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png') || lowerName.endsWith('.gif')) return '🖼️';
     return '📎';
   };
 
@@ -294,18 +299,22 @@ export default function InputBar({
             {uploadedFiles.map((file, idx) => (
               <div
                 key={idx}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors
+                className={`relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors
                   ${darkMode ? 'bg-telkom-surface-dark border-telkom-border-dark text-telkom-gray-light' : 'bg-gray-100 border-gray-200 text-gray-700'}
+                  ${file.status === 'loading' ? 'opacity-70 pointer-events-none' : 'opacity-100'}
                 `}
               >
-                <span>{fileIconMap(file.type)}</span>
-                <span className="max-w-[120px] truncate">{file.name}</span>
-                <span className={`${darkMode ? 'text-telkom-gray/60' : 'text-gray-400'}`}>
+                {file.status === 'loading' && (
+                  <div className={`absolute top-0 left-0 h-full animate-file-load ${darkMode ? 'bg-telkom-red/30' : 'bg-blue-500/20'}`} />
+                )}
+                <span className="relative z-10">{fileIconMap(file.name, file.type)}</span>
+                <span className="relative z-10 max-w-[120px] truncate">{file.name}</span>
+                <span className={`relative z-10 ${darkMode ? 'text-telkom-gray/60' : 'text-gray-400'}`}>
                   ({file.size})
                 </span>
                 <button
                   onClick={() => onRemoveFile(idx)}
-                  className={`ml-0.5 rounded-full hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
+                  className={`relative z-10 ml-0.5 rounded-full hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
@@ -415,13 +424,15 @@ export default function InputBar({
                 onSend();
               }
             }}
-            disabled={!isLoading && !inputText.trim() && uploadedFiles.length === 0}
+            disabled={(!isLoading && !inputText.trim() && uploadedFiles.length === 0) || uploadedFiles.some(f => f.status === 'loading')}
             className={`
               p-2 rounded-full transition-all duration-200 flex-shrink-0
               ${isLoading
                 ? darkMode ? 'text-red-400 hover:bg-red-400/10' : 'text-red-500 hover:bg-red-50'
                 : (inputText.trim() || uploadedFiles.length > 0)
-                  ? darkMode ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-black/5'
+                  ? uploadedFiles.some(f => f.status === 'loading') 
+                    ? darkMode ? 'text-telkom-gray/40 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed'
+                    : darkMode ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-black/5'
                   : darkMode
                     ? 'text-telkom-gray/40 cursor-not-allowed'
                     : 'text-gray-400 cursor-not-allowed'
