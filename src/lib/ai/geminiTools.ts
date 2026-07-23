@@ -111,5 +111,37 @@ export const dbToolsDefinitions = [
       },
       required: ["memory_text"]
     }
+  },
+  {
+    name: "ask_database_sql",
+    description: "Alat AI canggih (Agen Text-to-SQL) untuk menjawab pertanyaan statistik, hitungan matematis, tren agregat kompleks, persentase, atau perbandingan antar kolom/tabel. Jika 'filterRecords' dan 'aggregateRecords' tidak cukup, JANGAN jawab 'saya tidak bisa', tetapi panggil alat ini dengan memasukkan pertanyaan Anda persis dalam bahasa Indonesia.",
+    parameters: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "Pertanyaan jelas dan detail dalam bahasa Indonesia (contoh: 'Berapa total revenue untuk proyek telkomsel di tahun 2026?')"
+        }
+      },
+      required: ["question"]
+    }
+  },
+  {
+    name: "search_document",
+    description: "Mencari potongan teks atau paragraf spesifik di dalam file dokumen (seperti PDF) yang telah diunggah pengguna, menggunakan Vector Search. Gunakan alat ini ketika pengguna menanyakan isi dari dokumen atau file yang mereka unggah.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Kata kunci atau inti pertanyaan untuk dicari di dalam dokumen (contoh: 'syarat denda keterlambatan')"
+        },
+        file_name: {
+          type: "string",
+          description: "Opsional. Nama file spesifik jika diketahui. Jika tidak diisi, akan mencari di semua dokumen."
+        }
+      },
+      required: ["query"]
+    }
   }
 ];

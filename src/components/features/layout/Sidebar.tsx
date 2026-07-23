@@ -216,14 +216,11 @@ export default function Sidebar({
           fixed z-[50]
           flex flex-col
           top-4 left-4 bottom-4
-          ${darkMode 
-            ? 'bg-gray-900/60 lg:bg-black/10 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.4)]' 
-            : 'bg-white/80 lg:bg-white/10 border border-white/40 shadow-[0_16px_48px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_4px_rgba(0,0,0,0.1)]'}
-          backdrop-blur-2xl rounded-[2rem]
+          glass-panel-strong rounded-[2rem]
           overflow-hidden
           ${!isOpen ? 'pointer-events-none' : ''}
         `}
-        style={{ WebkitBackdropFilter: 'blur(24px)', transformOrigin: '18px 14px' }}
+        style={{ transformOrigin: '18px 14px' }}
         initial={false}
         animate={{
           width: 288,

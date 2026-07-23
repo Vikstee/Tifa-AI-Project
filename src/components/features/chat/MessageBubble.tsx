@@ -88,8 +88,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
             )}
             <div
               className={`relative text-sm leading-relaxed ${isEditing ? 'w-full min-w-[250px] sm:min-w-[400px]' : 'px-4 py-3 rounded-2xl rounded-br-sm'}
-              ${!darkMode && !isEditing ? 'bg-telkom-red text-white shadow-sm' : ''}
-              ${darkMode && !isEditing ? 'bg-telkom-red text-white shadow-sm' : ''}
+              ${!isEditing ? 'bg-gradient-to-br from-telkom-red to-[#FF4D4D] text-white shadow-[0_4px_16px_rgba(228,0,43,0.25)] border border-white/20' : ''}
             `}
             >
               {isEditing ? (

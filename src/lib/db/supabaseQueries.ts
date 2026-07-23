@@ -32,7 +32,7 @@ export const filterRecords = async (tableName: string, filterColumn: string, fil
       query = query.order(orderColumn, { ascending: orderAscending !== false, nullsFirst: false });
     }
     
-    const { data, error } = await query.limit(limitAmount || 100);
+    const { data, error } = await query.limit(limitAmount || 50);
     if (error) return { error: error.message };
     return { data };
   } catch (error: any) {
@@ -46,7 +46,8 @@ export const aggregateRecords = async (tableName: string, sumColumn: string, fil
     if (filterColumn && filterValue) {
       query = query.ilike(filterColumn, `%${filterValue}%`);
     }
-    const { data, error } = await query;
+    // Protect against massive memory dumps by hard-capping at 5000 rows for manual frontend aggregation
+    const { data, error } = await query.limit(5000);
     if (error) return { error: error.message };
     
     let total = 0;

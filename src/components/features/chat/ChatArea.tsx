@@ -429,7 +429,7 @@ export default function ChatArea({
     >
       {/* Top bar (Glassmorphism) */}
       <div
-        className={`absolute top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b backdrop-blur-lg transition-all duration-300 ${darkMode ? 'bg-gray-900/85 border-white/5' : 'bg-white/85 border-black/5'}`}
+        className={`absolute top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b transition-all duration-300 glass-panel border-l-0 border-r-0 border-t-0`}
       >
         {/* Hamburger for mobile / collapsed sidebar */}
         <button
@@ -586,7 +586,7 @@ export default function ChatArea({
                     <div key={`group-${group.dateStr}-${groupIdx}`} className="relative flex flex-col gap-6">
                       {/* Sticky Date Header for this group */}
                       <div className="sticky top-2 z-20 flex justify-center pointer-events-none">
-                        <div className={`px-3 py-1.5 rounded-lg text-xs font-medium shadow-[0_4px_12px_rgba(0,0,0,0.05)] backdrop-blur-xl transition-all duration-300 ${darkMode ? 'bg-[#1E2024]/80 text-gray-300 border border-white/10' : 'bg-white/80 text-gray-700 border border-black/5'}`}>
+                        <div className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 glass-panel ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                           {group.dateStr}
                         </div>
                       </div>
