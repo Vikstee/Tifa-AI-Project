@@ -68,7 +68,41 @@ export default function ChatArea({
   const [dynamicPrompts, setDynamicPrompts] = useState<any[]>([]);
   const [isSubtitleLoading, setIsSubtitleLoading] = useState(false);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [quotedTexts, setQuotedTexts] = useState<string[]>([]);
+  const [selectionPopup, setSelectionPopup] = useState<{ text: string; x: number; y: number } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Handle Text Selection Popup
+  useEffect(() => {
+    const handleSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed) {
+        setSelectionPopup(null);
+        return;
+      }
+      const text = selection.toString().trim();
+      if (text.length > 2) {
+        try {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            setSelectionPopup({
+              text,
+              x: rect.left + rect.width / 2,
+              y: Math.max(10, rect.top - 42),
+            });
+          }
+        } catch (e) {
+          // ignore selection error
+        }
+      } else {
+        setSelectionPopup(null);
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelection);
+    return () => document.removeEventListener('selectionchange', handleSelection);
+  }, []);
 
   const formatStickyDate = (isoString: string): string => {
     const date = new Date(isoString);
@@ -229,7 +263,13 @@ export default function ChatArea({
   };
 
   const handleSend = async (overrideText?: string, overrideFiles?: any[], overrideHistory?: Message[]) => {
-    const currentInput = (overrideText !== undefined ? overrideText : inputText).trim();
+    let rawInput = (overrideText !== undefined ? overrideText : inputText).trim();
+    if (quotedTexts.length > 0 && overrideText === undefined) {
+      const formattedQuotes = quotedTexts.map(q => `> "${q}"`).join('\n');
+      rawInput = `${formattedQuotes}\n\n${rawInput}`;
+      setQuotedTexts([]);
+    }
+    const currentInput = rawInput;
     const currentFiles = overrideFiles !== undefined ? overrideFiles : uploadedFiles;
     const currentHistory = overrideHistory !== undefined ? overrideHistory : chatHistory;
     const currentIsEmpty = currentHistory.length === 0;
@@ -632,10 +672,44 @@ export default function ChatArea({
               isLoading={isLoading}
               isScrolledUp={isScrolledUp}
               onCancel={handleCancel}
+              quotedTexts={quotedTexts}
+              onRemoveQuote={(idx) => setQuotedTexts((prev) => prev.filter((_, i) => i !== idx))}
+              onClearAllQuotes={() => setQuotedTexts([])}
             />
             </div>
           </div>
         </div>
+
+        {/* Floating Selection "Balas ↩" Tooltip */}
+        {selectionPopup && (
+          <div
+            style={{
+              position: 'fixed',
+              left: `${selectionPopup.x}px`,
+              top: `${selectionPopup.y}px`,
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
+            }}
+            className="animate-fadeIn pointer-events-auto"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (quotedTexts.length < 5) {
+                  setQuotedTexts((prev) => [...prev, selectionPopup.text]);
+                }
+                setSelectionPopup(null);
+                window.getSelection()?.removeAllRanges();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-telkom-red text-white text-xs font-semibold shadow-2xl hover:bg-red-600 transition-all hover:scale-105 active:scale-95 border border-white/30 backdrop-blur-md"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              Balas
+            </button>
+          </div>
+        )}
 
         {/* Mobile overlay for Report Panel */}
         {showReportPanel && (

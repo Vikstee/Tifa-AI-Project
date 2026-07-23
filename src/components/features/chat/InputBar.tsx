@@ -4,11 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface UploadedFile {
+export interface UploadedFile {
   name: string;
   size: string;
   type: string;
-  file: File;
+  file?: File;
+  geminiData?: { data: string; mimeType: string };
+  url?: string;
   status?: 'loading' | 'ready';
 }
 
@@ -23,6 +25,9 @@ interface InputBarProps {
   isLoading?: boolean;
   isScrolledUp?: boolean;
   onCancel?: () => void;
+  quotedTexts?: string[];
+  onRemoveQuote?: (index: number) => void;
+  onClearAllQuotes?: () => void;
 }
 
 export default function InputBar({
@@ -36,6 +41,9 @@ export default function InputBar({
   isLoading = false,
   isScrolledUp = false,
   onCancel,
+  quotedTexts = [],
+  onRemoveQuote,
+  onClearAllQuotes,
 }: InputBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -43,6 +51,44 @@ export default function InputBar({
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
+  const [selectedFileForModal, setSelectedFileForModal] = useState<UploadedFile | null>(null);
+  const [fileTextContent, setFileTextContent] = useState<string>('');
+  const [expandedQuoteIndex, setExpandedQuoteIndex] = useState<number | null>(null);
+
+  // Read text/image content of file selected for modal preview
+  useEffect(() => {
+    if (!selectedFileForModal) {
+      setFileTextContent('');
+      return;
+    }
+    const readContent = async () => {
+      if (selectedFileForModal.geminiData?.data) {
+        try {
+          const decoded = decodeURIComponent(escape(atob(selectedFileForModal.geminiData.data)));
+          setFileTextContent(decoded);
+          return;
+        } catch (e) {
+          // fallback
+        }
+      }
+      if (selectedFileForModal.file) {
+        const file = selectedFileForModal.file;
+        if (file.type.startsWith('image/')) {
+          setFileTextContent('');
+          return;
+        }
+        try {
+          const text = await file.text();
+          setFileTextContent(text || '[File kosong]');
+        } catch (e) {
+          setFileTextContent('[Format file ini tidak dapat dibaca langsung sebagai teks]');
+        }
+      } else {
+        setFileTextContent('[Detail isi file tidak tersedia]');
+      }
+    };
+    readContent();
+  }, [selectedFileForModal]);
 
   const recognitionRef = useRef<any>(null);
   const currentInputRef = useRef(inputText);
@@ -293,28 +339,103 @@ export default function InputBar({
     <div className="w-full">
       {/* Input container with frosted glass pill design */}
       <div className="relative max-w-4xl mx-auto">
+        {/* Multi-Quote Reply preview chips */}
+        <AnimatePresence>
+          {quotedTexts && quotedTexts.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="flex flex-wrap gap-2 mb-2 px-1"
+            >
+              {quotedTexts.map((quote, idx) => {
+                const isExpanded = expandedQuoteIndex === idx;
+                return (
+                  <motion.div
+                    key={`quote-${idx}`}
+                    layout
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    onClick={() => setExpandedQuoteIndex(isExpanded ? null : idx)}
+                    className={`flex items-start justify-between gap-2 px-3 py-2 rounded-2xl border text-xs backdrop-blur-xl transition-all cursor-pointer hover:border-telkom-red ${
+                      isExpanded ? 'w-full max-w-2xl shadow-2xl' : 'max-w-[220px] shadow-md'
+                    } ${
+                      darkMode
+                        ? 'bg-gray-900/95 border-telkom-red/50 text-gray-100 shadow-black/50'
+                        : 'bg-white/95 border-telkom-red/30 text-gray-900 shadow-gray-300/60'
+                    }`}
+                    title={isExpanded ? 'Klik untuk mengecilkan kembali' : 'Klik untuk membaca teks lengkap'}
+                  >
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                      <div className="w-1.5 h-full min-h-[16px] bg-telkom-red rounded-full flex-shrink-0 mt-0.5" />
+                      <div className="flex flex-col min-w-0 flex-1">
+                        {isExpanded && (
+                          <span className="font-semibold text-telkom-red text-[11px] mb-1 flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Balasan Lengkap #{idx + 1}:
+                          </span>
+                        )}
+                        <span className={`italic font-mono text-[11px] opacity-90 ${
+                          isExpanded ? 'whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto pr-1 select-text' : 'truncate'
+                        }`}>
+                          "{quote}"
+                        </span>
+                      </div>
+                    </div>
+                    {onRemoveQuote && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (expandedQuoteIndex === idx) setExpandedQuoteIndex(null);
+                          onRemoveQuote(idx);
+                        }}
+                        className="p-1 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-telkom-red transition-colors flex-shrink-0 mt-0.5"
+                        title="Hapus balasan ini"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* File preview chips */}
         {uploadedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2 px-1">
             {uploadedFiles.map((file, idx) => (
               <div
                 key={idx}
-                className={`relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors
-                  ${darkMode ? 'bg-telkom-surface-dark border-telkom-border-dark text-telkom-gray-light' : 'bg-gray-100 border-gray-200 text-gray-700'}
+                onClick={() => file.status !== 'loading' && setSelectedFileForModal(file)}
+                className={`relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all cursor-pointer hover:border-telkom-red hover:scale-105 active:scale-95 group
+                  ${darkMode ? 'bg-telkom-surface-dark border-telkom-border-dark text-telkom-gray-light hover:bg-gray-800' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}
                   ${file.status === 'loading' ? 'opacity-70 pointer-events-none' : 'opacity-100'}
                 `}
+                title="Klik untuk melihat isi detail file"
               >
                 {file.status === 'loading' && (
                   <div className={`absolute top-0 left-0 h-full animate-file-load ${darkMode ? 'bg-telkom-red/30' : 'bg-blue-500/20'}`} />
                 )}
                 <span className="relative z-10">{fileIconMap(file.name, file.type)}</span>
-                <span className="relative z-10 max-w-[120px] truncate">{file.name}</span>
+                <span className="relative z-10 max-w-[120px] truncate group-hover:text-telkom-red font-medium transition-colors">{file.name}</span>
                 <span className={`relative z-10 ${darkMode ? 'text-telkom-gray/60' : 'text-gray-400'}`}>
                   ({file.size})
                 </span>
                 <button
-                  onClick={() => onRemoveFile(idx)}
-                  className={`relative z-10 ml-0.5 rounded-full hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveFile(idx);
+                  }}
+                  className={`relative z-10 ml-0.5 p-0.5 rounded-full hover:bg-red-500/20 hover:text-telkom-red transition-colors ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
+                  title="Hapus file"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
@@ -546,6 +667,68 @@ export default function InputBar({
                       Selesai & Masukkan
                     </button>
                   </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* File Detail Modal Overlay via Portal */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedFileForModal && (
+            <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                onClick={() => setSelectedFileForModal(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className={`w-full max-w-3xl max-h-[85vh] rounded-3xl overflow-hidden shadow-2xl relative z-10 flex flex-col border backdrop-blur-2xl ${
+                  darkMode ? 'bg-gray-900/95 border-gray-700 text-white' : 'bg-white/95 border-gray-200 text-gray-900'
+                }`}
+              >
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-500/20 bg-telkom-red/5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl p-2 rounded-2xl bg-telkom-red/10">{fileIconMap(selectedFileForModal.name, selectedFileForModal.type)}</span>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm truncate">{selectedFileForModal.name}</h4>
+                      <p className="text-xs opacity-60 font-mono">{selectedFileForModal.size} • {selectedFileForModal.type || 'Document'}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFileForModal(null)}
+                    className="p-2 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-telkom-red transition-colors"
+                    title="Tutup preview file"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-6 font-mono text-xs leading-relaxed whitespace-pre-wrap select-text">
+                  {selectedFileForModal.file?.type.startsWith('image/') ? (
+                    <div className="flex justify-center items-center">
+                      <img
+                        src={URL.createObjectURL(selectedFileForModal.file)}
+                        alt={selectedFileForModal.name}
+                        className="max-h-[60vh] object-contain rounded-2xl shadow-md border"
+                      />
+                    </div>
+                  ) : (
+                    fileTextContent || <span className="italic text-gray-400">Memuat teks file...</span>
+                  )}
                 </div>
               </motion.div>
             </div>
