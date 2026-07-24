@@ -97,7 +97,7 @@ export const enrichWithProjectNames = async (data: any) => {
   
   if (!matches || matches.length === 0) return data;
   
-  const uniqueUuids = [...new Set(matches)];
+  const uniqueUuids = Array.from(new Set(matches));
   
   // Query Supabase for these UUIDs in projects table
   const { data: projects, error } = await supabase
@@ -114,4 +114,84 @@ export const enrichWithProjectNames = async (data: any) => {
   }
   
   return JSON.parse(strData);
+};
+
+/**
+ * Saves a high-value knowledge memory entry permanently to Supabase ai_knowledge_bank.
+ */
+export const saveKnowledgeBankMemory = async (intentKey: string, promptSample: string, outputText: string) => {
+  try {
+    const { data, error } = await supabase.from('ai_knowledge_bank').upsert({
+      intent_key: intentKey,
+      prompt_sample: promptSample,
+      knowledge_output: outputText,
+      use_count: 1,
+      is_active: true,
+      last_used_at: new Date().toISOString()
+    }, { onConflict: 'intent_key' });
+
+    if (error) return { error: error.message };
+    return { success: true, data };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+};
+
+/**
+ * Fetches an active knowledge memory entry by intentKey from Supabase.
+ */
+export const getKnowledgeBankMemory = async (intentKey: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('ai_knowledge_bank')
+      .select('*')
+      .eq('intent_key', intentKey)
+      .eq('is_active', true)
+      .single();
+
+    if (error) return null;
+    
+    // Increment use_count asynchronously
+    if (data) {
+      await supabase.from('ai_knowledge_bank').update({
+        use_count: (data.use_count || 1) + 1,
+        last_used_at: new Date().toISOString()
+      }).eq('id', data.id);
+    }
+
+    return data;
+  } catch (err) {
+    return null;
+  }
+};
+
+/**
+ * Deletes or deactivates an outdated memory entry (Developer Tooling).
+ */
+export const deleteOutdatedKnowledgeMemory = async (memoryId: string) => {
+  try {
+    const { error } = await supabase.from('ai_knowledge_bank').delete().eq('id', memoryId);
+    if (error) return { error: error.message };
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+};
+
+/**
+ * Lists top used memory entries ordered by frequency for analytics/admin review.
+ */
+export const listTopUsedKnowledgeMemories = async (limitAmount = 50) => {
+  try {
+    const { data, error } = await supabase
+      .from('ai_knowledge_bank')
+      .select('*')
+      .order('use_count', { ascending: false })
+      .limit(limitAmount);
+
+    if (error) return { error: error.message };
+    return { data: data || [] };
+  } catch (err: any) {
+    return { error: err.message };
+  }
 };

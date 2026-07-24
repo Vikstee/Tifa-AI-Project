@@ -646,7 +646,7 @@ export default function ChatArea({
                     </div>
                   ));
                 })()}
-                {isLoading && <TypingIndicator darkMode={darkMode} />}
+                {isLoading && !chatHistory.some(m => m.role === 'ai' && !m.content) && <TypingIndicator darkMode={darkMode} />}
               </div>
             )}
             {/* Spacer so the last message is not covered by the InputBar */}

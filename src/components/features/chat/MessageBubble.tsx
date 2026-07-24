@@ -167,107 +167,127 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
 
         {/* Text content */}
         <div className={`text-sm leading-relaxed ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-          <div className={`prose prose-sm max-w-none break-words ${darkMode ? 'prose-invert' : ''}`}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                table: ({ node, ...props }: any) => (
-                  <div className={`overflow-x-auto my-4 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-gray-700 shadow-black/30' : 'border-gray-200 shadow-gray-200/50'}`}>
-                    <table className={`!m-0 w-full text-left border-collapse ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props} />
-                  </div>
-                ),
-                thead: ({ node, ...props }: any) => (
-                  <thead className={`${darkMode ? 'bg-gray-800/80 border-b border-gray-700' : 'bg-gray-50 border-b border-gray-200'}`} {...props} />
-                ),
-                tbody: ({ node, ...props }: any) => (
-                  <tbody className={`divide-y ${darkMode ? 'divide-gray-700 bg-gray-900/50' : 'divide-gray-200 bg-white'}`} {...props} />
-                ),
-                tr: ({ node, ...props }: any) => (
-                  <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50/80'}`} {...props} />
-                ),
-                th: ({ node, ...props }: any) => (
-                  <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-gray-200' : 'text-gray-600'}`} {...props} />
-                ),
-                td: ({ node, children, ...props }: any) => {
-                  // Normalize status text ONLY inside table cells — safe, won't touch JSON
-                  const normalizeCell = (text: string): string => {
-                    return text
-                      .replace(/[^\w\s]{1,4}\s*(Unpaid|Belum Dibayar)/gi, '🔴 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Paid|Lunas)(?!.*Unpaid)/gi, '🟢 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Pending)/gi, '🟡 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Approved|Disetujui)/gi, '✅ $1')
-                      .replace(/[^\w\s]{1,4}\s*(Rejected|Ditolak)/gi, '❌ $1')
-                      .replace(/[^\w\s]{1,4}\s*(Overdue)/gi, '⛔ $1')
-                      .replace(/[^\w\s]{1,4}\s*(Ongoing)/gi, '🔵 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Completed|Selesai)/gi, '✅ $1');
-                  };
-                  const processedChildren = React.Children.map(children, (child) =>
-                    typeof child === 'string' ? normalizeCell(child) : child
-                  );
-                  return (
-                    <td className={`px-4 py-3 text-sm whitespace-nowrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
-                      {processedChildren}
-                    </td>
-                  );
-                },
-                pre({ node, children, ...props }: any) {
-                  // Check if the pre contains a code block with our json_chart language
-                  if (node?.children?.[0]?.tagName === 'code') {
-                    const codeNode = node.children[0];
-                    const className = codeNode.properties?.className?.[0] || '';
-                    if (className.includes('language-json_chart')) {
-                      try {
-                        const content = codeNode.children?.[0]?.value || '';
-                        const data: ChartData = JSON.parse(content.trim());
-                        return <ChartViewer config={data} darkMode={darkMode} />;
-                      } catch (e) {
-                        return (
-                          <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
-                            Error parsing chart data.
-                          </div>
-                        );
-                      }
-                    } else if (className.includes('language-json_report')) {
-                      try {
-                        const content = codeNode.children?.[0]?.value || '';
-                        const data = JSON.parse(content.trim());
-                        return (
-                          <div className="my-3">
-                            <ReportCard
-                              darkMode={darkMode}
-                              title={data.title || data.reportType || 'Laporan'}
-                              format={data.format as any || 'PDF'}
-                              size="~200 KB"
-                              date={data.period || reportDate}
-                              sections={data.sections}
-                            />
-                          </div>
-                        );
-                      } catch (e) {
-                        return (
-                          <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
-                            Error parsing report data.
-                          </div>
-                        );
+          {message.content.trim() ? (
+            <div className={`prose prose-sm max-w-none break-words ${darkMode ? 'prose-invert' : ''}`}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ node, ...props }: any) => <p className="!my-1.5 leading-relaxed" {...props} />,
+                  h1: ({ node, ...props }: any) => <h1 className="!mt-3.5 !mb-1.5 text-lg font-bold text-telkom-red" {...props} />,
+                  h2: ({ node, ...props }: any) => <h2 className="!mt-3 !mb-1 text-base font-bold text-telkom-red" {...props} />,
+                  h3: ({ node, ...props }: any) => <h3 className="!mt-2.5 !mb-1 text-sm font-semibold text-telkom-red flex items-center gap-1.5" {...props} />,
+                  blockquote: ({ node, ...props }: any) => (
+                    <blockquote className={`!my-2 border-l-4 border-telkom-red px-3 py-2 rounded-r-xl italic shadow-xs ${darkMode ? 'bg-telkom-red/10 text-gray-200' : 'bg-red-50/80 text-gray-800'}`} {...props} />
+                  ),
+                  hr: ({ node, ...props }: any) => <hr className={`!my-2.5 border-t ${darkMode ? 'border-gray-800' : 'border-gray-200'}`} {...props} />,
+                  ul: ({ node, ...props }: any) => <ul className="!my-1.5 pl-5 list-disc space-y-0.5" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="!my-1.5 pl-5 list-decimal space-y-0.5" {...props} />,
+                  li: ({ node, ...props }: any) => <li className="!my-0.5" {...props} />,
+                  table: ({ node, ...props }: any) => (
+                    <div className={`overflow-x-auto my-3 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-gray-700 shadow-black/30' : 'border-gray-200 shadow-gray-200/50'}`}>
+                      <table className={`!m-0 w-full text-left border-collapse ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props} />
+                    </div>
+                  ),
+                  thead: ({ node, ...props }: any) => (
+                    <thead className={`${darkMode ? 'bg-gray-800/80 border-b border-gray-700' : 'bg-gray-50 border-b border-gray-200'}`} {...props} />
+                  ),
+                  tbody: ({ node, ...props }: any) => (
+                    <tbody className={`divide-y ${darkMode ? 'divide-gray-700 bg-gray-900/50' : 'divide-gray-200 bg-white'}`} {...props} />
+                  ),
+                  tr: ({ node, ...props }: any) => (
+                    <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50/80'}`} {...props} />
+                  ),
+                  th: ({ node, ...props }: any) => (
+                    <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-gray-200' : 'text-gray-600'}`} {...props} />
+                  ),
+                  td: ({ node, children, ...props }: any) => {
+                    // Normalize status text ONLY inside table cells — safe, won't touch JSON
+                    const normalizeCell = (text: string): string => {
+                      return text
+                        .replace(/[^\w\s]{1,4}\s*(Unpaid|Belum Dibayar)/gi, '🔴 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Paid|Lunas)(?!.*Unpaid)/gi, '🟢 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Pending)/gi, '🟡 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Approved|Disetujui)/gi, '✅ $1')
+                        .replace(/[^\w\s]{1,4}\s*(Rejected|Ditolak)/gi, '❌ $1')
+                        .replace(/[^\w\s]{1,4}\s*(Overdue)/gi, '⛔ $1')
+                        .replace(/[^\w\s]{1,4}\s*(Ongoing)/gi, '🔵 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Completed|Selesai)/gi, '✅ $1');
+                    };
+                    const processedChildren = React.Children.map(children, (child) =>
+                      typeof child === 'string' ? normalizeCell(child) : child
+                    );
+                    return (
+                      <td className={`px-4 py-3 text-sm whitespace-nowrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
+                        {processedChildren}
+                      </td>
+                    );
+                  },
+                  pre({ node, children, ...props }: any) {
+                    // Check if the pre contains a code block with our json_chart language
+                    if (node?.children?.[0]?.tagName === 'code') {
+                      const codeNode = node.children[0];
+                      const className = codeNode.properties?.className?.[0] || '';
+                      if (className.includes('language-json_chart')) {
+                        try {
+                          const content = codeNode.children?.[0]?.value || '';
+                          const data: ChartData = JSON.parse(content.trim());
+                          return <ChartViewer config={data} darkMode={darkMode} />;
+                        } catch (e) {
+                          return (
+                            <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
+                              Error parsing chart data.
+                            </div>
+                          );
+                        }
+                      } else if (className.includes('language-json_report')) {
+                        try {
+                          const content = codeNode.children?.[0]?.value || '';
+                          const data = JSON.parse(content.trim());
+                          return (
+                            <div className="my-3">
+                              <ReportCard
+                                darkMode={darkMode}
+                                title={data.title || data.reportType || 'Laporan'}
+                                format={data.format as any || 'PDF'}
+                                size="~200 KB"
+                                date={data.period || reportDate}
+                                sections={data.sections}
+                              />
+                            </div>
+                          );
+                        } catch (e) {
+                          return (
+                            <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
+                              Error parsing report data.
+                            </div>
+                          );
+                        }
                       }
                     }
-                  }
-                  // If it's just normal code, render the pre tag as usual
-                  return <pre {...props}>{children}</pre>;
-                },
-                code({ node, inline, className, children, ...props }: any) {
-                  // We still keep the inline code styles here if needed
-                  return (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            >
-              {sanitizedContent}
-            </ReactMarkdown>
-          </div>
+                    // If it's just normal code, render the pre tag as usual
+                    return <pre {...props}>{children}</pre>;
+                  },
+                  code({ node, inline, className, children, ...props }: any) {
+                    // We still keep the inline code styles here if needed
+                    return (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {sanitizedContent}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 py-2 px-3 rounded-2xl w-fit bg-telkom-red/10 border border-telkom-red/20 my-1 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-telkom-red animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-telkom-red animate-bounce" style={{ animationDelay: '200ms' }} />
+              <span className="w-2 h-2 rounded-full bg-telkom-red animate-bounce" style={{ animationDelay: '400ms' }} />
+              <span className="text-xs font-medium text-telkom-red ml-1.5">TIFA sedang berpikir...</span>
+            </div>
+          )}
         </div>
 
         {/* Data table for table type */}

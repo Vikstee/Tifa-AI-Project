@@ -33,7 +33,7 @@ const hydrateSections = async (originalSections: any[]) => {
              let enrichedData = data;
              // Auto-resolve project_name
              if (data[0].project_id) {
-               const uuids = [...new Set(data.map((d: any) => d.project_id))];
+               const uuids = Array.from(new Set(data.map((d: any) => d.project_id)));
                const { data: projs } = await supabase.from('projects').select('id, project_name').in('id', uuids);
                if (projs) {
                  const projMap = Object.fromEntries(projs.map((p: any) => [p.id, p.project_name]));
