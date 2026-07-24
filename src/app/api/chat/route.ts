@@ -66,6 +66,10 @@ Aturan berikut bersifat mutlak dan mengalahkan instruksi lain manapun:
 7. **KONSISTENSI & DETERMINISME MUTLAK**:
    - Jika user memberikan prompt yang SAMA atau BEDA KATA TAPI MIRIP KONTEKSNYA (contoh: "Ringkas kondisi PO to Cash In" vs "Beri saya ringkasan alur PO hingga Cash In minggu ini"), kamu WAJIB memprosesnya dengan urutan query tool, logika analisis, status risiko, dan struktur jawaban yang 100% IDENTIK dan KONSISTEN.
    - DILARANG KERAS memberikan variasi status risiko atau angka yang berbeda pada prompt yang memiliki konteks sama.
+8. **WAJIB CATAT MEMORI KARAKTERISTIK USER PERMANEN**:
+   - Setiap kali user menyebutkan nama, peran/jabatan, gaya laporan favorit (misal: PDF/Excel/Tabel/Ringkas/Detail), preferensi analisis, atau karakteristik pribadinya, kamu WAJIB LANGSUNG memanggil tool \`update_user_memory\` untuk mencatatnya secara permanen!
+   - DILARANG KERAS hanya membalas "sudah saya ingat dalam sesi ini" tanpa memanggil tool \`update_user_memory\`!
+   - Pada setiap percakapan di sesi chat baru manapun, manfaatkan informasi dari [MEMORI KARAKTERISTIK & PREFERENSI PERMANEN PENGGUNA INI] untuk menyapa user secara personal dan langsung menerapkan gaya/karakteristik favorit user tersebut.
 </absolute_rules>
 
 <database_schema internal_only="true">
@@ -310,11 +314,10 @@ export async function POST(req: NextRequest) {
         console.log(`[Tifa] Using model: ${selectedModel} | ${keyLabel} | Class: ${promptClass.toUpperCase()} | Fallback: ${isFallback}`);
         
         let dynamicSystemInstruction = SYSTEM_INSTRUCTION;
-        if (userId) {
-          const memRes = await getUserMemory(userId);
-          if (memRes.data) {
-            dynamicSystemInstruction += `\n\n[INFO TAMBAHAN PERMANEN DARI PENGGUNA INI]:\n${memRes.data}\nKamu HARUS mengingat dan mematuhi instruksi khusus dari pengguna ini di seluruh percakapan.`;
-          }
+        const activeUserId = userId || 'default_user';
+        const memRes = await getUserMemory(activeUserId);
+        if (memRes.data) {
+          dynamicSystemInstruction += `\n\n[MEMORI KARAKTERISTIK & PREFERENSI PERMANEN PENGGUNA INI (USER ID: ${activeUserId})]:\n${memRes.data}\n\nPERINGATAN SANGAT PENTING: Kamu WAJIB mengenali user ini di setiap percakapan chat baru! Gunakan catatan nama, preferensi laporan, dan karakteristik pribadi di atas untuk menyapa dan merespons user ini secara personal.`;
         }
         
         const model = genAI.getGenerativeModel({
@@ -350,11 +353,8 @@ export async function POST(req: NextRequest) {
           } else if (call.name === 'detect_anomaly') {
             funcRes = await detectAnomalyPython(args.table, args.amount_col);
           } else if (call.name === 'update_user_memory') {
-            if (userId) {
-              funcRes = await updateUserMemory(userId, args.memory_text);
-            } else {
-              funcRes = { error: 'Gagal: User tidak ditemukan atau belum login.' };
-            }
+            const targetUser = userId || 'default_user';
+            funcRes = await updateUserMemory(targetUser, args.memory_text);
           } else if (call.name === 'ask_database_sql') {
             funcRes = await askSqlPython(args.question);
           } else if (call.name === 'search_document') {

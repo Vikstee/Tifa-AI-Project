@@ -72,14 +72,29 @@ export const getUserMemory = async (userId: string) => {
 
 export const updateUserMemory = async (userId: string, memoryText: string) => {
   try {
+    // Fetch existing memory to accumulate traits
+    const existing = await getUserMemory(userId);
+    let updatedText = memoryText.trim();
+
+    if (existing?.data && existing.data.trim()) {
+      const formattedItem = updatedText.startsWith('-') ? updatedText : `- ${updatedText}`;
+      if (!existing.data.includes(updatedText)) {
+        updatedText = `${existing.data.trim()}\n${formattedItem}`;
+      } else {
+        updatedText = existing.data.trim();
+      }
+    } else {
+      updatedText = updatedText.startsWith('-') ? updatedText : `- ${updatedText}`;
+    }
+
     const { error } = await supabase.from('user_memories').upsert({
       user_id: userId,
-      memory_text: memoryText,
+      memory_text: updatedText,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
     
     if (error) return { error: error.message };
-    return { success: true };
+    return { success: true, memory: updatedText };
   } catch (error: any) {
     return { error: error.message };
   }
