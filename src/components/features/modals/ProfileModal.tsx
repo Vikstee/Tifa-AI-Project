@@ -172,17 +172,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
           {/* Morphing Modal Window with Shared layoutId */}
           <motion.div
             layoutId="profile-card-modal-container"
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.7 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }}
-            style={{ transformOrigin: 'bottom left' }}
+            transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.7 }}
             className="
               fixed z-[70] flex flex-col overflow-hidden
               m-auto inset-0 h-fit max-h-[90vh] w-[calc(100%-2rem)] sm:w-[460px] p-6 sm:p-7
               bg-white/95 dark:bg-[#18181b]/95
               border border-gray-200/80 dark:border-zinc-800/80
-              shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-3xl rounded-[2.5rem]
+              shadow-[0_25px_60px_rgba(0,0,0,0.35)] backdrop-blur-3xl rounded-[2.5rem]
             "
           >
             {/* Close Button */}

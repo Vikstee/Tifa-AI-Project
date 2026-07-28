@@ -489,7 +489,7 @@ export default function ChatArea({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0 p-3 md:p-4 overflow-hidden relative">
+    <div className="flex-1 flex flex-col h-full min-w-0 p-3 md:p-4 overflow-hidden relative transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
       {/* Inner Rounded Chat Card Viewport */}
       <div
         className={`
@@ -499,11 +499,21 @@ export default function ChatArea({
       >
         {/* Card Header inside Chat Window */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/80 dark:border-zinc-800/80 flex-shrink-0 bg-transparent">
-          <div className="flex items-center gap-3 min-w-0">
-            {!sidebarOpen && (
+          <div className="flex items-center min-w-0">
+            {/* 3-Lines Button Wrapper with Smooth Width & Margin Animation */}
+            <motion.div
+              initial={false}
+              animate={{
+                width: !sidebarOpen ? 32 : 0,
+                marginRight: !sidebarOpen ? 12 : 0,
+                opacity: !sidebarOpen ? 1 : 0,
+              }}
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden flex items-center justify-center flex-shrink-0"
+            >
               <button
                 onClick={onToggleSidebar}
-                className={`p-1.5 rounded-lg transition-colors ${
+                className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
                   darkMode ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-gray-100 text-gray-600'
                 }`}
                 title="Open Sidebar"
@@ -512,15 +522,21 @@ export default function ChatArea({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-            )}
-            <div className="min-w-0">
+            </motion.div>
+
+            {/* Header Title Text Block with Motion Layout */}
+            <motion.div
+              layout
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              className="min-w-0 flex-1"
+            >
               <h1 className="text-base font-semibold truncate leading-tight">
                 {isEmpty ? 'New Chat' : (globalHistory?.find(h => h.id === activeConversation)?.title || 'New Chat')}
               </h1>
               <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} truncate mt-0.5`}>
                 TIFA - Telkominfra Financial Assistant
               </p>
-            </div>
+            </motion.div>
           </div>
 
           <div className="flex items-center gap-2">

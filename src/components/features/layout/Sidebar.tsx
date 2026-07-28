@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AppImage from '@/components/ui/AppImage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EllipsisHorizontalIcon, ShareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { EllipsisHorizontalIcon, ShareIcon, TrashIcon, LockClosedIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 interface ConversationItem {
   id: string;
@@ -205,18 +205,28 @@ export default function Sidebar({
         />
       )}
 
-      {/* Sidebar container */}
-      <aside
+      {/* Sidebar container - 100% Smooth Framer Motion Push & Slide */}
+      <motion.aside
+        initial={false}
+        animate={{
+          width: isOpen ? 270 : 0,
+        }}
+        transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.8 }}
         className={`
-          fixed lg:static top-0 left-0 bottom-0 z-[50]
-          flex flex-col h-full
-          w-[270px] flex-shrink-0
-          transition-all duration-300 ease-in-out
+          fixed lg:relative top-0 left-0 bottom-0 z-[40]
+          flex flex-col h-full flex-shrink-0 overflow-hidden
           ${darkMode ? 'bg-[#121214] text-white' : 'bg-[#f4f4f6] text-gray-900'}
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-0 lg:overflow-hidden'}
         `}
       >
-        <div className="flex flex-col h-full w-[270px]">
+        <motion.div
+          initial={false}
+          animate={{
+            x: isOpen ? 0 : -270,
+            opacity: isOpen ? 1 : 0,
+          }}
+          transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.8 }}
+          className="flex flex-col h-full w-[270px] flex-shrink-0"
+        >
           {/* Header with logo & toggle button */}
           <div className="flex items-center justify-between px-4 py-4">
             <div className="flex items-center gap-2">
@@ -259,121 +269,170 @@ export default function Sidebar({
           </div>
 
           {/* History List */}
-          <div className="flex-1 overflow-y-auto px-2 space-y-4 text-xs">
-            {/* TODAY */}
-            {displayToday.length > 0 && (
-              <div>
-                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                  TODAY
-                </p>
-                <div className="space-y-0.5">
-                  {displayToday.map(renderHistoryItem)}
+          <div className="flex-1 overflow-y-auto px-2 space-y-4 text-xs flex flex-col">
+            {!isLoggedIn ? (
+              <div className="my-auto p-4 text-center flex flex-col items-center justify-center mx-2">
+                <div className="w-10 h-10 rounded-xl bg-[#eb1d4e]/10 text-[#eb1d4e] flex items-center justify-center mb-3">
+                  <LockClosedIcon className="w-5 h-5 text-[#eb1d4e]" />
                 </div>
-              </div>
-            )}
-
-            {/* YESTERDAY */}
-            {displayYesterday.length > 0 && (
-              <div>
-                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                  YESTERDAY
+                <p className="text-xs font-bold text-gray-800 dark:text-white mb-1">
+                  Masuk untuk Melihat Riwayat
                 </p>
-                <div className="space-y-0.5">
-                  {displayYesterday.map(renderHistoryItem)}
-                </div>
-              </div>
-            )}
-
-            {/* OLDER */}
-            {displayOlder.length > 0 && (
-              <div>
-                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                  OLDER
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed max-w-[210px]">
+                  Login ke akun Anda untuk menyimpan dan mengelola riwayat percakapan TIFA.
                 </p>
-                <div className="space-y-0.5">
-                  {displayOlder.map(renderHistoryItem)}
-                </div>
               </div>
-            )}
-          </div>
-
-          {/* User Profile Footer - Morphing Shared Layout */}
-          <div className="p-3 mt-auto min-h-[56px] relative flex items-center">
-            <AnimatePresence mode="wait">
-              {!isProfileOpen && (
-                <motion.div
-                  layoutId="profile-card-modal-container"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
-                  style={{ transformOrigin: 'bottom left' }}
-                  className={`
-                    w-full flex items-center justify-between p-1.5 pl-2 pr-2 rounded-full border transition-all shadow-sm
-                    ${darkMode 
-                      ? 'bg-[#1f1f22] border-zinc-800/80 text-white' 
-                      : 'bg-[#f4f4f6] border-gray-200/80 text-gray-900'}
-                  `}
-                >
-                  {/* Left: Avatar & Name - Clicking opens Settings / Profil Modal */}
-                  <div
-                    className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 py-0.5 hover:opacity-80 transition-opacity"
-                    onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
-                    title="Pengaturan Profil"
-                  >
-                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-300 dark:bg-zinc-700 flex items-center justify-center">
-                      {userProfile?.avatar_url ? (
-                        <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (
-                        <img
-                          src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                          alt="John Wick"
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-xs font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {userProfile?.name || 'John Wick'}
-                      </p>
+            ) : (
+              <>
+                {/* TODAY */}
+                {displayToday.length > 0 && (
+                  <div>
+                    <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                      TODAY
+                    </p>
+                    <div className="space-y-0.5">
+                      {displayToday.map(renderHistoryItem)}
                     </div>
                   </div>
+                )}
 
-                  {/* Middle: Theme Toggle Button */}
-                  <button
-                    onClick={onToggleDarkMode}
-                    title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                    className={`p-1.5 rounded-full transition-colors mx-1 ${
-                      darkMode ? 'hover:bg-zinc-800 text-amber-400' : 'hover:bg-gray-200 text-zinc-600'
-                    }`}
-                  >
-                    {darkMode ? (
-                      <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                      </svg>
-                    )}
-                  </button>
+                {/* YESTERDAY */}
+                {displayYesterday.length > 0 && (
+                  <div>
+                    <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                      YESTERDAY
+                    </p>
+                    <div className="space-y-0.5">
+                      {displayYesterday.map(renderHistoryItem)}
+                    </div>
+                  </div>
+                )}
 
-                  {/* Right: Exit Logo Button - Opens Dedicated Logout Confirmation Popup */}
-                  <button
-                    onClick={isLoggedIn ? (onOpenLogout || onOpenProfile) : onRequireLogin}
-                    title="Keluar Akun (Logout)"
-                    className="w-8 h-8 rounded-full bg-[#fde8ef] dark:bg-[#eb1d4e]/20 hover:bg-[#fbd0dd] dark:hover:bg-[#eb1d4e]/30 flex items-center justify-center text-[#eb1d4e] transition-colors flex-shrink-0"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                {/* OLDER */}
+                {displayOlder.length > 0 && (
+                  <div>
+                    <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                      OLDER
+                    </p>
+                    <div className="space-y-0.5">
+                      {displayOlder.map(renderHistoryItem)}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        </div>
-      </aside>
+
+          {/* User Profile Footer - Morphing Shared Layout or Login/Signup Button */}
+          <div className="p-3 mt-auto min-h-[56px] relative flex items-center">
+            {!isLoggedIn ? (
+              <div
+                className={`
+                  w-full flex items-center justify-between p-1.5 pl-3 pr-2 rounded-full border transition-all shadow-sm
+                  ${darkMode 
+                    ? 'bg-[#1f1f22] border-zinc-800/80 text-white' 
+                    : 'bg-[#f4f4f6] border-gray-200/80 text-gray-900'}
+                `}
+              >
+                <button
+                  onClick={onRequireLogin}
+                  className="flex items-center gap-2 text-xs font-semibold text-[#eb1d4e] hover:opacity-80 transition-opacity flex-1 py-1"
+                >
+                  <ArrowRightOnRectangleIcon className="w-4 h-4 text-[#eb1d4e]" />
+                  <span>Masuk / Daftar</span>
+                </button>
+
+                <button
+                  onClick={onToggleDarkMode}
+                  title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  className={`p-1.5 rounded-full transition-colors ${
+                    darkMode ? 'hover:bg-zinc-800 text-amber-400' : 'hover:bg-gray-200 text-zinc-600'
+                  }`}
+                >
+                  {darkMode ? (
+                    <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <AnimatePresence>
+                {!isProfileOpen && (
+                  <motion.div
+                    layoutId="profile-card-modal-container"
+                    transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.7 }}
+                    className={`
+                      w-full flex items-center justify-between p-1.5 pl-2 pr-2 rounded-full border transition-colors shadow-sm
+                      ${darkMode 
+                        ? 'bg-[#1f1f22] border-zinc-800/80 text-white' 
+                        : 'bg-[#f4f4f6] border-gray-200/80 text-gray-900'}
+                    `}
+                  >
+                    {/* Left: Avatar & Name - Clicking opens Settings / Profil Modal */}
+                    <div
+                      className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 py-0.5 hover:opacity-80 transition-opacity"
+                      onClick={onOpenProfile}
+                      title="Pengaturan Profil"
+                    >
+                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-300 dark:bg-zinc-700 flex items-center justify-center">
+                        {userProfile?.avatar_url ? (
+                          <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <img
+                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+                            alt="John Wick"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {userProfile?.name || 'John Wick'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Middle: Theme Toggle Button */}
+                    <button
+                      onClick={onToggleDarkMode}
+                      title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                      className={`p-1.5 rounded-full transition-colors mx-1 ${
+                        darkMode ? 'hover:bg-zinc-800 text-amber-400' : 'hover:bg-gray-200 text-zinc-600'
+                      }`}
+                    >
+                      {darkMode ? (
+                        <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                      )}
+                    </button>
+
+                    {/* Right: Exit Logo Button - Opens Dedicated Logout Confirmation Popup */}
+                    <button
+                      onClick={onOpenLogout || onOpenProfile}
+                      title="Keluar Akun (Logout)"
+                      className="w-8 h-8 rounded-full bg-[#fde8ef] dark:bg-[#eb1d4e]/20 hover:bg-[#fbd0dd] dark:hover:bg-[#eb1d4e]/30 flex items-center justify-center text-[#eb1d4e] transition-colors flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+          </div>
+        </motion.div>
+      </motion.aside>
     </>
   );
 }
