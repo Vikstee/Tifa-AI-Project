@@ -1,156 +1,15 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { SparklesIcon, EllipsisVerticalIcon, TrashIcon, ShareIcon } from '@heroicons/react/24/solid';
-import { motion } from 'framer-motion';
 import AppImage from '@/components/ui/AppImage';
-
-const getInitials = (name?: string) => {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].substring(0, 1).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-};
+import { motion, AnimatePresence } from 'framer-motion';
+import { EllipsisHorizontalIcon, ShareIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface ConversationItem {
   id: string;
   title: string;
   timestamp: string;
 }
-
-const MemoizedConversationItem = React.memo(({ 
-  conv, isActive, isHovered, darkMode, isMenuOpen, menuRef,
-  onHover, onSelect, onMenuToggle, onShare, onDelete, onToggleSidebarMobile 
-}: {
-  conv: ConversationItem;
-  isActive: boolean;
-  isHovered: boolean;
-  darkMode: boolean;
-  isMenuOpen: boolean;
-  menuRef: React.RefObject<HTMLDivElement | null>;
-  onHover: (id: string) => void;
-  onSelect: (id: string) => void;
-  onMenuToggle: (e: React.MouseEvent, id: string | null) => void;
-  onShare?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onToggleSidebarMobile: () => void;
-}) => (
-  <div 
-    className="relative group"
-    onMouseEnter={() => onHover(conv.id)}
-  >
-    {isActive && (
-      <motion.div
-        layoutId="activeChat"
-        className={`absolute inset-0 rounded-xl z-0 ${
-          darkMode 
-            ? 'bg-telkom-red/15 border border-telkom-red/30 shadow-[0_4px_12px_rgba(228,0,43,0.15)]' 
-            : 'bg-red-50/90 border border-telkom-red/20 shadow-[0_4px_12px_rgba(228,0,43,0.08)]'
-        }`}
-        initial={false}
-        transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
-      />
-    )}
-    {isHovered && !isActive && (
-      <motion.div
-        layoutId="hoverChat"
-        className={`absolute inset-0 rounded-xl z-0 ${
-          darkMode 
-            ? 'bg-white/5 border border-white/10' 
-            : 'bg-black/5 border border-black/5'
-        }`}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      />
-    )}
-    <button
-      onClick={() => {
-        onSelect(conv.id);
-        if (window.innerWidth < 1024) onToggleSidebarMobile();
-      }}
-      className={`
-        w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative z-10
-        ${
-          isActive
-            ? 'border-l-2 border-telkom-red'
-            : darkMode
-              ? 'hover:bg-telkom-border-dark/60'
-              : 'hover:bg-gray-100'
-        }
-      `}
-    >
-      <div className="flex items-start gap-2.5">
-        <span className="text-base flex-shrink-0 mt-0.5">💬</span>
-        <div className="min-w-0 flex-1 pr-6">
-          <p
-            className={`text-sm font-medium truncate ${
-              isActive
-                ? 'text-telkom-red'
-                : darkMode
-                  ? 'text-white'
-                  : 'text-gray-900'
-            }`}
-          >
-            {conv.title}
-          </p>
-          <p
-            className={`text-xs truncate mt-0.5 ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}
-          >
-            {new Date(conv.timestamp).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
-    </button>
-    
-    {/* 3-dot menu button */}
-    <button
-      onClick={(e) => onMenuToggle(e, isMenuOpen ? null : conv.id)}
-      className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20
-        ${isMenuOpen ? 'opacity-100' : ''}
-        ${darkMode ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-500'}
-      `}
-    >
-      <EllipsisVerticalIcon className="w-4 h-4" />
-    </button>
-
-    {/* Dropdown Menu */}
-    {isMenuOpen && (
-      <div 
-        ref={menuRef as React.RefObject<HTMLDivElement>}
-        className={`absolute right-8 top-1/2 -translate-y-1/2 z-50 w-36 rounded-xl shadow-lg border py-1 animate-in fade-in zoom-in-95 duration-150
-          ${darkMode ? 'bg-[#2A2B2E] border-white/10' : 'bg-white border-gray-100'}
-        `}
-      >
-        <button
-          onClick={(e) => {
-            onMenuToggle(e, null);
-            onShare?.(conv.id);
-          }}
-          className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors
-            ${darkMode ? 'text-gray-200 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'}
-          `}
-        >
-          <ShareIcon className="w-4 h-4" />
-          Bagikan
-        </button>
-        <button
-          onClick={(e) => {
-            onMenuToggle(e, null);
-            onDelete?.(conv.id);
-          }}
-          className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors
-            ${darkMode ? 'text-red-400 hover:bg-white/10' : 'text-red-600 hover:bg-red-50'}
-          `}
-        >
-          <TrashIcon className="w-4 h-4" />
-          Hapus
-        </button>
-      </div>
-    )}
-  </div>
-));
 
 interface SidebarProps {
   isOpen: boolean;
@@ -163,6 +22,7 @@ interface SidebarProps {
   onNewChat: () => void;
   onOpenSettings: () => void;
   onOpenProfile: () => void;
+  onOpenLogout?: () => void;
   isLoggedIn: boolean;
   onRequireLogin?: () => void;
   userProfile: any;
@@ -171,6 +31,27 @@ interface SidebarProps {
   isSettingsOpen?: boolean;
   isProfileOpen?: boolean;
 }
+
+const sampleToday = [
+  { id: 'sample-1', title: 'Reviewing and approving p...' },
+  { id: 'sample-2', title: 'Matching invoices against...' },
+  { id: 'sample-3', title: 'Planning outgoing payment...' },
+];
+
+const sampleYesterday = [
+  { id: 'sample-4', title: 'Following up on overdue cu...' },
+  { id: 'sample-5', title: 'Discussion on material purc...' },
+  { id: 'sample-6', title: 'Finance approval for suppli...' },
+];
+
+const sampleOlder = [
+  { id: 'sample-7', title: 'Finance approval for suppli...' },
+  { id: 'sample-8', title: 'Updating quantities and pri...' },
+  { id: 'sample-9', title: 'Preparing invoice for compl...' },
+  { id: 'sample-10', title: 'Reviewing expected cash in...' },
+  { id: 'sample-11', title: 'Request for project advanc...' },
+  { id: 'sample-12', title: 'Tracking outstanding custo...' },
+];
 
 export default function Sidebar({
   isOpen,
@@ -183,6 +64,7 @@ export default function Sidebar({
   onNewChat,
   onOpenSettings,
   onOpenProfile,
+  onOpenLogout,
   onRequireLogin,
   isLoggedIn,
   userProfile,
@@ -192,7 +74,6 @@ export default function Sidebar({
   isProfileOpen
 }: SidebarProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [hoveredConversation, setHoveredConversation] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -205,270 +86,294 @@ export default function Sidebar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const todayItems: any[] = [];
+  const yesterdayItems: any[] = [];
+  const olderItems: any[] = [];
+
+  if (history && history.length > 0) {
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayMidnight = todayMidnight - 86400000;
+
+    history.forEach(item => {
+      const itemTime = new Date(item.timestamp).getTime();
+      if (itemTime >= todayMidnight) {
+        todayItems.push(item);
+      } else if (itemTime >= yesterdayMidnight) {
+        yesterdayItems.push(item);
+      } else {
+        olderItems.push(item);
+      }
+    });
+  }
+
+  const hasRealHistory = history && history.length > 0;
+  const displayToday = hasRealHistory ? todayItems : sampleToday;
+  const displayYesterday = hasRealHistory ? yesterdayItems : sampleYesterday;
+  const displayOlder = hasRealHistory ? olderItems : sampleOlder;
+
+  const renderHistoryItem = (item: ConversationItem) => {
+    const isMenuOpen = menuOpenId === item.id;
+
+    return (
+      <div
+        key={item.id}
+        onClick={() => {
+          onSelectConversation(item.id);
+          if (window.innerWidth < 1024) onToggle();
+        }}
+        className={`
+          group relative flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors font-medium text-xs
+          ${activeConversation === item.id
+            ? darkMode
+              ? 'bg-zinc-800 text-white font-semibold'
+              : 'bg-gray-200/80 text-gray-900 font-semibold'
+            : darkMode
+            ? 'text-zinc-300 hover:bg-zinc-800/50 hover:text-white'
+            : 'text-gray-700 hover:bg-gray-200/50 hover:text-gray-900'}
+        `}
+      >
+        <span className="truncate flex-1 pr-1">{item.title}</span>
+
+        {/* 3-dots action button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpenId(isMenuOpen ? null : item.id);
+          }}
+          className={`
+            p-1 rounded-md transition-all flex-shrink-0
+            ${isMenuOpen 
+              ? 'opacity-100 bg-gray-300/60 dark:bg-zinc-700/80' 
+              : 'opacity-0 group-hover:opacity-100 hover:bg-gray-300/50 dark:hover:bg-zinc-700/60'}
+          `}
+          title="Opsi Chat"
+        >
+          <EllipsisHorizontalIcon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+        </button>
+
+        {/* 3-dots popup menu */}
+        {isMenuOpen && (
+          <div
+            ref={menuRef}
+            className="
+              absolute right-2 top-8 z-[70] w-36 py-1 rounded-xl shadow-xl
+              bg-white dark:bg-zinc-800 border border-gray-200/90 dark:border-zinc-700/90
+              backdrop-blur-xl text-xs flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150
+            "
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Bagikan */}
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpenId(null);
+                if (onShareConversation) onShareConversation(item.id);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-zinc-700/70 text-gray-700 dark:text-gray-200 font-medium transition-colors"
+            >
+              <ShareIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+              <span>Bagikan</span>
+            </button>
+
+            {/* Hapus Chat */}
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpenId(null);
+                if (onDeleteConversation) onDeleteConversation(item.id);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 font-medium transition-colors border-t border-gray-100 dark:border-zinc-700/50"
+            >
+              <TrashIcon className="w-3.5 h-3.5 text-red-500" />
+              <span>Hapus Chat</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[50] lg:hidden transition-all duration-300" onClick={onToggle} />}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[50] lg:hidden transition-all duration-300"
+          onClick={onToggle}
+        />
+      )}
 
-      {/* Sidebar */}
-      <motion.aside
+      {/* Sidebar container */}
+      <aside
         className={`
-          fixed z-[50]
-          flex flex-col
-          top-4 left-4 bottom-4
-          glass-panel-strong rounded-[2rem]
-          overflow-hidden
-          ${!isOpen ? 'pointer-events-none' : ''}
+          fixed lg:static top-0 left-0 bottom-0 z-[50]
+          flex flex-col h-full
+          w-[270px] flex-shrink-0
+          transition-all duration-300 ease-in-out
+          ${darkMode ? 'bg-[#121214] text-white' : 'bg-[#f4f4f6] text-gray-900'}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-0 lg:overflow-hidden'}
         `}
-        style={{ transformOrigin: '18px 14px' }}
-        initial={false}
-        animate={{
-          width: 288,
-          scale: isOpen ? 1 : 0.4,
-          opacity: isOpen ? 1 : 0,
-        }}
-        transition={{ type: 'spring', stiffness: 350, damping: 25, mass: 1.2 }}
       >
-        <div className="flex flex-col h-full min-w-[288px] lg:min-w-0">
-          {/* Header */}
-          <div className="flex items-center gap-3 p-4">
-            <div className="flex-1 flex items-center gap-2 min-w-0">
-              <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-transparent">
-                <AppImage src={darkMode ? "/tifa_dark.png" : "/tifa_light.png"} alt="TIFA" width={40} height={40} className="object-contain w-10 h-10" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`font-bold text-base ${darkMode ? 'text-white' : 'text-gray-900'}`}
-                  >
-                    TIFA
-                  </span>
-                  <span className="text-xs bg-telkom-red/20 text-telkom-red px-1.5 py-0.5 rounded font-medium">
-                    Beta
-                  </span>
-                </div>
-                <p className="text-xs text-telkom-gray truncate">AI Financial Assistant</p>
-              </div>
+        <div className="flex flex-col h-full w-[270px]">
+          {/* Header with logo & toggle button */}
+          <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-2">
+              <AppImage
+                src={darkMode ? "/logo_sidebar_dark.png" : "/logo_sidebar_light.png"}
+                alt="TIFA Logo"
+                width={120}
+                height={32}
+                className="h-8 w-auto object-contain"
+                priority
+              />
             </div>
             <button
               onClick={onToggle}
-              className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${darkMode ? 'hover:bg-telkom-border-dark text-telkom-gray' : 'hover:bg-gray-100 text-gray-500'}`}
+              title="Toggle Sidebar"
+              className={`p-1.5 rounded-lg transition-colors ${
+                darkMode ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-gray-200 text-gray-500'
+              }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M6 5l7 7-7 7" />
               </svg>
             </button>
           </div>
 
           {/* New Chat Button */}
-          <div className="p-3">
+          <div className="p-3.5">
             <button
               onClick={() => {
                 onNewChat();
                 if (window.innerWidth < 1024) onToggle();
               }}
-              className={`
-              w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl
-              bg-telkom-red hover:bg-telkom-red-dark
-              text-white font-medium text-sm
-              transition-all duration-200 shadow-lg shadow-telkom-red/20
-            `}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#eb1d4e] hover:bg-[#d81844] active:scale-[0.98] text-white font-medium text-sm transition-all shadow-[0_10px_25px_-5px_rgba(235,29,78,0.5)]"
             >
-              <svg
-                className="w-4 h-4 flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
-              <span>Chat Baru</span>
+              <span>New Chat</span>
             </button>
           </div>
 
-          {/* Conversation History */}
-          <div className="flex-1 overflow-y-auto px-2 pb-2">
-            {isLoggedIn ? (
-              <>
-                <p
-                  className={`text-xs font-semibold uppercase tracking-wider px-2 py-2 ${darkMode ? 'text-telkom-gray' : 'text-gray-400'}`}
-                >
-                  Percakapan Terbaru
+          {/* History List */}
+          <div className="flex-1 overflow-y-auto px-2 space-y-4 text-xs">
+            {/* TODAY */}
+            {displayToday.length > 0 && (
+              <div>
+                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                  TODAY
                 </p>
-                {history.length === 0 && (
-                  <div className="px-3 py-6 text-center">
-                    <p className={`text-xs ${darkMode ? 'text-telkom-gray' : 'text-gray-500'}`}>
-                      Belum ada percakapan.
-                    </p>
-                  </div>
-                )}
-                <div className="space-y-0.5 relative" onMouseLeave={() => setHoveredConversation(null)}>
-                  {history.map((conv) => (
-                    <MemoizedConversationItem
-                      key={conv.id}
-                      conv={conv}
-                      isActive={activeConversation === conv.id}
-                      isHovered={hoveredConversation === conv.id}
-                      darkMode={darkMode}
-                      isMenuOpen={menuOpenId === conv.id}
-                      menuRef={menuRef}
-                      onHover={setHoveredConversation}
-                      onSelect={onSelectConversation}
-                      onMenuToggle={(e, id) => {
-                        e.stopPropagation();
-                        setMenuOpenId(id);
-                      }}
-                      onShare={onShareConversation}
-                      onDelete={onDeleteConversation}
-                      onToggleSidebarMobile={onToggle}
-                    />
-                  ))}
+                <div className="space-y-0.5">
+                  {displayToday.map(renderHistoryItem)}
                 </div>
-              </>
-            ) : (
-              <div className="px-3 py-6 text-center">
-                <p className={`text-xs ${darkMode ? 'text-telkom-gray' : 'text-gray-500'} mb-3`}>
-                  Masuk untuk menyimpan riwayat chat
+              </div>
+            )}
+
+            {/* YESTERDAY */}
+            {displayYesterday.length > 0 && (
+              <div>
+                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                  YESTERDAY
                 </p>
-                {onRequireLogin && (
-                  <button
-                    onClick={onRequireLogin}
-                    className="text-xs font-medium text-telkom-red hover:underline"
-                  >
-                    Masuk Sekarang
-                  </button>
-                )}
+                <div className="space-y-0.5">
+                  {displayYesterday.map(renderHistoryItem)}
+                </div>
+              </div>
+            )}
+
+            {/* OLDER */}
+            {displayOlder.length > 0 && (
+              <div>
+                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                  OLDER
+                </p>
+                <div className="space-y-0.5">
+                  {displayOlder.map(renderHistoryItem)}
+                </div>
               </div>
             )}
           </div>
 
-
-
-            {/* User profile */}
-            <div
-              className="flex items-center gap-3 p-3 rounded-xl transition-all"
-            >
-              {!isProfileOpen ? (
-                <motion.div 
-                  layoutId="profile-modal"
-                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer overflow-hidden ${
-                    isLoggedIn ? 'bg-primary' : 'bg-telkom-red'
-                  }`}
-                  onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
+          {/* User Profile Footer - Morphing Shared Layout */}
+          <div className="p-3 mt-auto min-h-[56px] relative flex items-center">
+            <AnimatePresence mode="wait">
+              {!isProfileOpen && (
+                <motion.div
+                  layoutId="profile-card-modal-container"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
+                  style={{ transformOrigin: 'bottom left' }}
+                  className={`
+                    w-full flex items-center justify-between p-1.5 pl-2 pr-2 rounded-full border transition-all shadow-sm
+                    ${darkMode 
+                      ? 'bg-[#1f1f22] border-zinc-800/80 text-white' 
+                      : 'bg-[#f4f4f6] border-gray-200/80 text-gray-900'}
+                  `}
                 >
-                  {isLoggedIn && userProfile?.avatar_url ? (
-                    <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-white text-sm font-bold">
-                      {isLoggedIn ? getInitials(userProfile?.name) : '?'}
-                    </span>
-                  )}
-                </motion.div>
-              ) : (
-                <div className="w-10 h-10 rounded-full flex-shrink-0" />
-              )}
-              <div
-                className="flex-1 min-w-0 cursor-pointer"
-                onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
-              >
-                <p
-                  className={`text-sm font-medium truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  {isLoggedIn ? userProfile?.name : 'Tamu'}
-                </p>
-                <p className="text-xs text-telkom-gray truncate">
-                  {isLoggedIn ? 'Staff' : 'Belum Masuk'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* Neomorphic Icon-only Gooey Switch inside Profile Row */}
-                <div
-                  onClick={onToggleDarkMode}
-                  className="relative w-[48px] h-[24px] rounded-full cursor-pointer flex items-center transition-colors duration-500 shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.2)] flex-shrink-0"
-                  style={{
-                    backgroundColor: darkMode ? '#5A6789' : '#D1D5DB'
-                  }}
-                >
-                  {/* Inactive Icons inside track */}
-                  <div className="absolute inset-0 flex justify-between items-center px-2 pointer-events-none">
-                    {/* Faded Sun (Left) - visible in dark mode */}
-                    <svg className={`w-3.5 h-3.5 transition-opacity duration-500 ${darkMode ? 'text-white/50 opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    {/* Faded Moon (Right) - visible in light mode */}
-                    <svg className={`w-3.5 h-3.5 transition-opacity duration-500 ${!darkMode ? 'text-slate-500/30 opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
+                  {/* Left: Avatar & Name - Clicking opens Settings / Profil Modal */}
+                  <div
+                    className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 py-0.5 hover:opacity-80 transition-opacity"
+                    onClick={isLoggedIn ? onOpenProfile : onRequireLogin}
+                    title="Pengaturan Profil"
+                  >
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-300 dark:bg-zinc-700 flex items-center justify-center">
+                      {userProfile?.avatar_url ? (
+                        <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <img
+                          src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+                          alt="John Wick"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-xs font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {userProfile?.name || 'John Wick'}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Absolute positioned Thumb */}
-                  <motion.div
-                    animate={{ x: darkMode ? 26 : 2 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 25, mass: 1 }}
-                    whileTap={{ scaleX: 1.2 }}
-                    className="absolute w-[20px] h-[20px] bg-white rounded-full flex-shrink-0 flex items-center justify-center shadow-[0_1.5px_4px_rgba(0,0,0,0.25),-1px_-1px_2px_rgba(255,255,255,0.8)] z-10 origin-center"
+                  {/* Middle: Theme Toggle Button */}
+                  <button
+                    onClick={onToggleDarkMode}
+                    title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                    className={`p-1.5 rounded-full transition-colors mx-1 ${
+                      darkMode ? 'hover:bg-zinc-800 text-amber-400' : 'hover:bg-gray-200 text-zinc-600'
+                    }`}
                   >
-                    <motion.div
-                      initial={false}
-                      animate={{ rotate: darkMode ? -45 : 0 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    >
-                      {darkMode ? (
-                        <svg className="w-3.5 h-3.5 text-[#4C62B0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3.5 h-3.5 text-[#F99F0B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                      )}
-                    </motion.div>
-                  </motion.div>
-                </div>
+                    {darkMode ? (
+                      <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                      </svg>
+                    )}
+                  </button>
 
-                {isLoggedIn && !isSettingsOpen ? (
-                  <motion.button
-                    layoutId="settings-modal"
-                    onClick={onOpenSettings}
-                    className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'hover:bg-telkom-border-dark text-telkom-gray' : 'hover:bg-gray-100 text-gray-500'}`}
+                  {/* Right: Exit Logo Button - Opens Dedicated Logout Confirmation Popup */}
+                  <button
+                    onClick={isLoggedIn ? (onOpenLogout || onOpenProfile) : onRequireLogin}
+                    title="Keluar Akun (Logout)"
+                    className="w-8 h-8 rounded-full bg-[#fde8ef] dark:bg-[#eb1d4e]/20 hover:bg-[#fbd0dd] dark:hover:bg-[#eb1d4e]/30 flex items-center justify-center text-[#eb1d4e] transition-colors flex-shrink-0"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
-                  </motion.button>
-                ) : isLoggedIn && isSettingsOpen ? (
-                  <div className="w-7 h-7" />
-                ) : null}
-              </div>
-            </div>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </motion.aside>
-      </>
+        </div>
+      </aside>
+    </>
   );
 }

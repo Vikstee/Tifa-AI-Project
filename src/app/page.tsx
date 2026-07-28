@@ -6,6 +6,7 @@ import ChatArea from '@/components/features/chat/ChatArea';
 import AuthModal from '@/components/features/modals/AuthModal';
 import SettingsModal from '@/components/features/modals/SettingsModal';
 import ProfileModal from '@/components/features/modals/ProfileModal';
+import LogoutModal from '@/components/features/modals/LogoutModal';
 import ShareModal from '@/components/features/modals/ShareModal';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -18,6 +19,7 @@ export default function HomePage() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
 
@@ -262,7 +264,7 @@ export default function HomePage() {
 
   return (
     <div
-      className={`flex h-[100dvh] overflow-hidden ${darkMode ? 'dark bg-dark-mode' : 'bg-light-mode'}`}
+      className={`flex h-[100dvh] w-screen overflow-hidden ${darkMode ? 'dark bg-[#121214] text-white' : 'bg-[#f4f4f6] text-gray-900'}`}
     >
       <Sidebar
         isOpen={sidebarOpen}
@@ -276,6 +278,7 @@ export default function HomePage() {
         onOpenSettings={() => setShowSettingsModal(true)}
         isSettingsOpen={showSettingsModal}
         onOpenProfile={() => setShowProfileModal(true)}
+        onOpenLogout={() => setShowLogoutModal(true)}
         isProfileOpen={showProfileModal}
         onRequireLogin={() => setShowLoginModal(true)}
         isLoggedIn={!!authToken}
@@ -318,6 +321,13 @@ export default function HomePage() {
         user={userProfile}
         onLogout={handleLogout}
         onUserUpdate={setUserProfile}
+      />
+
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onLogout={handleLogout}
+        user={userProfile}
       />
 
       <ShareModal

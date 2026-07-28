@@ -60,9 +60,28 @@ export const aggregateRecords = async (tableName: string, sumColumn: string, fil
   }
 };
 
+/**
+ * Ensures any userId string (e.g. "default_user", "viki", etc.) is converted
+ * into a valid UUID string format so Supabase UUID column never errors.
+ */
+export const toValidUuid = (userId: string): string => {
+  if (!userId) return '00000000-0000-4000-8000-000000000001';
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(userId)) return userId;
+
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = ((hash << 5) - hash) + userId.charCodeAt(i);
+    hash |= 0;
+  }
+  const hexHash = Math.abs(hash).toString(16).padStart(12, '0').slice(0, 12);
+  return `00000000-0000-4000-8000-${hexHash}`;
+};
+
 export const getUserMemory = async (userId: string) => {
   try {
-    const { data, error } = await supabase.from('user_memories').select('memory_text').eq('user_id', userId).single();
+    const validUuid = toValidUuid(userId);
+    const { data, error } = await supabase.from('user_memories').select('memory_text').eq('user_id', validUuid).single();
     if (error && error.code !== 'PGRST116') return { error: error.message }; // PGRST116 is not found
     return { data: data?.memory_text || '' };
   } catch (error: any) {
@@ -72,8 +91,9 @@ export const getUserMemory = async (userId: string) => {
 
 export const updateUserMemory = async (userId: string, memoryText: string) => {
   try {
+    const validUuid = toValidUuid(userId);
     // Fetch existing memory to accumulate traits
-    const existing = await getUserMemory(userId);
+    const existing = await getUserMemory(validUuid);
     let updatedText = memoryText.trim();
 
     if (existing?.data && existing.data.trim()) {
@@ -88,12 +108,15 @@ export const updateUserMemory = async (userId: string, memoryText: string) => {
     }
 
     const { error } = await supabase.from('user_memories').upsert({
-      user_id: userId,
+      user_id: validUuid,
       memory_text: updatedText,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
     
-    if (error) return { error: error.message };
+    if (error) {
+      console.error('[Tifa Memory Error]:', error);
+      return { error: error.message };
+    }
     return { success: true, memory: updatedText };
   } catch (error: any) {
     return { error: error.message };
