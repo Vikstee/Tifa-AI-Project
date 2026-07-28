@@ -146,7 +146,7 @@ export default function Sidebar({
             p-1 rounded-md transition-all flex-shrink-0
             ${isMenuOpen 
               ? 'opacity-100 bg-gray-300/60 dark:bg-zinc-700/80' 
-              : 'opacity-0 group-hover:opacity-100 hover:bg-gray-300/50 dark:hover:bg-zinc-700/60'}
+              : 'opacity-70 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-gray-300/50 dark:hover:bg-zinc-700/60'}
           `}
           title="Opsi Chat"
         >
@@ -214,7 +214,7 @@ export default function Sidebar({
         }}
         transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.8 }}
         className={`
-          fixed lg:relative top-0 left-0 bottom-0 z-[40]
+          fixed lg:relative top-0 left-0 bottom-0 z-[60]
           flex flex-col h-full flex-shrink-0 overflow-hidden
           ${darkMode ? 'bg-[#121214] text-white' : 'bg-[#f4f4f6] text-gray-900'}
         `}

@@ -508,7 +508,7 @@ export default function InputBar({
             placeholder="What's in your mind?"
             rows={1}
             className={`
-              flex-1 resize-none bg-transparent outline-none text-sm leading-normal py-1.5 px-1
+              flex-1 resize-none bg-transparent outline-none text-[16px] sm:text-sm leading-normal py-1.5 px-1
               placeholder-gray-400 dark:placeholder-gray-400
               ${darkMode ? 'text-white' : 'text-gray-900'}
             `}

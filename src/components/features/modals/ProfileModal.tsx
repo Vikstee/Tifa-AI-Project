@@ -211,7 +211,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
                   )}
                 </div>
 
-                <label className="absolute inset-0 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
+                <label className="absolute inset-0 bg-black/40 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
                   {isUploading ? (
                     <span className="text-[10px]">Loading...</span>
                   ) : (
@@ -241,13 +241,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-gray-400 dark:text-zinc-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                 {user?.email || 'user@telkominfra.co.id'}
               </p>
             </div>
 
             {/* CRUD Form */}
-            <form onSubmit={handleSaveChanges} className="space-y-3.5">
+            <form onSubmit={handleSaveChanges} className="space-y-3.5 overflow-y-auto">
               {/* Nama Lengkap */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
@@ -260,7 +260,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Masukkan nama lengkap"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl text-xs border border-gray-200 dark:border-zinc-700/80 bg-gray-50 dark:bg-zinc-800/60 text-gray-900 dark:text-white outline-none focus:border-telkom-red dark:focus:border-telkom-red transition-all"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl text-[16px] sm:text-xs border border-gray-200 dark:border-zinc-700/80 bg-gray-50 dark:bg-zinc-800/60 text-gray-900 dark:text-white outline-none focus:border-telkom-red dark:focus:border-telkom-red transition-all"
                   />
                 </div>
               </div>
@@ -277,7 +277,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
                     value={waNumber}
                     onChange={(e) => setWaNumber(e.target.value)}
                     placeholder="0813xxxxxxxx"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl text-xs border border-gray-200 dark:border-zinc-700/80 bg-gray-50 dark:bg-zinc-800/60 text-gray-900 dark:text-white outline-none focus:border-telkom-red dark:focus:border-telkom-red transition-all"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl text-[16px] sm:text-xs border border-gray-200 dark:border-zinc-700/80 bg-gray-50 dark:bg-zinc-800/60 text-gray-900 dark:text-white outline-none focus:border-telkom-red dark:focus:border-telkom-red transition-all"
                   />
                 </div>
               </div>
@@ -293,7 +293,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
                     type="text"
                     value={position}
                     disabled
-                    className="w-full pl-9 pr-3 py-2 rounded-xl text-xs border border-gray-200 dark:border-zinc-800 bg-gray-200/60 dark:bg-zinc-900/80 text-gray-500 dark:text-gray-400 cursor-not-allowed font-medium select-none"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl text-[16px] sm:text-xs border border-gray-200 dark:border-zinc-800 bg-gray-200/60 dark:bg-zinc-900/80 text-gray-500 dark:text-gray-400 cursor-not-allowed font-medium select-none"
                   />
                 </div>
               </div>

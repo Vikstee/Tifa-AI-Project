@@ -129,9 +129,10 @@ export default function ChatArea({
           const range = selection.getRangeAt(0);
           const rect = range.getBoundingClientRect();
           if (rect.width > 0 && rect.height > 0) {
+            const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 360;
             setSelectionPopup({
               text,
-              x: rect.left + rect.width / 2,
+              x: Math.min(Math.max(16, rect.left + rect.width / 2), screenWidth - 140),
               y: Math.max(10, rect.top - 42),
             });
           }
@@ -523,7 +524,7 @@ export default function ChatArea({
         `}
       >
         {/* Card Header inside Chat Window */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/80 dark:border-zinc-800/80 flex-shrink-0 bg-transparent">
+        <div className="flex items-center justify-between px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-200/80 dark:border-zinc-800/80 flex-shrink-0 bg-transparent">
           <div className="flex items-center min-w-0">
             {/* 3-Lines Button Wrapper with Smooth Width & Margin Animation */}
             <motion.div
@@ -588,7 +589,7 @@ export default function ChatArea({
             </div>
           ) : isEmpty ? (
             /* Empty Chat State - Shifted upwards, compact elegant text with disclaimer at bottom */
-            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-between p-6 text-center">
+            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-between p-3.5 sm:p-6 text-center">
               <div className="w-full flex flex-col items-center justify-start pt-2 sm:pt-4">
                 {/* Room chat logo: logo_utama.png */}
                 <div className="w-24 sm:w-28 mb-3 flex justify-center">
@@ -641,7 +642,7 @@ export default function ChatArea({
           ) : (
             /* Active Messages State */
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-              <div id="chat-messages-container" className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+              <div id="chat-messages-container" className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
                 {chatHistory.map((msg) => (
                   <MessageBubble
                     key={msg.id}
@@ -658,7 +659,7 @@ export default function ChatArea({
               </div>
 
               {/* Anchored Input Bar at bottom of card */}
-              <div className="p-4 bg-transparent">
+              <div className="p-2.5 sm:p-4 bg-transparent">
                 <InputBar
                   darkMode={darkMode}
                   inputText={inputText}

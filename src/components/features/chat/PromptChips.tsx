@@ -59,7 +59,7 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-4xl">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full max-w-4xl">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className={`rounded-2xl p-4 ${darkMode ? 'bg-[#29292b]' : 'bg-[#f4f4f6]'} animate-pulse`}>
             <div className={`w-5 h-5 rounded mb-2 ${darkMode ? 'bg-zinc-700' : 'bg-gray-300'}`}></div>
@@ -72,7 +72,7 @@ export default function PromptChips({ darkMode, onSelectPrompt, prompts, isLoadi
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-3xl">
+    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full max-w-3xl">
       {displayPrompts.map((prompt, idx) => (
         <button
           key={idx}

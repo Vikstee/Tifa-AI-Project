@@ -60,7 +60,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
   if (isUser) {
     return (
       <div className="flex justify-end animate-fadeIn message-item" data-date={message.created_at || new Date().toISOString()}>
-        <div className="max-w-[75%] flex flex-col items-end gap-1 group">
+        <div className="max-w-[88%] sm:max-w-[75%] flex flex-col items-end gap-1 group">
           {message.files && message.files.length > 0 && (
             <div className="flex flex-wrap justify-end gap-2 mb-1">
               {message.files.map((f, i) => (
@@ -78,7 +78,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
                   setEditContent(message.content);
                   setIsEditing(true);
                 }}
-                className={`opacity-60 hover:opacity-100 transition-opacity p-1.5 rounded-full mb-1 ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-200 text-gray-500'}`}
+                className={`opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100 transition-opacity p-1.5 rounded-full mb-1 ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-200 text-gray-500'}`}
                 title="Edit message"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
