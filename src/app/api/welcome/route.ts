@@ -6,11 +6,21 @@ export async function POST(req: NextRequest) {
   try {
     const { historyTitles, userName } = await req.json();
 
+    const groqKey = process.env.GROQ_API_KEY || process.env.XAI_GROK_API_KEY || '';
     const apiKeyString = process.env.GEMINI_API_KEY || '';
     const apiKey = apiKeyString.split(',')[0].trim();
 
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+    if (!apiKey && !groqKey) {
+      // Return default welcome payload directly with status 200 OK
+      return NextResponse.json({
+        subtitle: 'Asisten AI Keuangan TelkomInfra yang siap membantu Anda.',
+        prompts: [
+          { icon: '📊', text: 'Tampilkan status PO bulan ini', desc: 'Ringkasan Purchase Order aktif' },
+          { icon: '💰', text: 'Analisis cash flow Q3 2024', desc: 'Arus kas masuk dan keluar' },
+          { icon: '📋', text: 'Laporan aging piutang', desc: 'Piutang berdasarkan umur' },
+          { icon: '🔍', text: 'Rekonsiliasi invoice outstanding', desc: 'Invoice yang belum terbayar' },
+        ]
+      }, { status: 200 });
     }
 
     // Fetch the 20 most recent user messages across all sessions to find "frequently/recently asked" questions
@@ -22,6 +32,18 @@ export async function POST(req: NextRequest) {
       .limit(20);
 
     const recentQueries = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
+
+    if (!apiKey) {
+      return NextResponse.json({
+        subtitle: 'Asisten AI Keuangan TelkomInfra yang siap membantu Anda.',
+        prompts: [
+          { icon: '📊', text: 'Tampilkan status PO bulan ini', desc: 'Ringkasan Purchase Order aktif' },
+          { icon: '💰', text: 'Analisis cash flow Q3 2024', desc: 'Arus kas masuk dan keluar' },
+          { icon: '📋', text: 'Laporan aging piutang', desc: 'Piutang berdasarkan umur' },
+          { icon: '🔍', text: 'Rekonsiliasi invoice outstanding', desc: 'Invoice yang belum terbayar' },
+        ]
+      }, { status: 200 });
+    }
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' });

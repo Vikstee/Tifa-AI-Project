@@ -207,6 +207,7 @@ export default function Sidebar({
 
       {/* Sidebar container - 100% Smooth Framer Motion Push & Slide */}
       <motion.aside
+        suppressHydrationWarning
         initial={false}
         animate={{
           width: isOpen ? 270 : 0,

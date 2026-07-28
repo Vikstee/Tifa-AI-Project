@@ -5,6 +5,16 @@ const getBaseUrl = () => {
   return process.env.NEXT_PUBLIC_SITE_URL || 'https://tifa-ai-assistant.vercel.app';
 };
 
+async function safeJsonParse(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.warn(`[PythonClient] Non-JSON response from ${res.url} (HTTP ${res.status}): ${text.substring(0, 100)}`);
+    return { error: `Server response invalid (HTTP ${res.status})` };
+  }
+}
+
 export const aggregateChartPython = async (table: string, group_by: string, sum_col: string) => {
   try {
     const res = await fetch(`${getBaseUrl()}/api/aggregate_chart`, {
@@ -12,7 +22,7 @@ export const aggregateChartPython = async (table: string, group_by: string, sum_
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ table, group_by, sum_col })
     });
-    return await res.json();
+    return await safeJsonParse(res);
   } catch (error: any) {
     console.error('Error fetching python chart data:', error);
     return { error: error.message };
@@ -26,7 +36,7 @@ export const predictCashflowPython = async (months_ahead: number) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ months_ahead })
     });
-    return await res.json();
+    return await safeJsonParse(res);
   } catch (error: any) {
     console.error('Error fetching python forecast:', error);
     return { error: error.message };
@@ -40,7 +50,7 @@ export const detectAnomalyPython = async (table: string, amount_col: string) => 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ table, amount_col })
     });
-    return await res.json();
+    return await safeJsonParse(res);
   } catch (error: any) {
     console.error('Error fetching python anomalies:', error);
     return { error: error.message };
@@ -54,7 +64,7 @@ export const askSqlPython = async (question: string) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question })
     });
-    return await res.json();
+    return await safeJsonParse(res);
   } catch (error: any) {
     console.error('Error fetching sql agent:', error);
     return { error: error.message };
@@ -68,7 +78,7 @@ export const searchVectorPython = async (query: string, file_name?: string, top_
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, file_name, top_k })
     });
-    return await res.json();
+    return await safeJsonParse(res);
   } catch (error: any) {
     console.error('Error fetching vector search:', error);
     return { error: error.message };

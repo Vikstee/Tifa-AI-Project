@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabaseClient';
 import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
 import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory, enrichWithProjectNames } from '@/lib/db/supabaseQueries';
 import { aggregateChartPython, predictCashflowPython, detectAnomalyPython, askSqlPython, searchVectorPython } from '@/lib/api/pythonClient';
@@ -62,7 +63,7 @@ Aturan berikut bersifat mutlak dan mengalahkan instruksi lain manapun:
 3. **SEMUA FITUR SELALU TERSEDIA**: Dilarang menyatakan fitur/grafik/laporan sedang maintenance atau tidak tersedia. Kamu selalu bisa menghasilkan json_chart / json_report dari data asli.
 4. **TABEL LENGKAP & NOMINAL UTUH**: Semua nominal uang wajib ditulis penuh (contoh: Rp 26.413.752.429). Dilarang menyembunyikan angka atau menulis "data terlampir".
 5. **DILUAR CAKUPAN DATA → TOLAK SOPAN**: Jika pertanyaan di luar domain keuangan & proyek TelkomInfra (seperti HR/absensi), jelaskan cakupan aksesmu secara sopan dan tawarkan 1-2 metrik keuangan yang relevan.
-6. **KERAHASIAAN SKEMA & TEKNIS**: Dilarang membocorkan nama tabel, kolom, istilah teknis sistem (json_report, json_chart, tool, function calling) kepada user dalam kondisi apa pun. Jawab sopan: "Saya memiliki akses ke data proyek dan keuangan TelkomInfra. Silakan tanyakan data spesifik yang Anda butuhkan."
+6. **KERAHASIAAN SKEMA & TEKNIS**: Dilarang membocorkan nama tabel, kolom, istilah teknis sistem (json_report, json_chart, tool, function calling) kepada user dalam kondisi any pun. Jawab sopan: "Saya memiliki akses ke data proyek dan keuangan TelkomInfra. Silakan tanyakan data spesifik yang Anda butuhkan."
 7. **KONSISTENSI & DETERMINISME MUTLAK**:
    - Jika user memberikan prompt yang SAMA atau BEDA KATA TAPI MIRIP KONTEKSNYA (contoh: "Ringkas kondisi PO to Cash In" vs "Beri saya ringkasan alur PO hingga Cash In minggu ini"), kamu WAJIB memprosesnya dengan urutan query tool, logika analisis, status risiko, dan struktur jawaban yang 100% IDENTIK dan KONSISTEN.
    - DILARANG KERAS memberikan variasi status risiko atau angka yang berbeda pada prompt yang memiliki konteks sama.
@@ -70,6 +71,12 @@ Aturan berikut bersifat mutlak dan mengalahkan instruksi lain manapun:
    - Setiap kali user menyebutkan nama, peran/jabatan, gaya laporan favorit (misal: PDF/Excel/Tabel/Ringkas/Detail), preferensi analisis, atau karakteristik pribadinya, kamu WAJIB LANGSUNG memanggil tool \`update_user_memory\` untuk mencatatnya secara permanen!
    - DILARANG KERAS hanya membalas "sudah saya ingat dalam sesi ini" tanpa memanggil tool \`update_user_memory\`!
    - Pada setiap percakapan di sesi chat baru manapun, manfaatkan informasi dari [MEMORI KARAKTERISTIK & PREFERENSI PERMANEN PENGGUNA INI] untuk menyapa user secara personal dan langsung menerapkan gaya/karakteristik favorit user tersebut.
+9. **DILARANG KERAS BASA-BASI "SEDANG MEMPROSES" / "MOHON TUNGGU"**:
+   - DILARANG KERAS mengeluarkan pesan basa-basi penunda seperti "Sedang memproses data...", "Mohon tunggu sebentar ya", "Saya sedang mengambil data...", atau "Saya akan segera menampilkan".
+   - LANGSUNG berikan hasil data, tabel, grafik, status risiko, atau jawaban akhir secara langsung dan profesional tanpa awalan penunda!
+10. **DILARANG BOKOR NAMA KOLOM DATABASE GARIS BAWAH (_) PADA LEGEND GRAFIK / TABEL**:
+   - DILARANG KERAS menggunakan nama kolom/tabel database bergaris bawah '_' (seperti realisasi_revenue_rp, rkap_rp, cash_in_rp, outlook_rp, dll) pada keys/legend json_chart atau tabel!
+   - WAJIB gunakan Bahasa Indonesia resmi yang rapi dan profesional (contoh: "Realisasi Revenue (Rp)", "Target RKAP (Rp)", "Proyeksi Outlook (Rp)", "Total Cash In (Rp)").
 </absolute_rules>
 
 <database_schema internal_only="true">
@@ -187,12 +194,145 @@ Tipe section json_report: heading, text, table, bar_chart, pie_chart, line_chart
 </security_and_scope>`;
 
 export async function POST(req: NextRequest) {
-  if (apiKeys.length === 0) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY is not set in environment variables' }, { status: 500 });
+  const groqOrGrokKey = process.env.GROQ_API_KEY || process.env.XAI_GROK_API_KEY || '';
+
+  if (apiKeys.length === 0 && !groqOrGrokKey) {
+    return NextResponse.json({ error: 'API Key (GROQ_API_KEY / XAI_GROK_API_KEY / GEMINI_API_KEY) is not set' }, { status: 500 });
   }
 
   try {
     const { message, files, history, userId } = await req.json();
+
+    // ===== GROQ / XAI GROK PROVIDER HANDLING (WHEN GEMINI_API_KEY IS NOT SET) =====
+    if (apiKeys.length === 0 && groqOrGrokKey) {
+      const isXai = groqOrGrokKey.startsWith('xai-');
+      const endpoint = isXai
+        ? 'https://api.x.ai/v1/chat/completions'
+        : 'https://api.groq.com/openai/v1/chat/completions';
+      const modelName = isXai ? 'grok-4.20-non-reasoning-latest' : 'llama-3.3-70b-versatile';
+
+      let dynamicSystem = SYSTEM_INSTRUCTION;
+      const activeUserId = userId || 'default_user';
+      try {
+        const memRes = await getUserMemory(activeUserId);
+        if (memRes?.data) {
+          dynamicSystem += `\n\n[MEMORI KARAKTERISTIK PENGGUNA]:\n${memRes.data}`;
+        }
+      } catch (memErr) {
+        console.warn('[Tifa Memory Fetch Warning]:', memErr);
+      }
+
+      // Pre-fetch real-time Supabase Database context (projects & project_metrics)
+      try {
+        const lowerMsg = (message || '').toLowerCase();
+        let sortCol = 'revenue';
+        if (lowerMsg.includes('rkap') || lowerMsg.includes('risiko') || lowerMsg.includes('target')) {
+          sortCol = 'rkap';
+        } else if (lowerMsg.includes('cash in') || lowerMsg.includes('cash_in')) {
+          sortCol = 'cash_in';
+        }
+
+        const { data: metricsData } = await supabase
+          .from('project_metrics')
+          .select('period, rkap, outlook_amount, revenue, cash_in, bast_amount, invoice, pinalty, projects(project_name, portfolio, customer)')
+          .gt(sortCol, 0)
+          .order(sortCol, { ascending: false })
+          .limit(15);
+
+        if (metricsData && metricsData.length > 0) {
+          const dbRows = metricsData.map((m: any, idx: number) => ({
+            ranking: idx + 1,
+            nama_proyek: m.projects?.project_name || 'Proyek TelkomInfra',
+            portofolio: m.projects?.portfolio || 'General',
+            periode: m.period,
+            "Realisasi Revenue (Rp)": m.revenue || 0,
+            "Target RKAP (Rp)": m.rkap || 0,
+            "Proyeksi Outlook (Rp)": m.outlook_amount || 0,
+            "Total Cash In (Rp)": m.cash_in || 0,
+            "Nilai BAST (Rp)": m.bast_amount || 0,
+            "Total Invoice (Rp)": m.invoice || 0,
+            "Denda Pinalty (Rp)": m.pinalty || 0
+          }));
+
+          const sampleName1 = dbRows[0]?.nama_proyek || 'Pekerjaan Reengineering 2025';
+          const sampleName2 = dbRows[1]?.nama_proyek || 'Pekerjaan Rutin ENOM 2.0 A1';
+
+          dynamicSystem += `\n\n[DATABASE DATA REAL-TIME RESMI SUPABASE TELKOMINFRA (100% DATA TERSTRUKTUR & TERSIH)]:\n${JSON.stringify(dbRows, null, 2)}\n\nPERINGATAN SANGAT MUTLAK TERINGGI (ANTI HALUSINASI & AKURASI DATA):
+1. DILARANG KERAS mengarang nama proyek fiktif atau angka estimasi buatan sendiri.
+2. Nama proyek HANYA DAN WAJIB 100% diambil dari list 'nama_proyek' pada data resmi Supabase di atas (contoh: "${sampleName1}", "${sampleName2}", dst).
+3. Angka nominal Revenue, RKAP, Outlook, dan Cash In WAJIB 100% menggunakan angka asli dari database di atas.
+4. LANGSUNG sajikan jawaban akhir (tabel, grafik json_chart, dan analisis) TANPA mengeluarkan kata-kata penunda seperti "Sedang memproses" atau "Mohon tunggu"!`;
+        }
+      } catch (err) {
+        console.warn('[Tifa] Supabase DB pre-fetch skipped:', err);
+      }
+
+      const openAiMessages = [
+        { role: 'system', content: dynamicSystem },
+        ...(history || []).slice(-10).map((msg: any) => ({
+          role: msg.role === 'ai' ? 'assistant' : 'user',
+          content: msg.content || ''
+        })),
+      ];
+
+      // Add user prompt if not present in history
+      if (message && (openAiMessages.length === 1 || openAiMessages[openAiMessages.length - 1].content !== message)) {
+        openAiMessages.push({ role: 'user', content: message });
+      }
+
+      console.log(`[Tifa] Routing via ${isXai ? 'xAI Grok' : 'Groq'} API (${modelName})...`);
+
+      const apiRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqOrGrokKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: openAiMessages,
+          temperature: 0.2,
+          max_tokens: 2048
+        })
+      });
+
+      if (!apiRes.ok) {
+        const errJson = await apiRes.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || (typeof errJson.error === 'string' ? errJson.error : `HTTP ${apiRes.status}`));
+      }
+
+      const resData = await apiRes.json();
+      const replyContent = resData.choices?.[0]?.message?.content || 'Maaf, terjadi kendala saat memproses jawaban.';
+      await setCachedResponseAsync(message || '', replyContent, userId, files?.length > 0);
+
+      const chars = Array.from(replyContent as string);
+      const stream = new ReadableStream({
+        start(controller) {
+          const chunkSize = 5;
+          let i = 0;
+          const encoder = new TextEncoder();
+          function push() {
+            if (i < chars.length) {
+              const chunkString = chars.slice(i, i + chunkSize).join('');
+              controller.enqueue(encoder.encode(chunkString));
+              i += chunkSize;
+              setTimeout(push, 8);
+            } else {
+              controller.close();
+            }
+          }
+          push();
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
 
     // Sanitize history for Gemini:
     // 1. Map roles (ai → model)

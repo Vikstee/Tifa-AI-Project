@@ -264,6 +264,7 @@ export default function HomePage() {
 
   return (
     <div
+      suppressHydrationWarning
       className={`flex h-[100dvh] w-screen overflow-hidden ${darkMode ? 'dark bg-[#121214] text-white' : 'bg-[#f4f4f6] text-gray-900'}`}
     >
       <Sidebar

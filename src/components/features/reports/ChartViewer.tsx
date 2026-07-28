@@ -83,6 +83,37 @@ function formatIDRFull(value: number): string {
   return 'Rp ' + value.toLocaleString('id-ID');
 }
 
+// Format database keys or underscore strings into clean, user-friendly Indonesian labels
+export function formatLegendLabel(rawKey: string): string {
+  if (!rawKey) return '';
+  const dictionary: Record<string, string> = {
+    realisasi_revenue_rp: 'Realisasi Revenue (Rp)',
+    revenue: 'Realisasi Revenue (Rp)',
+    rkap_rp: 'Target RKAP (Rp)',
+    rkap: 'Target RKAP (Rp)',
+    outlook_rp: 'Proyeksi Outlook (Rp)',
+    outlook: 'Proyeksi Outlook (Rp)',
+    cash_in_rp: 'Total Cash In (Rp)',
+    cash_in: 'Total Cash In (Rp)',
+    bast_rp: 'Nilai BAST (Rp)',
+    bast: 'Nilai BAST (Rp)',
+    invoice_rp: 'Total Invoice (Rp)',
+    invoice: 'Total Invoice (Rp)',
+    denda_pinalty_rp: 'Denda Pinalty (Rp)',
+    pinalty: 'Denda Pinalty (Rp)',
+    po_amount: 'Nominal PO (Rp)',
+  };
+
+  const lower = rawKey.trim().toLowerCase();
+  if (dictionary[lower]) return dictionary[lower];
+
+  let formatted = rawKey.replace(/_/g, ' ');
+  if (formatted.toLowerCase().endsWith(' rp')) {
+    formatted = formatted.slice(0, -3) + ' (Rp)';
+  }
+  return formatted.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Custom Tooltip to show readable values
 const CustomTooltip = ({ active, payload, label, darkMode }: any) => {
   if (active && payload && payload.length) {
@@ -96,13 +127,13 @@ const CustomTooltip = ({ active, payload, label, darkMode }: any) => {
           border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
           fontSize: '12px',
           color: darkMode ? '#e5e7eb' : '#374151',
-          maxWidth: '220px',
+          maxWidth: '260px',
         }}
       >
         {label && <p style={{ fontWeight: 700, marginBottom: 6 }}>{label}</p>}
         {payload.map((p: any, i: number) => (
           <p key={i} style={{ color: p.color, margin: '3px 0' }}>
-            <span style={{ fontWeight: 600 }}>{p.name}: </span>
+            <span style={{ fontWeight: 600 }}>{formatLegendLabel(p.name)}: </span>
             {typeof p.value === 'number' ? formatIDRFull(p.value) : p.value}
           </p>
         ))}
@@ -120,7 +151,7 @@ const CustomLegend = ({ payload, darkMode }: any) => {
       {payload.map((entry: any, index: number) => (
         <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: darkMode ? '#d1d5db' : '#4b5563' }}>
           <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: entry.color, flexShrink: 0 }} />
-          <span>{entry.value}</span>
+          <span className="font-medium">{formatLegendLabel(entry.value)}</span>
         </div>
       ))}
     </div>

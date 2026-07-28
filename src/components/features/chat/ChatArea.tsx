@@ -105,6 +105,24 @@ export default function ChatArea({
         setSelectionPopup(null);
         return;
       }
+
+      // Check if selection anchor is inside the chat room messages container
+      const anchorNode = selection.anchorNode;
+      if (!anchorNode) {
+        setSelectionPopup(null);
+        return;
+      }
+
+      const parentEl = anchorNode.nodeType === Node.ELEMENT_NODE
+        ? (anchorNode as HTMLElement)
+        : anchorNode.parentElement;
+
+      const isInsideChatRoom = parentEl?.closest('#chat-messages-container');
+      if (!isInsideChatRoom) {
+        setSelectionPopup(null);
+        return;
+      }
+
       const text = selection.toString().trim();
       if (text.length > 2) {
         try {
@@ -173,7 +191,13 @@ export default function ChatArea({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ historyTitles: titles, userName: userProfile.name })
           });
-          const data = await res.json();
+          const text = await res.text();
+          let data: any = {};
+          try {
+            data = JSON.parse(text);
+          } catch {
+            data = {};
+          }
           if (data.subtitle) setDynamicSubtitle(data.subtitle);
           if (data.prompts) setDynamicPrompts(data.prompts);
         } catch (e) {
@@ -399,7 +423,8 @@ export default function ChatArea({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Gagal terhubung ke AI');
+        const errMsg = typeof errorData.error === 'string' ? errorData.error : (errorData.message || 'Gagal terhubung ke AI. Silakan coba lagi.');
+        throw new Error(errMsg);
       }
 
       if (!response.body) throw new Error('Response body is null');
@@ -616,7 +641,7 @@ export default function ChatArea({
           ) : (
             /* Active Messages State */
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+              <div id="chat-messages-container" className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
                 {chatHistory.map((msg) => (
                   <MessageBubble
                     key={msg.id}
