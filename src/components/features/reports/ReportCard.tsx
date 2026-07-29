@@ -2,15 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { generatePDFReport, generateExcelReport, generateWordReport } from '@/lib/reportGenerator';
+import { generatePDFReport, generateExcelReport, generateWordReport, generateHTMLFromSections } from '@/lib/reportGenerator';
 
 const hydrateSections = async (originalSections: any[]) => {
   if (!originalSections) return originalSections;
   const newSections = JSON.parse(JSON.stringify(originalSections));
   
   for (const sec of newSections) {
+    // If table already has curated headers and rows from AI, do NOT overwrite with raw select * dump
+    if (sec.type === 'table' && sec.headers && sec.headers.length > 0 && sec.rows && sec.rows.length > 0 && !sec.force_hydrate) {
+      continue;
+    }
+
     if (sec.type === 'table' && sec.query_meta) {
-      const { tableName, filterColumn, filterValue } = sec.query_meta;
+      const { tableName, filterColumn, filterValue, orderBy, ascending = false, limit = 20 } = sec.query_meta;
       if (tableName) {
         try {
           let query = supabase.from(tableName).select('*');
@@ -28,6 +33,13 @@ const hydrateSections = async (originalSections: any[]) => {
                 query = query.ilike(filterColumn, `%${filterValue}%`);
               }
           }
+          if (orderBy) {
+            query = query.order(orderBy, { ascending: !!ascending });
+          }
+          if (limit && typeof limit === 'number') {
+            query = query.limit(limit);
+          }
+
           const { data, error } = await query;
           if (!error && data && data.length > 0) {
              let enrichedData = data;
@@ -95,30 +107,10 @@ export default function ReportCard({
   sections,
 }: ReportCardProps) {
   const [url, setUrl] = useState<string | undefined>(initialUrl);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
   const [isGeneratingLazy, setIsGeneratingLazy] = useState(false);
   const [actualSize, setActualSize] = useState<string>(size);
-  
-  useEffect(() => {
-    let isMounted = true;
-    const preGenerate = async () => {
-      try {
-        let res: { url: string; size: number } | null = null;
-        const fullSections = await hydrateSections(sections || []);
-        if (format === 'PDF') res = await generatePDFReport(title, "", date, fullSections);
-        else if (format === 'Excel') res = await generateExcelReport(title, "", date, fullSections);
-        else if (format === 'Word') res = await generateWordReport(title, "", date, fullSections);
-        
-        if (isMounted && res) {
-          setUrl(res.url);
-          setActualSize(res.size >= 1024 * 1024 
-            ? (res.size / (1024 * 1024)).toFixed(2) + ' MB' 
-            : (res.size / 1024).toFixed(0) + ' KB');
-        }
-      } catch (e) {}
-    };
-    if (!url) preGenerate();
-    return () => { isMounted = false; };
-  }, [format, title, date, sections, url]);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   
   // Custom WA Modal State
   const [showWaModal, setShowWaModal] = useState(false);
@@ -145,8 +137,8 @@ export default function ReportCard({
     : format;
   const fmt = formatIcons[normalizedFormat] ?? { icon: '📄', color: 'text-gray-400', bg: 'bg-gray-500/10' };
 
-  const handleWhatsAppShare = async () => {
-    // Generate URL if not exists, but do NOT auto-download
+  const handleWhatsAppShare = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     let downloadUrl = url;
     if (!downloadUrl) {
       setIsGeneratingLazy(true);
@@ -172,7 +164,6 @@ export default function ReportCard({
       setIsGeneratingLazy(false);
     }
 
-    // Upload to Supabase to get a public link for WA
     let publicLink = '';
     try {
       const res = await fetch(downloadUrl as string);
@@ -254,54 +245,23 @@ export default function ReportCard({
   };
 
   const handlePreview = async () => {
-    if (isGeneratingLazy || isGenerating) return;
-
-    const isDownloadable = format === 'Word' || format === 'Excel';
-    const extension = format === 'Word' ? 'docx' : format === 'Excel' ? 'xlsx' : 'pdf';
-    const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_TIFA.${extension}`;
-
-    const triggerDownload = (downloadUrl: string) => {
-        if (isDownloadable) {
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        } else {
-            window.open(downloadUrl, '_blank');
-        }
-    };
-    
-    if (url) {
-      triggerDownload(url);
+    if (format === 'PDF') {
+      try {
+        const fullSections = await hydrateSections(sections || []);
+        const htmlStr = generateHTMLFromSections(title, "", date, fullSections);
+        setPreviewHtml(htmlStr);
+        setShowPreviewModal(true);
+      } catch (e) {
+        console.error("Preview error:", e);
+      }
       return;
     }
 
-    setIsGeneratingLazy(true);
-    try {
-      const periodMatch = date;
-      let res: { url: string; size: number } | null = null;
-      const fullSections = await hydrateSections(sections || []);
-      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
-      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
-      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
-
-      if (res) {
-        setUrl(res.url);
-        setActualSize(res.size >= 1024 * 1024 ? (res.size / (1024 * 1024)).toFixed(2) + ' MB' : (res.size / 1024).toFixed(0) + ' KB');
-        triggerDownload(res.url);
-      }
-    } catch (err) {
-      console.error('Failed to generate report', err);
-      alert('Gagal men-generate laporan.');
-    } finally {
-      setIsGeneratingLazy(false);
-    }
+    handleDownloadDirect();
   };
 
-  const handleDownload = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDownloadDirect = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const extension = format === 'Word' ? 'docx' : format === 'Excel' ? 'xlsx' : 'pdf';
     const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_TIFA.${extension}`;
 
@@ -343,13 +303,8 @@ export default function ReportCard({
     }
   };
 
-  const handleWhatsApp = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    handleWhatsAppShare();
-  };
-
   return (
-    <div className="gradient-border group cursor-pointer" onClick={handlePreview} title="Klik untuk melihat / preview laporan">
+    <div className="gradient-border group cursor-pointer" onClick={handlePreview} title="Klik untuk melihat / pratinjau laporan">
       <div className={`p-3 transition-colors ${darkMode ? 'bg-telkom-surface-dark hover:bg-telkom-surface' : 'bg-white hover:bg-gray-50'}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
@@ -407,10 +362,10 @@ export default function ReportCard({
           {!isGenerating && (
             <div className={`flex ${isSidebar ? 'flex-col' : 'items-center justify-end'} gap-1.5 flex-shrink-0`}>
               <button
-                onClick={handleDownload}
+                onClick={handleDownloadDirect}
                 disabled={isGeneratingLazy}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 bg-telkom-red hover:bg-telkom-red-dark text-white text-xs font-medium rounded-lg transition-colors ${isGeneratingLazy ? 'opacity-70 cursor-wait' : ''}`}
-                title="Download"
+                title="Download File"
               >
                 {isGeneratingLazy ? (
                   <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -425,7 +380,7 @@ export default function ReportCard({
                 {isGeneratingLazy ? 'Memproses...' : 'Unduh'}
               </button>
               <button
-                onClick={handleWhatsApp}
+                onClick={handleWhatsAppShare}
                 className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
                 title="Bagikan via WhatsApp"
               >
@@ -439,10 +394,69 @@ export default function ReportCard({
         </div>
       </div>
 
+      {/* PDF Interactive Preview Modal - INSTANT 0ms LOADING */}
+      {showPreviewModal && (
+        <div 
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-white dark:bg-telkom-sidebar w-full max-w-4xl h-[88vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-telkom-border-dark animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-telkom-border-dark bg-gray-50 dark:bg-telkom-charcoal">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📄</span>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white truncate max-w-[300px] sm:max-w-[450px]">{title}</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Pratinjau Dokumen Langsung • {date}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadDirect}
+                  disabled={isGeneratingLazy}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-telkom-red hover:bg-telkom-red-dark text-white text-xs font-medium rounded-lg transition-colors"
+                  title="Unduh File PDF"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  {isGeneratingLazy ? 'Mengunduh...' : 'Unduh PDF'}
+                </button>
+                <button
+                  onClick={handleWhatsAppShare}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
+                  title="Bagikan via WhatsApp"
+                >
+                  WA
+                </button>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+                  title="Tutup"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body - Instant HTML Document Rendering */}
+            <div className="flex-1 w-full bg-slate-200 dark:bg-gray-900 overflow-hidden relative">
+              <iframe
+                srcDoc={previewHtml}
+                className="w-full h-full border-none shadow-inner"
+                title={`Pratinjau Dokumen - ${title}`}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* WA Modal */}
       {showWaModal && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="bg-white dark:bg-telkom-sidebar w-full max-w-sm rounded-xl p-6 shadow-xl relative border border-gray-200 dark:border-telkom-border-dark animate-in fade-in zoom-in duration-200">
