@@ -5,6 +5,7 @@ import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
 import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory, enrichWithProjectNames } from '@/lib/db/supabaseQueries';
 import { aggregateChartPython, predictCashflowPython, detectAnomalyPython, askSqlPython, searchVectorPython } from '@/lib/api/pythonClient';
 import { getCachedResponseAsync, setCachedResponseAsync } from '@/lib/cache/responseCache';
+import { getTifaTimeContext } from '@/lib/timezone';
 
 const apiKeyString = process.env.GEMINI_API_KEY || '';
 // Parse comma-separated API keys
@@ -52,6 +53,10 @@ function classifyPrompt(text: string): 'lite' | 'full' {
   return model;
 }
 // ===================================
+function isTimeSensitivePrompt(text: string) {
+  return /\\b(jam|pukul|waktu|tanggal|tgl|hari ini|hari apa|kemarin|besok|minggu ini|bulan ini|tahun ini|sekarang)\\b/i.test(text || '');
+}
+
 const SYSTEM_INSTRUCTION = `Kamu adalah TIFA (TelkomInfra AI Financial Assistant), analis data keuangan & proyek eksekutif internal TelkomInfra.
 Jawab HANYA dalam Bahasa Indonesia dengan bahasa profesional, terstruktur (gunakan poin/penomoran), presisi, dan enak dibaca. Gunakan emoticon 😊 secukupnya secara wajar.
 
@@ -264,7 +269,7 @@ export async function POST(req: NextRequest) {
         : 'https://api.groq.com/openai/v1/chat/completions';
       const modelName = isXai ? 'grok-4.20-non-reasoning-latest' : 'llama-3.3-70b-versatile';
 
-      let dynamicSystem = SYSTEM_INSTRUCTION;
+      let dynamicSystem = `${SYSTEM_INSTRUCTION}` + "\n\n" + getTifaTimeContext();
       const activeUserId = userId || 'default_user';
       try {
         const memRes = await getUserMemory(activeUserId);
@@ -356,7 +361,9 @@ export async function POST(req: NextRequest) {
 
       const resData = await apiRes.json();
       const replyContent = resData.choices?.[0]?.message?.content || 'Maaf, terjadi kendala saat memproses jawaban.';
-      await setCachedResponseAsync(message || '', replyContent, userId, files?.length > 0);
+      if (!isTimeSensitivePrompt(message || '')) {
+        await setCachedResponseAsync(message || '', replyContent, userId, files?.length > 0);
+      }
 
       const chars = Array.from(replyContent as string);
       const stream = new ReadableStream({
@@ -457,7 +464,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ===== SMART RESPONSE CACHE CHECK (RAM + SUPABASE PERMANENT DB) =====
-    const cachedResponse = await getCachedResponseAsync(message || '', userId, files?.length > 0);
+    const cachedResponse = isTimeSensitivePrompt(message || '')
+      ? null
+      : await getCachedResponseAsync(message || '', userId, files?.length > 0);
     if (cachedResponse) {
       const chars = Array.from(cachedResponse);
       const stream = new ReadableStream({
@@ -506,7 +515,7 @@ export async function POST(req: NextRequest) {
         const genAI = new GoogleGenerativeAI(selectedKey);
         console.log(`[Tifa] Using model: ${selectedModel} | ${keyLabel} | Class: ${promptClass.toUpperCase()} | Fallback: ${isFallback}`);
         
-        let dynamicSystemInstruction = SYSTEM_INSTRUCTION;
+        let dynamicSystemInstruction = `${SYSTEM_INSTRUCTION}` + "\n\n" + getTifaTimeContext();
         const activeUserId = userId || 'default_user';
         const memRes = await getUserMemory(activeUserId);
         if (memRes.data) {
@@ -592,7 +601,9 @@ export async function POST(req: NextRequest) {
         }
 
         const finalString = result.response.text();
-        await setCachedResponseAsync(message || '', finalString, userId, files?.length > 0);
+        if (!isTimeSensitivePrompt(message || '')) {
+          await setCachedResponseAsync(message || '', finalString, userId, files?.length > 0);
+        }
 
         // ✅ SUCCESS — keep currentKeyIndex as-is so next request reuses this key
         console.log(`[Tifa] ✅ Success with ${keyLabel}`);
