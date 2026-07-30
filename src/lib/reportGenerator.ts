@@ -1,4 +1,4 @@
-﻿// reportGenerator.ts Ã¢â‚¬â€ TIFA writes structured PDF/Excel/Word from AI sections
+// reportGenerator.ts Ã¢â‚¬â€ TIFA writes structured PDF/Excel/Word from AI sections
 // Each section type (heading, text, table, bar_chart, pie_chart, insight) is rendered
 // programmatically with clean, professional layout. No screenshots.
 
@@ -460,41 +460,32 @@ function formatTableCellValue(val: any): string {
 
 function analyzeColumnProperties(headers: string[], rows: string[][]): { widths: string[]; wraps: boolean[] } {
   const colCount = headers.length;
-  const widths: string[] = [];
+  const weights: number[] = [];
   const wraps: boolean[] = [];
 
-  for (let colIdx = 0; colIdx < colCount; colIdx++) {
+  for (let colIdx = 0; colIdx < colCount; colIdx += 1) {
     const headerText = (headers[colIdx] || '').trim();
     let maxCharLen = headerText.length;
     let hasLongTextWithSpaces = false;
 
     for (const row of rows) {
       const cellVal = String(row[colIdx] || '').trim();
-      if (cellVal.length > maxCharLen) {
-        maxCharLen = cellVal.length;
-      }
-      if (cellVal.length > 20 && cellVal.includes(' ')) {
-        hasLongTextWithSpaces = true;
-      }
+      maxCharLen = Math.max(maxCharLen, cellVal.length);
+      if (cellVal.length > 20 && cellVal.includes(' ')) hasLongTextWithSpaces = true;
     }
 
-    let w = 'auto';
-    if (colIdx === 0 && (headerText.toUpperCase() === 'NO' || headerText === '#')) {
-      w = '35px';
-    } else {
-      // Guarantee column width is at least wider than the header text itself
-      const minHeaderWidth = headerText.length * 8 + 24;
-      const calculatedWidth = Math.max(minHeaderWidth, Math.min(220, maxCharLen * 7.5 + 20));
-      w = `${Math.round(calculatedWidth)}px`;
-    }
-
-    widths.push(w);
-    wraps.push(hasLongTextWithSpaces || maxCharLen > 25);
+    const isNumberColumn = /(?:no|ranking|periode|rp|revenue|cash|invoice|bast|denda|target)/i.test(headerText);
+    const weight = colIdx === 0 && /^(no|#|ranking)$/i.test(headerText)
+      ? 42
+      : Math.max(isNumberColumn ? 72 : 95, Math.min(190, maxCharLen * (isNumberColumn ? 3.5 : 4.5) + 18));
+    weights.push(weight);
+    wraps.push(hasLongTextWithSpaces || maxCharLen > 18);
   }
 
+  const total = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+  const widths = weights.map((weight) => `${(weight / total * 100).toFixed(2)}%`);
   return { widths, wraps };
 }
-
 function sanitizePdfText(value: unknown): string {
   return String(value ?? '')
     .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')

@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import makeWASocket, {
@@ -14,7 +14,45 @@ const internalToken = process.env.WHATSAPP_INTERNAL_TOKEN || '';
 const allowedFromEnv = new Set((process.env.WHATSAPP_ALLOWED_GROUP_IDS || '').split(',').map((v) => v.trim()).filter(Boolean));
 const logGroups = process.env.WHATSAPP_LOG_GROUPS !== 'false';
 const logMessages = process.env.WHATSAPP_LOG_MESSAGES !== 'false';
+const contextTtlMs = 24 * 60 * 60 * 1000;
+const contextCacheFile = path.join(authDir, 'group-context-cache.json');
+const groupContexts = new Map();
 
+function loadGroupContexts() {
+  try {
+    if (!fs.existsSync(contextCacheFile)) return;
+    const saved = JSON.parse(fs.readFileSync(contextCacheFile, 'utf8'));
+    for (const [groupJid, context] of Object.entries(saved || {})) {
+      if (context?.expiresAt > Date.now() && Array.isArray(context.messages)) groupContexts.set(groupJid, context);
+    }
+  } catch (error) {
+    console.warn('[TIFA WhatsApp] cache konteks tidak dapat dibaca:', error.message);
+  }
+}
+
+function saveGroupContexts() {
+  try {
+    const output = Object.fromEntries(groupContexts.entries());
+    fs.writeFileSync(contextCacheFile, JSON.stringify(output), 'utf8');
+  } catch (error) {
+    console.warn('[TIFA WhatsApp] cache konteks tidak dapat disimpan:', error.message);
+  }
+}
+
+function getGroupHistory(groupJid) {
+  const context = groupContexts.get(groupJid);
+  if (!context || context.expiresAt <= Date.now()) {
+    groupContexts.delete(groupJid);
+    return [];
+  }
+  return context.messages.slice(-20);
+}
+
+function rememberGroupTurn(groupJid, prompt, reply) {
+  const messages = [...getGroupHistory(groupJid), { role: 'user', content: prompt }, { role: 'ai', content: reply }].slice(-20);
+  groupContexts.set(groupJid, { expiresAt: Date.now() + contextTtlMs, messages });
+  saveGroupContexts();
+}
 if (!internalToken) {
   console.warn('[TIFA WhatsApp] WHATSAPP_INTERNAL_TOKEN belum di-set; whitelist database tidak dapat dipakai.');
 }
@@ -81,6 +119,54 @@ function parseReport(text) {
   }
 }
 
+function parseVisuals(text) {
+  const visuals = [];
+  const chartPattern = /```json_chart\s*([\s\S]*?)\s*```/gi;
+  for (const match of text.matchAll(chartPattern)) {
+    try {
+      const chart = JSON.parse(match[1]);
+      const typeMap = { bar_chart: 'bar', line_chart: 'line', pie_chart: 'pie' };
+      const type = typeMap[chart?.type] || chart?.type;
+      if (chart && ['bar', 'line', 'pie'].includes(type)) visuals.push({ ...chart, type });
+    } catch (error) {
+      console.warn('[TIFA WhatsApp] json_chart tidak valid:', error.message);
+    }
+  }
+
+  const tablePattern = /((?:^\|[^\r\n]+\|\s*\r?\n){2,})/gm;
+  for (const match of text.matchAll(tablePattern)) {
+    const rows = match[1].trim().split(/\r?\n/).map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
+    if (rows.length >= 2 && rows[1].every((cell) => /^:?-{3,}:?$/.test(cell))) {
+      visuals.push({ type: 'table', title: 'Tabel TIFA', headers: rows[0], rows: rows.slice(2) });
+    }
+  }
+  return visuals;
+}
+
+function chartToReportSection(chart) {
+  if (Array.isArray(chart.labels) && Array.isArray(chart.values)) {
+    return { type: chart.type === 'line' ? 'line_chart' : chart.type === 'pie' ? 'pie_chart' : 'bar_chart', title: chart.title || 'Visualisasi TIFA', labels: chart.labels, values: chart.values };
+  }
+  if (Array.isArray(chart.data)) {
+    const key = chart.xAxisKey || 'kategori';
+    const valueKey = chart.keys?.[0] || Object.keys(chart.data[0] || {}).find((item) => item !== key);
+    if (!valueKey) return null;
+    return { type: chart.type === 'line' ? 'line_chart' : chart.type === 'pie' ? 'pie_chart' : 'bar_chart', title: chart.title || 'Visualisasi TIFA', labels: chart.data.map((row) => row[key]), values: chart.data.map((row) => Number(String(row[valueKey]).replace(/[^0-9.-]/g, '')) || 0) };
+  }
+  return null;
+}
+
+function attachPreviousCharts(report, groupJid) {
+  const previousCharts = getGroupHistory(groupJid).filter((item) => item.role === 'ai').flatMap((item) => parseVisuals(item.content || ''));
+  const sections = previousCharts.map(chartToReportSection).filter(Boolean);
+  if (!sections.length) return report;
+  const existingTitles = new Set((report.sections || []).map((section) => section.title));
+  return { ...report, sections: [...report.sections, ...sections.filter((section) => !existingTitles.has(section.title))] };
+}
+function removeMarkdownTables(text) {
+  return text.replace(/(?:^\|[^\r\n]+\|\s*\r?\n){2,}/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function cleanReply(text) {
   let result = text
     .replace(/```json_report\s*[\s\S]*?\s*```/gi, '')
@@ -124,14 +210,16 @@ async function readChatResponse(response) {
   return raw.replace(/^data:\s?/gm, '').trim();
 }
 
-async function askTifa(prompt, senderId) {
+async function askTifa(prompt, senderId, groupJid) {
   const response = await fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: prompt, history: [], userId: `whatsapp:${senderId}` }),
+    body: JSON.stringify({ message: prompt, history: getGroupHistory(groupJid), userId: `whatsapp:group:${groupJid}` }),
   });
   if (!response.ok) throw new Error(`TIFA API HTTP ${response.status}: ${await response.text()}`);
-  return readChatResponse(response);
+  const reply = await readChatResponse(response);
+  rememberGroupTurn(groupJid, prompt, reply);
+  return reply;
 }
 
 function shortText(value, max = 180) {
@@ -150,6 +238,16 @@ function startTyping(sock, jid) {
 }
 
 
+async function createVisual(visual) {
+  const response = await fetch(`${baseUrl}/api/whatsapp/visual`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${internalToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(visual),
+  });
+  if (!response.ok) throw new Error(`Visual API HTTP ${response.status}: ${await response.text()}`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
 async function createPdf(report) {
   const response = await fetch(`${baseUrl}/api/whatsapp/report`, {
     method: 'POST',
@@ -162,6 +260,7 @@ async function createPdf(report) {
 
 async function start() {
   fs.mkdirSync(authDir, { recursive: true });
+  loadGroupContexts();
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const sock = makeWASocket({ auth: state, browser: Browsers.ubuntu('TIFA'), markOnlineOnConnect: false, syncFullHistory: false });
   sock.ev.on('creds.update', saveCreds);
@@ -235,12 +334,21 @@ async function start() {
       const stopTyping = startTyping(sock, groupJid);
       try {
         console.log('[TIFA WhatsApp] memproses permintaan via API:', shortText(prompt));
-        const rawReply = await askTifa(prompt, senderId);
-        const report = parseReport(rawReply);
-        const reply = cleanReply(rawReply) || 'Laporan berhasil dibuat.';
+        const rawReply = await askTifa(prompt, senderId, groupJid);
+        let report = parseReport(rawReply);
+        if (report) report = attachPreviousCharts(report, groupJid);
+        const visuals = report ? [] : parseVisuals(rawReply);
+        const reply = cleanReply(removeMarkdownTables(rawReply)) || 'Laporan berhasil dibuat.';
         console.log('[TIFA WhatsApp] API berhasil:', { messageId, adaPdf: Boolean(report), panjangBalasan: reply.length });
         await sock.sendMessage(groupJid, { text: reply });
         console.log('[TIFA WhatsApp] balasan teks terkirim:', messageId);
+        if (!report && visuals.length) {
+          for (const [index, visual] of visuals.entries()) {
+            const image = await createVisual({ ...visual, title: visual.title || 'Visual TIFA ' + (index + 1)});
+            await sock.sendMessage(groupJid, { image, mimetype: 'image/png', caption: visual.title || 'Visualisasi TIFA.' });
+            console.log('[TIFA WhatsApp] visual terkirim:', visual.title || ('Visual TIFA ' + (index + 1)));
+          }
+        }
         if (report) {
           const pdf = await createPdf(report);
           const filename = `${String(report.title || 'TIFA_Laporan').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 80)}.pdf`;
