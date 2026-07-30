@@ -1,4 +1,4 @@
-// reportGenerator.ts â€” TIFA writes structured PDF/Excel/Word from AI sections
+﻿// reportGenerator.ts Ã¢â‚¬â€ TIFA writes structured PDF/Excel/Word from AI sections
 // Each section type (heading, text, table, bar_chart, pie_chart, insight) is rendered
 // programmatically with clean, professional layout. No screenshots.
 
@@ -67,9 +67,9 @@ async function fetchImageAsBase64(url: string): Promise<string> {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // PDF GENERATOR
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 function drawHeader(doc: any, title: string, period: string) {
   doc.setFillColor(...RED);
@@ -103,7 +103,7 @@ function drawFooter(doc: any, pageNum: number, total: number) {
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(160, 160, 160);
-  doc.text('TelkomInfra â€” TIFA AI Financial Assistant | RAHASIA', MARGIN, PAGE_H - 6);
+  doc.text('TelkomInfra Ã¢â‚¬â€ TIFA AI Financial Assistant | RAHASIA', MARGIN, PAGE_H - 6);
   doc.text(`Halaman ${pageNum} / ${total}`, PAGE_W - MARGIN, PAGE_H - 6, { align: 'right' });
 }
 
@@ -495,7 +495,16 @@ function analyzeColumnProperties(headers: string[], rows: string[][]): { widths:
   return { widths, wraps };
 }
 
+function sanitizePdfText(value: unknown): string {
+  return String(value ?? '')
+    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+    .replace(/ðŸ[\u0080-\uFFFF]{2,4}/g, '')
+    .replace(/Ã¢â‚¬â€|â€”|â€“/g, '-')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 function renderSingleSection(s: any): string {
+  s = { ...s, text: sanitizePdfText(s.text), title: sanitizePdfText(s.title), headers: s.headers?.map(sanitizePdfText), labels: s.labels?.map(sanitizePdfText), rows: s.rows?.map((row: string[]) => row.map(sanitizePdfText)) };
   if (s.type === 'html' || s.content) {
     return `<div class="section-block">${s.content || s.text || ''}</div>`;
   }
@@ -507,7 +516,7 @@ function renderSingleSection(s: any): string {
     case 'insight':
       return `<div class="section-block">
         <div class="insight-box">
-          <div class="insight-title">💡 Insight & Rekomendasi</div>
+          <div class="insight-title">Insight &amp; Rekomendasi</div>
           <p class="insight-text">${s.text || ''}</p>
         </div>
       </div>`;
@@ -586,7 +595,7 @@ function renderSingleSection(s: any): string {
   }
 }
 
-function paginateReportSections(sections: any[], maxPageContentHeight: number = 930): any[][] {
+function paginateReportSections(sections: any[], maxPageContentHeight: number = 900): any[][] {
   const pages: any[][] = [];
   let currentPage: any[] = [];
   let currentHeight = 0;
@@ -628,7 +637,7 @@ function paginateReportSections(sections: any[], maxPageContentHeight: number = 
           title: subTitle
         });
 
-        currentHeight += headerH + chunk.length * rowH;
+        currentHeight += headerH + chunk.length * rowH + (currentPage.length > 1 ? 14 : 0);
         partIdx++;
 
         if (remainingRows.length > 0) {
@@ -644,6 +653,10 @@ function paginateReportSections(sections: any[], maxPageContentHeight: number = 
       else if (s.type === 'insight') secHeight = Math.ceil((s.text || '').length / 80) * 18 + 40;
       else if (s.labels) secHeight = 55 + (s.labels || []).length * 30;
       else if (s.content) secHeight = Math.ceil((s.content || '').length / 80) * 18 + 30;
+
+      if (currentPage.length > 0) {
+        secHeight += 14;
+      }
 
       if (s.pageBreakBefore && currentPage.length > 0) {
         pages.push(currentPage);
@@ -704,7 +717,7 @@ export function generateHTMLFromSections(
         </main>
 
         <div class="footer-bar">
-          <div>TelkomInfra — TIFA AI Financial Assistant | RAHASIA</div>
+          <div>TelkomInfra - TIFA AI Financial Assistant | RAHASIA</div>
           <div>Halaman ${pageNum} dari ${totalPages}</div>
         </div>
       </div>
@@ -720,7 +733,7 @@ export function generateHTMLFromSections(
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: Arial, 'Noto Sans', 'Segoe UI', sans-serif;
       background-color: #f1f5f9;
       color: #1e293b;
       padding: 20px 0;
@@ -737,7 +750,7 @@ export function generateHTMLFromSections(
     .a4-page {
       width: 794px;
       height: 1123px;
-      padding: 36px 40px;
+      padding: 36px 40px 42px 40px;
       background: #ffffff;
       box-sizing: border-box;
       margin: 0 auto 24px auto;
@@ -801,6 +814,7 @@ export function generateHTMLFromSections(
 
     .page-content {
       flex: 1;
+      min-height: 0;
       overflow: visible;
       display: flex;
       flex-direction: column;
@@ -809,6 +823,8 @@ export function generateHTMLFromSections(
 
     .section-block {
       width: 100%;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     .section-heading {
@@ -855,7 +871,8 @@ export function generateHTMLFromSections(
     }
 
     .table-container {
-      display: inline-block;
+      display: block;
+      width: 100%;
       max-width: 100%;
       border-radius: 8px;
       border: 1px solid #cbd5e1;
@@ -864,9 +881,9 @@ export function generateHTMLFromSections(
     }
 
     table {
-      width: auto;
+      width: 100%;
       max-width: 100%;
-      table-layout: auto;
+      table-layout: fixed;
       border-collapse: collapse;
       font-size: 11px;
       text-align: left;
@@ -896,15 +913,15 @@ export function generateHTMLFromSections(
       font-weight: 600;
       padding: 7px 9px;
       border-bottom: 2px solid #cbd5e1;
-      white-space: nowrap;
-      word-break: normal !important;
-      overflow-wrap: normal !important;
+      white-space: normal;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
     }
 
     thead th.col-wrap, tbody td.col-wrap {
       white-space: normal;
-      word-break: normal !important;
-      overflow-wrap: normal !important;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
     }
 
     tbody td {
@@ -912,9 +929,9 @@ export function generateHTMLFromSections(
       border-bottom: 1px solid #e2e8f0;
       color: #334155;
       vertical-align: top;
-      white-space: nowrap;
-      word-break: normal !important;
-      overflow-wrap: normal !important;
+      white-space: normal;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
     }
 
     tbody tr:nth-child(even) {
@@ -995,7 +1012,9 @@ export function generateHTMLFromSections(
       justify-content: space-between;
       font-size: 9.5px;
       color: #94a3b8;
-      height: 25px;
+      min-height: 25px;
+      height: auto;
+      line-height: 1.35;
       flex-shrink: 0;
     }
   </style>
@@ -1067,9 +1086,9 @@ export const generatePDFReport = async (
 };
 
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // EXCEL GENERATOR
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 export const generateExcelReport = async (
   title: string,
@@ -1252,9 +1271,9 @@ export const generateExcelReport = async (
 };
 
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // WORD GENERATOR
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /** Render a horizontal bar chart to a PNG ArrayBuffer using Canvas API */
 async function renderBarChartToImage(
