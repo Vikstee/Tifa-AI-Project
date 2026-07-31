@@ -14,16 +14,23 @@ const internalToken = process.env.WHATSAPP_INTERNAL_TOKEN || '';
 const allowedFromEnv = new Set((process.env.WHATSAPP_ALLOWED_GROUP_IDS || '').split(',').map((v) => v.trim()).filter(Boolean));
 const logGroups = process.env.WHATSAPP_LOG_GROUPS !== 'false';
 const logMessages = process.env.WHATSAPP_LOG_MESSAGES !== 'false';
-const contextTtlMs = 24 * 60 * 60 * 1000;
 const contextCacheFile = path.join(authDir, 'group-context-cache.json');
 const groupContexts = new Map();
+
+function getWibDayKey(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
 
 function loadGroupContexts() {
   try {
     if (!fs.existsSync(contextCacheFile)) return;
     const saved = JSON.parse(fs.readFileSync(contextCacheFile, 'utf8'));
+    const today = getWibDayKey();
     for (const [groupJid, context] of Object.entries(saved || {})) {
-      if (context?.expiresAt > Date.now() && Array.isArray(context.messages)) groupContexts.set(groupJid, context);
+      if (!Array.isArray(context.messages)) continue;
+      const legacyDay = context.expiresAt ? getWibDayKey(new Date(context.expiresAt - (24 * 60 * 60 * 1000))) : today;
+      const migrated = { ...context, dayKey: context.dayKey || legacyDay };
+      if (migrated.dayKey === today) groupContexts.set(groupJid, migrated);
     }
   } catch (error) {
     console.warn('[TIFA WhatsApp] cache konteks tidak dapat dibaca:', error.message);
@@ -41,16 +48,16 @@ function saveGroupContexts() {
 
 function getGroupHistory(groupJid) {
   const context = groupContexts.get(groupJid);
-  if (!context || context.expiresAt <= Date.now()) {
+  if (!context || context.dayKey !== getWibDayKey()) {
     groupContexts.delete(groupJid);
     return [];
   }
-  return context.messages.slice(-20);
+  return context.messages;
 }
 
 function rememberGroupTurn(groupJid, prompt, reply) {
-  const messages = [...getGroupHistory(groupJid), { role: 'user', content: prompt }, { role: 'ai', content: reply }].slice(-20);
-  groupContexts.set(groupJid, { expiresAt: Date.now() + contextTtlMs, messages });
+  const messages = [...getGroupHistory(groupJid), { role: 'user', content: prompt }, { role: 'ai', content: reply }];
+  groupContexts.set(groupJid, { dayKey: getWibDayKey(), messages });
   saveGroupContexts();
 }
 if (!internalToken) {

@@ -1,5 +1,6 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import puppeteer from 'puppeteer';
+import { launchTifaBrowser } from '@/lib/serverBrowser';
 import { generateHTMLFromSections } from '@/lib/reportGenerator';
 
 export const runtime = 'nodejs';
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     if (!title || !Array.isArray(sections)) return new Response('Invalid report payload', { status: 400 });
 
     const html = generateHTMLFromSections(title, subtitle, period, sections);
-    browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    browser = await launchTifaBrowser();
     const page = await browser.newPage();
     await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'networkidle0' });
