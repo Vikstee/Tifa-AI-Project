@@ -491,8 +491,22 @@ function sanitizePdfText(value: unknown): string {
     .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
     .replace(/ðŸ[\u0080-\uFFFF]{2,4}/g, '')
     .replace(/Ã¢â‚¬â€|â€”|â€“/g, '-')
-    .replace(/\s{2,}/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
     .trim();
+}
+function escapePdfHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char] || char));
+}
+function formatPdfText(value: unknown): string {
+  const clean = sanitizePdfText(value)
+    .replace(/__([^_\n]+?)__/g, '$1')
+    .replace(/^\s*(?:[-*]|â€¢|•)\s+/gm, '- ');
+  const escaped = escapePdfHtml(clean)
+    .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+?)\*/g, '<strong>$1</strong>');
+  return escaped.replace(/\r?\n/g, '<br>');
 }
 function renderSingleSection(s: any): string {
   s = { ...s, text: sanitizePdfText(s.text), title: sanitizePdfText(s.title), headers: s.headers?.map(sanitizePdfText), labels: s.labels?.map(sanitizePdfText), rows: s.rows?.map((row: string[]) => row.map(sanitizePdfText)) };
@@ -503,12 +517,12 @@ function renderSingleSection(s: any): string {
     case 'heading':
       return `<div class="section-block"><h2 class="section-heading">${s.text || ''}</h2></div>`;
     case 'text':
-      return `<div class="section-block"><p class="section-text">${s.text || ''}</p></div>`;
+      return `<div class="section-block"><p class="section-text">${formatPdfText(s.text)}</p></div>`;
     case 'insight':
       return `<div class="section-block">
         <div class="insight-box">
           <div class="insight-title">Insight &amp; Rekomendasi</div>
-          <p class="insight-text">${s.text || ''}</p>
+          <p class="insight-text">${formatPdfText(s.text)}</p>
         </div>
       </div>`;
     case 'table': {
@@ -582,7 +596,7 @@ function renderSingleSection(s: any): string {
       </div>`;
     }
     default:
-      return s.text ? `<div class="section-block"><p class="section-text">${s.text}</p></div>` : '';
+      return s.text ? `<div class="section-block"><p class="section-text">${formatPdfText(s.text)}</p></div>` : '';
   }
 }
 

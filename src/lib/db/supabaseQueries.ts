@@ -60,6 +60,31 @@ export const aggregateRecords = async (tableName: string, sumColumn: string, fil
   }
 };
 
+export const deleteUserMemoryItem = async (userId: string, memoryText: string) => {
+  try {
+    const validUuid = toValidUuid(userId);
+    const existing = await getUserMemory(validUuid);
+    const target = memoryText.trim().toLowerCase();
+    if (!existing?.data || !target) return { success: true, memory: '' };
+    const remaining = existing.data.split(/\r?\n/).filter((line: string) => !line.toLowerCase().includes(target)).join('\n').trim();
+    const { error } = await supabase.from('user_memories').upsert({ user_id: validUuid, memory_text: remaining, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) return { error: error.message };
+    return { success: true, memory: remaining };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+};
+
+export const clearUserMemory = async (userId: string) => {
+  try {
+    const validUuid = toValidUuid(userId);
+    const { error } = await supabase.from('user_memories').upsert({ user_id: validUuid, memory_text: '', updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) return { error: error.message };
+    return { success: true, memory: '' };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+};
 /**
  * Ensures any userId string (e.g. "default_user", "viki", etc.) is converted
  * into a valid UUID string format so Supabase UUID column never errors.

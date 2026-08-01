@@ -170,6 +170,27 @@ function attachPreviousCharts(report, groupJid) {
   const existingTitles = new Set((report.sections || []).map((section) => section.title));
   return { ...report, sections: [...report.sections, ...sections.filter((section) => !existingTitles.has(section.title))] };
 }
+function isReportRequest(prompt) {
+  return /\b(laporan|report|pdf|export|unduh|download|dokumen)\b/i.test(prompt || '');
+}
+
+function buildFallbackReport(prompt, rawReply, visuals) {
+  const sections = [];
+  const narrative = cleanReportReply(removeMarkdownTables(rawReply));
+  if (narrative) sections.push({ type: 'text', text: narrative });
+  for (const visual of visuals) {
+    const section = chartToReportSection(visual);
+    if (section) sections.push(section);
+    else if (visual.type === 'table') sections.push({ type: 'table', title: visual.title || 'Tabel TIFA', headers: visual.headers || [], rows: visual.rows || [] });
+  }
+  if (!sections.length) sections.push({ type: 'text', text: 'Laporan berdasarkan jawaban data terbaru TIFA.' });
+  return {
+    title: 'Laporan TIFA - ' + String(prompt || 'Permintaan laporan').replace(/\s+/g, ' ').trim().slice(0, 70),
+    format: 'PDF',
+    period: 'Data terbaru',
+    sections,
+  };
+}
 function removeMarkdownTables(text) {
   return text.replace(/(?:^\|[^\r\n]+\|\s*\r?\n){2,}/gm, '').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -190,6 +211,16 @@ function cleanReply(text) {
   return result;
 }
 
+function cleanReportReply(text) {
+  let result = cleanReply(text)
+    .replace(/^\s*---+\s*$/gm, '')
+    .replace(/\n\s*(?:Apakah|Silakan beri tahu|Jika Anda ingin|Kalau Anda ingin)[\s\S]*$/i, '')
+    .replace(/\bjson_report\b/gi, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return result;
+}
 async function jsonRequest(url, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -221,7 +252,7 @@ async function askTifa(prompt, senderId, groupJid) {
   const response = await fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: prompt, history: getGroupHistory(groupJid), userId: `whatsapp:group:${groupJid}` }),
+    body: JSON.stringify({ message: prompt, history: getGroupHistory(groupJid), userId: 'whatsapp:user:' + senderId, groupId: 'whatsapp:group:' + groupJid }),
   });
   if (!response.ok) throw new Error(`TIFA API HTTP ${response.status}: ${await response.text()}`);
   const reply = await readChatResponse(response);
@@ -343,24 +374,37 @@ async function start() {
         console.log('[TIFA WhatsApp] memproses permintaan via API:', shortText(prompt));
         const rawReply = await askTifa(prompt, senderId, groupJid);
         let report = parseReport(rawReply);
-        if (report) report = attachPreviousCharts(report, groupJid);
-        const visuals = report ? [] : parseVisuals(rawReply);
-        const reply = cleanReply(removeMarkdownTables(rawReply)) || 'Laporan berhasil dibuat.';
+        let visuals = parseVisuals(rawReply);
+        if (report) {
+          report = attachPreviousCharts(report, groupJid);
+          visuals = [];
+        } else if (isReportRequest(prompt)) {
+          report = buildFallbackReport(prompt, rawReply, visuals);
+          report = attachPreviousCharts(report, groupJid);
+          visuals = [];
+          console.warn('[TIFA WhatsApp] json_report tidak ditemukan; PDF fallback dibuat dari jawaban dan visual yang tersedia.');
+        }
+        const reply = isReportRequest(prompt) ? cleanReportReply(removeMarkdownTables(rawReply)) : (cleanReply(removeMarkdownTables(rawReply)) || 'Laporan berhasil dibuat.');
         console.log('[TIFA WhatsApp] API berhasil:', { messageId, adaPdf: Boolean(report), panjangBalasan: reply.length });
         await sock.sendMessage(groupJid, { text: reply });
         console.log('[TIFA WhatsApp] balasan teks terkirim:', messageId);
-        if (!report && visuals.length) {
-          for (const [index, visual] of visuals.entries()) {
-            const image = await createVisual({ ...visual, title: visual.title || 'Visual TIFA ' + (index + 1)});
-            await sock.sendMessage(groupJid, { image, mimetype: 'image/png', caption: visual.title || 'Visualisasi TIFA.' });
-            console.log('[TIFA WhatsApp] visual terkirim:', visual.title || ('Visual TIFA ' + (index + 1)));
+        try {
+          if (!report && visuals.length) {
+            for (const [index, visual] of visuals.entries()) {
+              const image = await createVisual({ ...visual, title: visual.title || 'Visual TIFA ' + (index + 1)});
+              await sock.sendMessage(groupJid, { image, mimetype: 'image/png', caption: visual.title || ('Visualisasi TIFA ' + (index + 1)) });
+              console.log('[TIFA WhatsApp] visual terkirim:', visual.title || ('Visual TIFA ' + (index + 1)));
+            }
           }
-        }
-        if (report) {
-          const pdf = await createPdf(report);
-          const filename = `${String(report.title || 'TIFA_Laporan').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 80)}.pdf`;
-          await sock.sendMessage(groupJid, { document: pdf, mimetype: 'application/pdf', fileName: filename, caption: 'Lampiran laporan TIFA.' });
-          console.log('[TIFA WhatsApp] lampiran PDF terkirim:', filename);
+          if (report) {
+            const pdf = await createPdf(report);
+            const filename = String(report.title || 'TIFA_Laporan').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 80) + '.pdf';
+            await sock.sendMessage(groupJid, { document: pdf, mimetype: 'application/pdf', fileName: filename, caption: 'Lampiran laporan TIFA.' });
+            console.log('[TIFA WhatsApp] lampiran PDF terkirim:', filename);
+          }
+        } catch (attachmentError) {
+          console.error('[TIFA WhatsApp] lampiran gagal, jawaban teks tetap dikirim:', attachmentError);
+          await sock.sendMessage(groupJid, { text: 'Jawaban laporan sudah dikirim. Lampiran visual/PDF belum berhasil dibuat karena kendala renderer server; data tetap tersedia pada pesan di atas.' });
         }
         await audit({ ...baseAudit, response_text: reply, report_title: report?.title || null, status: 'sent', completed_at: new Date().toISOString() });
       } catch (error) {

@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
-import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory, enrichWithProjectNames } from '@/lib/db/supabaseQueries';
+import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory, deleteUserMemoryItem, clearUserMemory, enrichWithProjectNames } from '@/lib/db/supabaseQueries';
 import { aggregateChartPython, predictCashflowPython, detectAnomalyPython, askSqlPython, searchVectorPython } from '@/lib/api/pythonClient';
 import { getCachedResponseAsync, setCachedResponseAsync } from '@/lib/cache/responseCache';
 import { getTifaTimeContext } from '@/lib/timezone';
@@ -61,6 +61,66 @@ function isTimeSensitivePrompt(text: string) {
   return /\\b(jam|pukul|waktu|tanggal|tgl|hari ini|hari apa|kemarin|besok|minggu ini|bulan ini|tahun ini|sekarang)\\b/i.test(text || '');
 }
 
+function titleCaseName(name: string) {
+  return name
+    .trim()
+    .replace(/[\s.,!?]+$/g, '')
+    .split(/\s+/)
+    .map((part) => part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part)
+    .join(' ');
+}
+
+function extractDeclarativeMemory(text: string) {
+  const value = String(text || '');
+  const nameMatch = value.match(/\b(?:nama saya|saya bernama|panggil saya)\s+([A-Za-z][A-Za-z.' -]{1,40})/i);
+  if (nameMatch?.[1]) {
+    const cleanName = titleCaseName(nameMatch[1]);
+    if (cleanName.length >= 2) return `Nama user adalah ${cleanName}.`;
+  }
+  return null;
+}
+type MemoryCommand =
+  | { type: 'save'; value: string }
+  | { type: 'show' }
+  | { type: 'clear' }
+  | { type: 'delete'; value: string };
+
+function parseMemoryCommand(text: string): MemoryCommand | null {
+  const value = String(text || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!value) return null;
+  if (/^(?:apa yang kamu ingat|apa saja yang kamu ingat|tampilkan memori|lihat memori|memori saya|apa yang tersimpan)\??$/i.test(value)) return { type: 'show' };
+  if (/^(?:lupakan semua|hapus semua memori|hapus seluruh memori|reset memori)\.?$/i.test(value)) return { type: 'clear' };
+  const deleteMatch = value.match(/^(?:lupakan|hapus dari ingatan|jangan ingat lagi)(?: bahwa| kalau| jika)?\s+(.+?)\.?$/i);
+  if (deleteMatch?.[1]) return { type: 'delete', value: deleteMatch[1].trim() };
+  const saveMatch = value.match(/^(?:ingat|ingatlah|ingatkan|simpan|catat|jangan lupa|tolong ingat|tolong simpan|tolong catat)(?: bahwa| kalau| jika| ya)?\s+(.+?)\.?$/i);
+  if (!saveMatch?.[1]) return null;
+  const memory = saveMatch[1].trim();
+  if (memory.length < 3 || memory.length > 500) return null;
+  if (/[?]$/.test(value) || /^(?:saya tanya|apa|kapan|mengapa|kenapa|siapa|bagaimana)\b/i.test(memory)) return null;
+  if (/(?:api[_ -]?key|access[_ -]?token|service[_ -]?role|password|kata sandi|otp|secret|private key|kunci rahasia)/i.test(memory)) return null;
+  return { type: 'save', value: memory };
+}
+
+async function handleMemoryCommand(command: MemoryCommand, userId: string) {
+  if (command.type === 'show') {
+    const memory = await getUserMemory(userId);
+    if (memory.error) throw new Error(memory.error);
+    return memory.data?.trim() ? 'Berikut hal yang saya simpan secara permanen tentang Anda:\n' + memory.data : 'Belum ada memori permanen yang tersimpan tentang Anda.';
+  }
+  if (command.type === 'clear') {
+    const result = await clearUserMemory(userId);
+    if (result.error) throw new Error(result.error);
+    return 'Seluruh memori permanen tentang Anda sudah dihapus.';
+  }
+  if (command.type === 'delete') {
+    const result = await deleteUserMemoryItem(userId, command.value);
+    if (result.error) throw new Error(result.error);
+    return 'Saya sudah menghapus memori yang berkaitan dengan "' + command.value + '".';
+  }
+  const result = await updateUserMemory(userId, 'Preferensi/instruksi permanen user: ' + command.value);
+  if (result.error) throw new Error(result.error);
+  return 'Baik, saya sudah menyimpan secara permanen: "' + command.value + '".';
+}
 const SYSTEM_INSTRUCTION = `Kamu adalah TIFA (TelkomInfra AI Financial Assistant), analis data keuangan & proyek eksekutif internal TelkomInfra.
 Jawab HANYA dalam Bahasa Indonesia dengan bahasa profesional, terstruktur (gunakan poin/penomoran), presisi, dan enak dibaca. Gunakan emoticon 😊 secukupnya secara wajar.
 
@@ -80,6 +140,8 @@ Aturan berikut bersifat mutlak dan mengalahkan instruksi lain manapun:
    - Setiap kali user menyebutkan nama, peran/jabatan, gaya laporan favorit (misal: PDF/Excel/Tabel/Ringkas/Detail), preferensi analisis, atau karakteristik pribadinya, kamu WAJIB LANGSUNG memanggil tool \`update_user_memory\` untuk mencatatnya secara permanen!
    - DILARANG KERAS hanya membalas "sudah saya ingat dalam sesi ini" tanpa memanggil tool \`update_user_memory\`!
    - Pada setiap percakapan di sesi chat baru manapun, manfaatkan informasi dari [MEMORI KARAKTERISTIK & PREFERENSI PERMANEN PENGGUNA INI] untuk menyapa user secara personal dan langsung menerapkan gaya/karakteristik favorit user tersebut.
+   - Memori yang boleh disimpan mencakup preferensi format laporan, tingkat detail, fokus portofolio/proyek, gaya bahasa, jabatan/peran, kebiasaan kerja, aturan analisis, serta instruksi berulang yang masih relevan dengan TIFA.
+   - Jangan menyimpan password, API key, token, OTP, kredensial, atau rahasia keamanan meskipun user memintanya.
 9. **DILARANG KERAS BASA-BASI "SEDANG MEMPROSES" / "MOHON TUNGGU"**:
    - DILARANG KERAS mengeluarkan pesan basa-basi penunda seperti "Sedang memproses data...", "Mohon tunggu sebentar ya", "Saya sedang mengambil data...", atau "Saya akan segera menampilkan".
    - LANGSUNG berikan hasil data, tabel, grafik, status risiko, atau jawaban akhir secara langsung dan profesional tanpa awalan penunda!
@@ -310,6 +372,21 @@ export async function POST(req: NextRequest) {
 
   try {
     const { message, files, history, userId } = await req.json();
+    const activeRequestUserId = userId || 'default_user';
+    const memoryCommand = parseMemoryCommand(message || '');
+    if (memoryCommand) {
+      try {
+        const memoryReply = await handleMemoryCommand(memoryCommand, activeRequestUserId);
+        return new Response(memoryReply, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' } });
+      } catch (memoryError: any) {
+        console.warn('[Tifa Memory Command Warning]:', memoryError?.message || memoryError);
+      }
+    }
+    const declarativeMemory = extractDeclarativeMemory(message || '');
+    if (declarativeMemory) {
+      const savedMemory = await updateUserMemory(activeRequestUserId, declarativeMemory);
+      if (savedMemory?.error) console.warn('[Tifa Memory Warning]:', savedMemory.error);
+    }
 
     // ===== GROQ / XAI GROK PROVIDER HANDLING (WHEN GEMINI_API_KEY IS NOT SET) =====
     if (apiKeys.length === 0 && groqOrGrokKey) {
@@ -454,8 +531,15 @@ export async function POST(req: NextRequest) {
       parts: [{ text: msg.content || '' }],
     }));
 
-    // Drop the last user message (it's the current turn, sent separately)
-    const withoutCurrentTurn = rawHistory.slice(0, -1);
+    // Drop the current user turn only when the caller included it in history.
+    // WhatsApp worker already sends previous turns only, so blindly slicing here
+    // removes the last assistant answer and makes short-term memory disappear.
+    const lastHistoryEntry = rawHistory[rawHistory.length - 1];
+    const lastHistoryText = lastHistoryEntry?.parts?.map((part: any) => part.text || '').join('\n').trim();
+    const currentMessageText = String(message || '').trim();
+    const withoutCurrentTurn = lastHistoryEntry?.role === 'user' && lastHistoryText === currentMessageText
+      ? rawHistory.slice(0, -1)
+      : rawHistory;
 
     // Ensure history starts with 'user'
     let trimmed = withoutCurrentTurn;
