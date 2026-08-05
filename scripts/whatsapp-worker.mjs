@@ -88,6 +88,14 @@ function getContextInfo(message) {
   return body.extendedTextMessage?.contextInfo || body.imageMessage?.contextInfo || body.videoMessage?.contextInfo || {};
 }
 
+function getQuotedText(message) {
+  const context = getContextInfo(message);
+  const quoted = context.quotedMessage;
+  if (!quoted) return '';
+  const body = unwrapMessage({ message: quoted });
+  return body.conversation || body.extendedTextMessage?.text || body.imageMessage?.caption || body.videoMessage?.caption || '';
+}
+
 function normaliseId(value) {
   return String(value || '').trim().toLowerCase().replace(/^\+/, '');
 }
@@ -359,20 +367,27 @@ async function start() {
       if (logMessages) console.log('[TIFA WhatsApp] mention bot terdeteksi:', groupJid);
 
       const senderId = message.key.participant || message.key.remoteJid;
-      const prompt = stripMention(getText(message), botIds);
-      if (!prompt) {
+      const userPrompt = stripMention(getText(message), botIds);
+      const quotedText = getQuotedText(message);
+
+      let fullPrompt = userPrompt;
+      if (quotedText) {
+        fullPrompt = `[Pesan yang di-reply/dikutip user di WhatsApp: "${quotedText}"]\n\nPermintaan/Instruksi User: ${userPrompt}`;
+      }
+
+      if (!fullPrompt) {
         console.log('[TIFA WhatsApp] mention tanpa permintaan; mengirim panduan singkat.');
         await sock.sendMessage(groupJid, { text: 'Halo, saya TIFA. Silakan tuliskan permintaan laporan setelah mention saya.' });
         continue;
       }
 
       const messageId = message.key.id || `${groupJid}:${Date.now()}`;
-      const baseAudit = { message_id: messageId, group_jid: groupJid, group_lid: access.group?.group_lid || null, sender_id: senderId, prompt, status: 'processing' };
+      const baseAudit = { message_id: messageId, group_jid: groupJid, group_lid: access.group?.group_lid || null, sender_id: senderId, prompt: fullPrompt, status: 'processing' };
       await audit(baseAudit);
       const stopTyping = startTyping(sock, groupJid);
       try {
-        console.log('[TIFA WhatsApp] memproses permintaan via API:', shortText(prompt));
-        const rawReply = await askTifa(prompt, senderId, groupJid);
+        console.log('[TIFA WhatsApp] memproses permintaan via API (dengan kontek quote WA):', shortText(fullPrompt));
+        const rawReply = await askTifa(fullPrompt, senderId, groupJid);
         let report = parseReport(rawReply);
         let visuals = parseVisuals(rawReply);
         if (report) {
