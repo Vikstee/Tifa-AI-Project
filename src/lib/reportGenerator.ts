@@ -508,25 +508,95 @@ function formatPdfText(value: unknown): string {
     .replace(/\*([^*\n]+?)\*/g, '<strong>$1</strong>');
   return escaped.replace(/\r?\n/g, '<br>');
 }
-function renderSingleSection(s: any): string {
-  s = { ...s, text: sanitizePdfText(s.text), title: sanitizePdfText(s.title), headers: s.headers?.map(sanitizePdfText), labels: s.labels?.map(sanitizePdfText), rows: s.rows?.map((row: string[]) => row.map(sanitizePdfText)) };
-  if (s.type === 'html' || s.content) {
-    return `<div class="section-block">${s.content || s.text || ''}</div>`;
+function normalizeSection(rawSection: any): any {
+  if (!rawSection || typeof rawSection !== 'object') {
+    return { type: 'text', text: String(rawSection || '') };
   }
+  const s = { ...rawSection };
+
+  // 1. Normalize text / content / title values
+  const textVal = s.text ?? s.content ?? s.description ?? s.message ?? s.value ?? s.summary ?? s.insight ?? '';
+  s.text = typeof textVal === 'string' ? textVal : (typeof textVal === 'number' ? String(textVal) : '');
+  s.title = s.title ?? s.name ?? s.header ?? s.heading ?? '';
+
+  // 2. Normalize section type
+  let type = String(s.type || '').toLowerCase().trim();
+  if (['h1', 'h2', 'h3', 'header', 'heading', 'title'].includes(type)) {
+    s.type = 'heading';
+  } else if (['insight', 'recommendation', 'rekomendasi', 'summary', 'kpi', 'kpi_card'].includes(type)) {
+    s.type = 'insight';
+  } else if (['table', 'tabel', 'grid', 'data_table'].includes(type) || (s.headers && s.rows)) {
+    s.type = 'table';
+  } else if (['bar', 'bar_chart', 'line', 'line_chart', 'pie', 'pie_chart', 'chart', 'graph'].includes(type) || (s.labels && s.values)) {
+    if (type.includes('pie')) s.type = 'pie_chart';
+    else if (type.includes('line')) s.type = 'line_chart';
+    else s.type = 'bar_chart';
+  } else if (!type || type === 'text' || type === 'paragraph') {
+    s.type = 'text';
+  }
+
+  // 3. Normalize Table headers and rows
+  if (s.headers || s.columns || s.keys) {
+    const rawHeaders = s.headers || s.columns || s.keys;
+    if (Array.isArray(rawHeaders)) {
+      s.headers = rawHeaders.map(h => typeof h === 'object' ? (h.label || h.name || h.key || String(h)) : String(h));
+    }
+  }
+
+  if (s.rows || s.data) {
+    const rawRows = s.rows || s.data;
+    if (Array.isArray(rawRows)) {
+      s.rows = rawRows.map(r => {
+        if (Array.isArray(r)) return r.map(c => String(c ?? '-'));
+        if (typeof r === 'object' && r !== null) {
+          const keys = s.headers || Object.keys(r);
+          return keys.map((k: string) => String((r as any)[k] ?? (r as any)[k.toLowerCase()] ?? '-'));
+        }
+        return [String(r)];
+      });
+    }
+  }
+
+  // 4. Normalize Chart labels and values
+  if (s.data && Array.isArray(s.data) && (!s.labels || !s.values)) {
+    s.labels = s.data.map((item: any) => String(item.kategori || item.label || item.name || item.x || ''));
+    s.values = s.data.map((item: any) => Number(item.Total || item.value || item.val || item.y || 0));
+  }
+
+  return s;
+}
+
+function renderSingleSection(rawSection: any): string {
+  const s = normalizeSection(rawSection);
+  s.text = sanitizePdfText(s.text);
+  s.title = sanitizePdfText(s.title);
+  if (s.headers) s.headers = s.headers.map(sanitizePdfText);
+  if (s.labels) s.labels = s.labels.map(sanitizePdfText);
+  if (s.rows) s.rows = s.rows.map((row: string[]) => row.map(sanitizePdfText));
+
   switch (s.type) {
-    case 'heading':
-      return `<div class="section-block"><h2 class="section-heading">${s.text || ''}</h2></div>`;
+    case 'heading': {
+      const text = s.text || s.title || '';
+      if (!text) return '';
+      let levelClass = 'level-1';
+      if (/^\d+\.\d+\.\d+/.test(text)) {
+        levelClass = 'level-3';
+      } else if (/^\d+\.\d+/.test(text)) {
+        levelClass = 'level-2';
+      }
+      return `<div class="section-block"><h2 class="section-heading ${levelClass}">${text}</h2></div>`;
+    }
     case 'text':
-      return `<div class="section-block"><p class="section-text">${formatPdfText(s.text)}</p></div>`;
+      return s.text ? `<div class="section-block"><p class="section-text">${formatPdfText(s.text)}</p></div>` : '';
     case 'insight':
       return `<div class="section-block">
         <div class="insight-box">
-          <div class="insight-title">Insight &amp; Rekomendasi</div>
-          <p class="insight-text">${formatPdfText(s.text)}</p>
+          <div class="insight-title">${s.title || 'Insight & Rekomendasi'}</div>
+          <p class="insight-text">${formatPdfText(s.text || s.title || '')}</p>
         </div>
       </div>`;
     case 'table': {
-      if (!s.headers || !s.rows) return '';
+      if (!s.headers || !s.rows || s.headers.length === 0 || s.rows.length === 0) return '';
       const colCount = s.headers.length;
       const colClass = `col-count-${Math.min(10, colCount)}`;
       
@@ -543,7 +613,7 @@ function renderSingleSection(s: any): string {
       }).join('');
 
       const bodyRows = s.rows.map((row: string[]) => {
-        const cols = row.map((c, idx) => {
+        const cols = row.map((c: string, idx: number) => {
           const isWrap = wraps[idx];
           return `<td class="${isWrap ? 'col-wrap' : ''}">${formatTableCellValue(c)}</td>`;
         }).join('');
@@ -605,7 +675,9 @@ function paginateReportSections(sections: any[], maxPageContentHeight: number = 
   let currentPage: any[] = [];
   let currentHeight = 0;
 
-  for (const s of (sections || [])) {
+  const normalizedSections = (sections || []).map(rawS => normalizeSection(rawS));
+
+  for (const s of normalizedSections) {
     if (s.type === 'table' && s.rows && s.rows.length > 0) {
       let remainingRows = [...s.rows];
       let partIdx = 1;
@@ -842,6 +914,36 @@ export function generateHTMLFromSections(
       margin-bottom: 6px;
     }
 
+    .section-heading.level-1 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      border-left: 5px solid #dc2626;
+      padding-left: 12px;
+      margin-top: 10px;
+      margin-bottom: 8px;
+    }
+
+    .section-heading.level-2 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #1e293b;
+      border-left: 3px solid #ef4444;
+      padding-left: 10px;
+      margin-top: 8px;
+      margin-bottom: 6px;
+    }
+
+    .section-heading.level-3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      border-left: 2px solid #94a3b8;
+      padding-left: 8px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
     .section-text {
       font-size: 12px;
       color: #334155;
@@ -1042,13 +1144,13 @@ export const generatePDFReport = async (
 
   const htmlString = generateHTMLFromSections(title, subtitle, period, sections, customHtml);
 
-  // Render HTML in off-screen container
+  // Render HTML in absolute off-screen container for html2canvas capture
   const container = document.createElement('div');
-  container.style.position = 'fixed';
+  container.style.position = 'absolute';
   container.style.left = '-9999px';
-  container.style.top = '-9999px';
+  container.style.top = '0';
   container.style.width = '794px';
-  container.style.zIndex = '-9999';
+  container.style.backgroundColor = '#ffffff';
   container.innerHTML = htmlString;
   document.body.appendChild(container);
 
@@ -1066,8 +1168,10 @@ export const generatePDFReport = async (
       const canvas = await html2canvas(pageEl, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        windowWidth: 794
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.95);

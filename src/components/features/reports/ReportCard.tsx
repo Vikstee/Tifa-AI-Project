@@ -46,7 +46,7 @@ const hydrateSections = async (originalSections: any[]) => {
              // Auto-resolve project_name
              if (data[0].project_id) {
                const uuids = Array.from(new Set(data.map((d: any) => d.project_id)));
-               const { data: projs } = await supabase.from('projects').select('id, project_name').in('id', uuids);
+               const { data: projs } = await supabase.from('data_po-cashin').select('id, project_name').in('id', uuids);
                if (projs) {
                  const projMap = Object.fromEntries(projs.map((p: any) => [p.id, p.project_name]));
                  enrichedData = data.map((d: any) => ({
@@ -146,9 +146,9 @@ export default function ReportCard({
         const periodMatch = date;
         let res: { url: string; size: number } | null = null;
         const fullSections = await hydrateSections(sections || []);
-        if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
-        else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
-        else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
+        if (normalizedFormat === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
+        else if (normalizedFormat === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
+        else if (normalizedFormat === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
         
         if (res) {
           downloadUrl = res.url;
@@ -245,7 +245,7 @@ export default function ReportCard({
   };
 
   const handlePreview = async () => {
-    if (format === 'PDF') {
+    if (normalizedFormat === 'PDF') {
       try {
         const fullSections = await hydrateSections(sections || []);
         const htmlStr = generateHTMLFromSections(title, "", date, fullSections);
@@ -262,7 +262,7 @@ export default function ReportCard({
 
   const handleDownloadDirect = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const extension = format === 'Word' ? 'docx' : format === 'Excel' ? 'xlsx' : 'pdf';
+    const extension = normalizedFormat === 'Word' ? 'docx' : normalizedFormat === 'Excel' ? 'xlsx' : 'pdf';
     const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_TIFA.${extension}`;
 
     if (url) {
@@ -280,9 +280,9 @@ export default function ReportCard({
       let res: { url: string; size: number } | null = null;
       const periodMatch = date;
       const fullSections = await hydrateSections(sections || []);
-      if (format === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
-      else if (format === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
-      else if (format === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
+      if (normalizedFormat === 'PDF') res = await generatePDFReport(title, "", periodMatch, fullSections);
+      else if (normalizedFormat === 'Excel') res = await generateExcelReport(title, "", periodMatch, fullSections);
+      else if (normalizedFormat === 'Word') res = await generateWordReport(title, "", periodMatch, fullSections);
 
       if (res) {
         setUrl(res.url);

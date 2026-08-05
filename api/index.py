@@ -10,13 +10,13 @@ import json
 from flask import Flask, request, jsonify
 from flask_caching import Cache
 from supabase import create_client, Client
-import google.generativeai as genai
 
 from services.chart_aggregator import process_chart_aggregation
 from services.forecasting import process_cashflow_prediction
 from services.rag_parser import process_document_parsing
 from services.vector_search import search_vector_db
 from services.anomaly_detector import process_anomaly_detection
+from services.report_aggregator import process_report_aggregation
 
 app = Flask(__name__)
 
@@ -30,7 +30,6 @@ def make_cache_key(*args, **kwargs):
 
 supabase_url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 supabase_key = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-gemini_key = os.environ.get("GEMINI_API_KEY")
 
 import re
 original_match = re.match
@@ -50,12 +49,6 @@ if supabase_url and supabase_key:
         re.match = original_match
 else:
     supabase = None
-
-if gemini_key:
-    genai.configure(api_key=gemini_key.split(',')[0].strip())
-    model = genai.GenerativeModel('gemini-1.5-flash')
-else:
-    model = None
 
 @app.route('/api/analytics', methods=['POST', 'GET'])
 def analyze_data():
@@ -96,6 +89,15 @@ def aggregate_chart():
         return jsonify(result), 500
     return jsonify(result)
 
+@app.route('/api/aggregate_report_data', methods=['POST'])
+@cache.cached(make_cache_key=make_cache_key)
+def aggregate_report_data():
+    data = request.json or {}
+    result = process_report_aggregation(supabase, data)
+    if "error" in result:
+        return jsonify(result), 500
+    return jsonify(result)
+
 @app.route('/api/parse_document', methods=['POST'])
 def parse_document():
     data = request.json or {}
@@ -127,9 +129,7 @@ from services.sql_agent import process_sql_query
 @cache.cached(make_cache_key=make_cache_key)
 def ask_sql():
     data = request.json or {}
-    result = process_sql_query(data)
-    if "error" in result:
-        return jsonify(result), 500
+    result = process_sql_query(supabase, data)
     return jsonify(result)
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppImage from '@/components/ui/AppImage';
@@ -62,7 +62,6 @@ export default function ChatArea({
   const [reportFormat, setReportFormat] = useState<'PDF' | 'Word' | 'Excel'>('PDF');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [reports, setReports] = useState<any[]>([]);
   const [reportSearchQuery, setReportSearchQuery] = useState('');
   const [dynamicSubtitle, setDynamicSubtitle] = useState<string>('Asisten AI Keuangan TelkomInfra\nDomain: PO to Cash In Financial');
   const [dynamicPrompts, setDynamicPrompts] = useState<any[]>([]);
@@ -182,7 +181,7 @@ export default function ChatArea({
   const isEmpty = chatHistory.length === 0;
 
   useEffect(() => {
-    if (isEmpty && isLoggedIn && userProfile) {
+    if (isEmpty && isLoggedIn && userProfile && !dynamicSubtitle) {
       const fetchDynamicSubtitle = async () => {
         setIsSubtitleLoading(true);
         try {
@@ -209,7 +208,7 @@ export default function ChatArea({
       };
       fetchDynamicSubtitle();
     }
-  }, [isEmpty, isLoggedIn, userProfile, globalHistory]);
+  }, [isEmpty, isLoggedIn, userProfile]);
 
   // Process files (import to memory) when they are added
   useEffect(() => {
@@ -256,11 +255,11 @@ export default function ChatArea({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, isLoading]);
 
-  // Extract reports from chat history
-  useEffect(() => {
+  // Extract reports from chat history safely using useMemo
+  const reports = useMemo(() => {
     const extractedReports: any[] = [];
-    chatHistory.forEach((msg) => {
-      if (msg.role === 'ai') {
+    (chatHistory || []).forEach((msg) => {
+      if (msg.role === 'ai' && msg.content) {
         const regex = /```json_report\s+([\s\S]*?)\s*```/g;
         let match;
         while ((match = regex.exec(msg.content)) !== null) {
@@ -268,20 +267,19 @@ export default function ChatArea({
             const data = JSON.parse(match[1].trim());
             extractedReports.push({
               id: `${msg.id}-${extractedReports.length}`,
-              title: data.reportType || 'Laporan',
-              format: data.format || 'PDF',
+              title: data.title || data.reportType || 'Laporan Eksekutif',
+              format: (data.format || 'PDF').toUpperCase(),
               size: '~100 KB',
-              date: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB',
+              date: data.period || new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB',
               sections: data.sections,
             });
           } catch (e) {
-            console.warn('Failed to parse json_report from history', e);
+            // Ignore incomplete json while streaming
           }
         }
       }
     });
-    // Reverse to show newest first
-    setReports(extractedReports.reverse());
+    return extractedReports.reverse();
   }, [chatHistory]);
 
   const processFileForGemini = async (file: File): Promise<{ data: string; mimeType: string }> => {
@@ -381,20 +379,23 @@ export default function ChatArea({
       files: userMsgFiles.length > 0 ? userMsgFiles : undefined
     };
 
-    setChatHistory([...currentHistory, userMsg]);
+    const aiMsgId = `msg-${Date.now() + 1}`;
+    setChatHistory([
+      ...currentHistory,
+      userMsg,
+      {
+        id: aiMsgId,
+        role: 'ai',
+        content: '',
+        type: 'text',
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        created_at: new Date().toISOString()
+      }
+    ]);
+
     if (overrideText === undefined) setInputText('');
     if (overrideFiles === undefined) setUploadedFiles([]);
     setIsLoading(true);
-
-    const aiMsgId = `msg-${Date.now() + 1}`;
-    setChatHistory([...currentHistory, userMsg, {
-      id: aiMsgId,
-      role: 'ai',
-      content: '',
-      type: 'text',
-      timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      created_at: new Date().toISOString()
-    }]);
 
     try {
       // Use pre-processed files for Gemini
@@ -433,6 +434,7 @@ export default function ChatArea({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = '';
+      let lastTime = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -441,10 +443,19 @@ export default function ChatArea({
         const chunk = decoder.decode(value, { stream: true });
         fullText += chunk;
         
-        setChatHistory((prev) =>
-          prev.map((msg) => (msg.id === aiMsgId ? { ...msg, content: fullText } : msg))
-        );
+        const now = Date.now();
+        if (now - lastTime > 50) {
+          lastTime = now;
+          const currentText = fullText;
+          setChatHistory((prev) =>
+            prev.map((msg) => (msg.id === aiMsgId ? { ...msg, content: currentText } : msg))
+          );
+        }
       }
+
+      setChatHistory((prev) =>
+        prev.map((msg) => (msg.id === aiMsgId ? { ...msg, content: fullText } : msg))
+      );
       
       if (currentSessionId) {
         await supabase.from('chat_messages').insert({
@@ -794,7 +805,7 @@ export default function ChatArea({
                   File Laporan
                 </label>
                 <div className="space-y-2">
-                  {reports.filter(r => r.title.toLowerCase().includes(reportSearchQuery.toLowerCase())).map((report) => (
+                  {reports.filter(r => (r.title || '').toLowerCase().includes(reportSearchQuery.toLowerCase())).map((report) => (
                     <ReportCard
                       key={report.id}
                       darkMode={darkMode}

@@ -5,10 +5,10 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, project_metrics)' },
-        idColumn: { type: 'string', description: 'Nama kolom ID (contoh: id, project_id)' },
-        idValue: { type: 'string', description: 'Nilai ID yang dicari' },
-        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom. Jika ingin mengambil nama proyek dari tabel project_metrics, gunakan JOIN: "*, projects(project_name)".' }
+        tableName: { type: 'string', description: 'Nama tabel utama (gunakan: data_po-cashin)' },
+        idColumn: { type: 'string', description: 'Nama kolom ID (contoh: id, io_number)' },
+        idValue: { type: 'string', description: 'Nilai ID atau IO number yang dicari' },
+        selectColumns: { type: 'string', description: 'Opsional. Daftar kolom yang ingin diambil (default: "*").' }
       },
       required: ['tableName', 'idColumn', 'idValue']
     }
@@ -19,12 +19,12 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: projects, project_metrics). Untuk JOIN pakai project_metrics + joinTable.' },
-        filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: status)' },
-        filterValue: { type: 'string', description: 'Opsional. Nilai yang dicari. Bisa exact match atau operator (contoh: "Approved", ">=1000", "<50")' },
-        selectColumns: { type: 'string', description: 'Opsional. SANGAT PENTING: Untuk mendapatkan nama proyek dari tabel project_metrics, kamu WAJIB gunakan syntax JOIN Supabase: "*, projects(project_name, portfolio)". Contoh lain: "revenue, projects(project_name)"' },
+        tableName: { type: 'string', description: 'Nama tabel (gunakan: data_po-cashin).' },
+        filterColumn: { type: 'string', description: 'Nama kolom untuk filter (contoh: customer, segment, portfolio, period, funnel)' },
+        filterValue: { type: 'string', description: 'Opsional. Nilai yang dicari. Bisa exact match atau operator (contoh: "TELKOMSEL", ">=1000", "<50")' },
+        selectColumns: { type: 'string', description: 'Opsional. Kolom spesifik yang ingin diambil (contoh: "project_name, customer, revenue, cash_in, period")' },
         limitAmount: { type: 'number', description: 'Opsional. Jumlah maksimal baris (default 100). Hemat token dengan membatasi baris.' },
-        orderColumn: { type: 'string', description: 'Opsional. Nama kolom untuk mengurutkan (contoh: created_at, amount). Sangat berguna untuk mencari nilai Terbesar, Terkecil, Terbaru, atau Terlama.' },
+        orderColumn: { type: 'string', description: 'Opsional. Nama kolom untuk mengurutkan (contoh: revenue, cash_in, rkap, bast_amount). Sangat berguna untuk mencari nilai Terbesar, Terkecil, Terbaru, atau Terlama.' },
         orderAscending: { type: 'boolean', description: 'Opsional. True untuk naik (Terkecil/Terlama), False untuk turun (Terbesar/Terbaru). Default: True.' }
       },
       required: ['tableName']
@@ -36,9 +36,9 @@ export const dbToolsDefinitions = [
     parameters: {
       type: 'object',
       properties: {
-        tableName: { type: 'string', description: 'Nama tabel (contoh: project_metrics)' },
-        sumColumn: { type: 'string', description: 'Nama kolom yang akan dijumlahkan (contoh: cash_in, revenue, po_amount, rkap_stg, invoice)' },
-        filterColumn: { type: 'string', description: 'Kolom untuk filter opsional' },
+        tableName: { type: 'string', description: 'Nama tabel (gunakan: data_po-cashin)' },
+        sumColumn: { type: 'string', description: 'Nama kolom yang akan dijumlahkan (contoh: cash_in, revenue, po_amount, rkap, bast_amount, invoice, pinalty)' },
+        filterColumn: { type: 'string', description: 'Kolom untuk filter opsional (contoh: customer, segment, portfolio)' },
         filterValue: { type: 'string', description: 'Nilai filter opsional' }
       },
       required: ['tableName', 'sumColumn']
@@ -52,15 +52,15 @@ export const dbToolsDefinitions = [
       properties: {
         table: {
           type: "string",
-          description: "Nama tabel (contoh: projects, project_metrics)"
+          description: "Nama tabel (gunakan: data_po-cashin)"
         },
         group_by: {
           type: "string",
-          description: "Kolom yang dikelompokkan (contoh: status, client_name)"
+          description: "Kolom yang dikelompokkan (contoh: portfolio, segment, customer, period)"
         },
         sum_col: {
           type: "string",
-          description: "Kolom angka yang dijumlahkan (contoh: amount)"
+          description: "Kolom angka yang dijumlahkan (contoh: revenue, cash_in, rkap)"
         }
       },
       required: ["table", "group_by", "sum_col"]

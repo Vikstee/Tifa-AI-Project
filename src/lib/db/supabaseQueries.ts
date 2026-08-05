@@ -1,8 +1,49 @@
 import { supabase } from '../supabaseClient';
 
+const DB_COLUMN_MAP: Record<string, string> = {
+  'periode': 'period',
+  'tahun': 'period',
+  'realisasi revenue (rp)': 'revenue',
+  'realisasi revenue': 'revenue',
+  'revenue': 'revenue',
+  'target rkap (rp)': 'rkap',
+  'target rkap': 'rkap',
+  'rkap': 'rkap',
+  'proyeksi outlook (rp)': 'outlook_amount',
+  'proyeksi outlook': 'outlook_amount',
+  'outlook': 'outlook_amount',
+  'total cash in (rp)': 'cash_in',
+  'total cash in': 'cash_in',
+  'cash in': 'cash_in',
+  'cash_in': 'cash_in',
+  'nilai bast (rp)': 'bast_amount',
+  'nilai bast': 'bast_amount',
+  'bast': 'bast_amount',
+  'total invoice (rp)': 'invoice',
+  'total invoice': 'invoice',
+  'invoice': 'invoice',
+  'denda pinalty (rp)': 'pinalty',
+  'denda pinalty': 'pinalty',
+  'pinalty': 'pinalty',
+  'nama proyek': 'project_name',
+  'nama_proyek': 'project_name',
+  'portofolio': 'portfolio',
+  'portfolio': 'portfolio',
+  'segmen': 'segment',
+  'segment': 'segment',
+  'ranking': 'id'
+};
+
+export const mapDbColumnName = (colName?: string): string => {
+  if (!colName) return '';
+  const clean = colName.trim().replace(/^"+|"+$/g, '').toLowerCase();
+  return DB_COLUMN_MAP[clean] || clean;
+};
+
 export const lookupRecord = async (tableName: string, idColumn: string, idValue: string, selectColumns?: string) => {
   try {
-    const { data, error } = await supabase.from(tableName).select(selectColumns || '*').eq(idColumn, idValue);
+    const realIdCol = mapDbColumnName(idColumn);
+    const { data, error } = await supabase.from(tableName).select(selectColumns || '*').eq(realIdCol, idValue);
     if (error) return { error: error.message };
     return { data };
   } catch (error: any) {
@@ -10,26 +51,29 @@ export const lookupRecord = async (tableName: string, idColumn: string, idValue:
   }
 };
 
-export const filterRecords = async (tableName: string, filterColumn: string, filterValue: string, selectColumns?: string, limitAmount?: number, orderColumn?: string, orderAscending?: boolean) => {
+export const filterRecords = async (tableName: string, filterColumn?: string, filterValue?: string, selectColumns?: string, limitAmount?: number, orderColumn?: string, orderAscending?: boolean) => {
   try {
-    let query = supabase.from(tableName).select(selectColumns || '*');
-    if (filterColumn && filterValue) {
+    const realFilterCol = mapDbColumnName(filterColumn);
+    const realOrderCol = mapDbColumnName(orderColumn);
+
+    let query = supabase.from(tableName).select('*');
+    if (realFilterCol && filterValue) {
       if (filterValue.startsWith('>=') || filterValue.startsWith('<=')) {
         const op = filterValue.substring(0, 2);
         const val = filterValue.substring(2).trim();
-        if (op === '>=') query = query.gte(filterColumn, val);
-        else query = query.lte(filterColumn, val);
+        if (op === '>=') query = query.gte(realFilterCol, val);
+        else query = query.lte(realFilterCol, val);
       } else if (filterValue.startsWith('>')) {
-        query = query.gt(filterColumn, filterValue.substring(1).trim());
+        query = query.gt(realFilterCol, filterValue.substring(1).trim());
       } else if (filterValue.startsWith('<')) {
-        query = query.lt(filterColumn, filterValue.substring(1).trim());
+        query = query.lt(realFilterCol, filterValue.substring(1).trim());
       } else {
-        query = query.ilike(filterColumn, `%${filterValue}%`);
+        query = query.ilike(realFilterCol, `%${filterValue}%`);
       }
     }
     
-    if (orderColumn) {
-      query = query.order(orderColumn, { ascending: orderAscending !== false, nullsFirst: false });
+    if (realOrderCol) {
+      query = query.order(realOrderCol, { ascending: orderAscending !== false, nullsFirst: false });
     }
     
     const { data, error } = await query.limit(limitAmount || 50);
@@ -42,19 +86,21 @@ export const filterRecords = async (tableName: string, filterColumn: string, fil
 
 export const aggregateRecords = async (tableName: string, sumColumn: string, filterColumn?: string, filterValue?: string) => {
   try {
-    let query = supabase.from(tableName).select(sumColumn);
-    if (filterColumn && filterValue) {
-      query = query.ilike(filterColumn, `%${filterValue}%`);
+    const realSumCol = mapDbColumnName(sumColumn);
+    const realFilterCol = mapDbColumnName(filterColumn);
+
+    let query = supabase.from(tableName).select(realSumCol);
+    if (realFilterCol && filterValue) {
+      query = query.ilike(realFilterCol, `%${filterValue}%`);
     }
-    // Protect against massive memory dumps by hard-capping at 5000 rows for manual frontend aggregation
     const { data, error } = await query.limit(5000);
     if (error) return { error: error.message };
     
     let total = 0;
-    data.forEach((row: any) => {
-      if (row[sumColumn]) total += Number(row[sumColumn]);
+    (data || []).forEach((row: any) => {
+      if (row[realSumCol]) total += Number(row[realSumCol]);
     });
-    return { total, count: data.length };
+    return { total, count: data?.length || 0 };
   } catch (error: any) {
     return { error: error.message };
   }
@@ -162,9 +208,9 @@ export const enrichWithProjectNames = async (data: any) => {
   
   const uniqueUuids = Array.from(new Set(matches));
   
-  // Query Supabase for these UUIDs in projects table
+  // Query Supabase for these UUIDs in data_po-cashin table
   const { data: projects, error } = await supabase
-    .from('projects')
+    .from('data_po-cashin')
     .select('id, project_name')
     .in('id', uniqueUuids);
     
@@ -172,8 +218,8 @@ export const enrichWithProjectNames = async (data: any) => {
   
   // Replace UUIDs with project_name
   for (const proj of projects) {
-    const regex = new RegExp(proj.id, 'gi');
-    strData = strData.replace(regex, `${proj.project_name} (${proj.id.substring(0,4)})`);
+    const regex = new RegExp(String(proj.id), 'gi');
+    strData = strData.replace(regex, `${proj.project_name} (${proj.id})`);
   }
   
   return JSON.parse(strData);

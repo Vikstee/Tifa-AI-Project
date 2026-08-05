@@ -37,6 +37,242 @@ const getInitials = (name?: string) => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
+const extractRawCodeText = (node: any, children: any): string => {
+  if (node?.children?.[0]?.value) {
+    return node.children[0].value;
+  }
+  if (typeof children === 'string') return children;
+  if (Array.isArray(children)) {
+    return children.map((c: any) => typeof c === 'string' ? c : (c?.props?.children || '')).join('');
+  }
+  if (children?.props?.children) {
+    return extractRawCodeText(null, children.props.children);
+  }
+  return '';
+};
+
+const parseJsonReportSafely = (raw: string): any | null => {
+  if (!raw || !raw.trim()) return null;
+  let str = raw.trim();
+
+  // Strip wrapping markdown code blocks if present
+  str = str.replace(/^```(?:json_report|json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  // 1. Native JS Object Evaluator (Handles Python dicts, single quotes, multi-line strings, trailing commas)
+  if (str.startsWith('{') && (str.includes("'title'") || str.includes('"title"') || str.includes('sections'))) {
+    try {
+      const evalFn = new Function(`return (${str});`);
+      const evalRes = evalFn();
+      if (evalRes && typeof evalRes === 'object' && (Array.isArray(evalRes.sections) || evalRes.title)) {
+        return evalRes;
+      }
+    } catch (e) {
+      // Continue to standard JSON parsing & sanitization
+    }
+  }
+
+  // 2. Direct JSON parse
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    // Continue cleanup
+  }
+
+  // 3. Clean trailing commas & invalid control characters
+  try {
+    let clean = str
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/[\u0000-\u001F]+/g, (m) => (m === '\n' || m === '\r' || m === '\t' ? m : ''));
+    return JSON.parse(clean);
+  } catch (e) {
+    // Continue auto-repair
+  }
+
+  // 4. Auto-close truncated string quotes and braces
+  try {
+    let openBraces = 0;
+    let openBrackets = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (char === '{') openBraces++;
+        else if (char === '}') openBraces = Math.max(0, openBraces - 1);
+        else if (char === '[') openBrackets++;
+        else if (char === ']') openBrackets = Math.max(0, openBrackets - 1);
+      }
+    }
+
+    let repaired = str;
+    if (inString) repaired += '"';
+    repaired += ']'.repeat(openBrackets);
+    repaired += '}'.repeat(openBraces);
+
+    return JSON.parse(repaired);
+  } catch (e) {
+    // Continue regex harvest
+  }
+
+  // 5. Regex harvesting fallback for malformed JSON with unescaped quotes inside strings
+  try {
+    const titleMatch = str.match(/["']title["']\s*:\s*["']([^"']+)["']/);
+    const title = titleMatch ? titleMatch[1] : 'Laporan Eksekutif Keuangan TelkomInfra';
+
+    const sections: any[] = [];
+    
+    // Extract headings
+    const headingMatches = Array.from(str.matchAll(/["']type["']\s*:\s*["']heading["']\s*,\s*["']text["']\s*:\s*["']([^"']+)["']/g));
+    for (const m of headingMatches) {
+      sections.push({ type: 'heading', text: m[1] });
+    }
+
+    // Extract text and insights
+    const textMatches = Array.from(str.matchAll(/["']type["']\s*:\s*["'](?:text|insight)["']\s*,\s*["']text["']\s*:\s*["']([^"']+)["']/g));
+    for (const m of textMatches) {
+      sections.push({ type: 'text', text: m[1] });
+    }
+
+    if (sections.length > 0) {
+      return { title, format: 'PDF', sections };
+    }
+  } catch (e) {
+    // Fallback
+  }
+
+  // 6. Ultimate Fallback: parse raw text lines into clean PDF sections (stripping any raw JSON syntax)
+  const cleanLines = str
+    .split('\n')
+    .map(l => l.replace(/^['"{}[\],]+/g, '').replace(/['"{}[\],]+$/g, '').trim())
+    .filter(l => {
+      const lower = l.toLowerCase().replace(/['"\s]/g, '');
+      const isJsonCodeLine = /^(type|title|sections|format|period|headers|rows):/.test(lower) || /['"](type|title|sections|format|headers|rows)['"]/.test(l);
+      return l && !isJsonCodeLine && !['{', '}', '[', ']', ','].includes(l);
+    });
+
+  if (cleanLines.length > 0) {
+    return {
+      title: 'Laporan Eksekutif Keuangan TelkomInfra',
+      format: 'PDF',
+      sections: cleanLines.map(line => {
+        if (/^\d+\.\s+/.test(line)) return { type: 'heading', text: line };
+        return { type: 'text', text: line };
+      })
+    };
+  }
+
+  return null;
+};
+
+const parseMarkdownToPdfSections = (markdownText: string): any[] => {
+  if (!markdownText) return [];
+  const sections: any[] = [];
+  const lines = markdownText.split('\n');
+
+  let currentTableHeaders: string[] | null = null;
+  let currentTableRows: string[][] = [];
+  let currentTableTitle = '';
+  let currentTextBuffer: string[] = [];
+
+  const flushTextBuffer = () => {
+    if (currentTextBuffer.length > 0) {
+      const fullText = currentTextBuffer.join('\n').trim();
+      if (fullText) {
+        if (/insight|rekomendasi|kesimpulan|tindak lanjut/i.test(fullText)) {
+          sections.push({ type: 'insight', text: fullText });
+        } else {
+          sections.push({ type: 'text', text: fullText });
+        }
+      }
+      currentTextBuffer = [];
+    }
+  };
+
+  const flushTable = () => {
+    if (currentTableHeaders && currentTableHeaders.length > 0 && currentTableRows.length > 0) {
+      sections.push({
+        type: 'table',
+        title: currentTableTitle || 'Tabel Data Financial',
+        headers: currentTableHeaders,
+        rows: currentTableRows
+      });
+    }
+    currentTableHeaders = null;
+    currentTableRows = [];
+    currentTableTitle = '';
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const line = rawLine.trim();
+
+    // Ignore code blocks (```json_report / ```json_chart)
+    if (line.startsWith('```')) {
+      flushTextBuffer();
+      flushTable();
+      if (line !== '```') {
+        while (i + 1 < lines.length && !lines[i + 1].trim().startsWith('```')) {
+          i++;
+        }
+        if (i + 1 < lines.length) i++;
+      }
+      continue;
+    }
+
+    // Check for Headings (# Heading, ## 1. Executive Summary, 1.1 Ringkasan)
+    if (/^#{1,4}\s+/.test(line) || /^\d+(\.\d+)*\s+[A-Z]/.test(line)) {
+      flushTextBuffer();
+      flushTable();
+      const cleanHeading = line.replace(/^#{1,4}\s+/, '').trim();
+      sections.push({ type: 'heading', text: cleanHeading });
+      continue;
+    }
+
+    // Check for Table Rows (| Col 1 | Col 2 |)
+    if (line.startsWith('|') && line.endsWith('|')) {
+      flushTextBuffer();
+      const cols = line.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+      if (cols.every(c => /^:?-+:?$/.test(c))) {
+        continue;
+      }
+
+      if (!currentTableHeaders) {
+        currentTableHeaders = cols;
+      } else {
+        currentTableRows.push(cols);
+      }
+      continue;
+    } else {
+      flushTable();
+    }
+
+    if (line) {
+      currentTextBuffer.push(line);
+    } else {
+      flushTextBuffer();
+    }
+  }
+
+  flushTextBuffer();
+  flushTable();
+
+  return sections;
+};
+
 export default React.memo(function MessageBubble({ message, darkMode, onEditMessage, userProfile }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = React.useState(false);
@@ -240,28 +476,33 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
                           );
                         }
                       } else if (className.includes('language-json_report')) {
-                        try {
-                          const content = codeNode.children?.[0]?.value || '';
-                          const data = JSON.parse(content.trim());
-                          return (
-                            <div className="my-3">
-                              <ReportCard
-                                darkMode={darkMode}
-                                title={data.title || data.reportType || 'Laporan'}
-                                format={data.format as any || 'PDF'}
-                                size="~200 KB"
-                                date={data.period || reportDate}
-                                sections={data.sections}
-                              />
-                            </div>
-                          );
-                        } catch (e) {
-                          return (
-                            <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
-                              Error parsing report data.
-                            </div>
-                          );
+                        const content = extractRawCodeText(codeNode, children);
+                        let data = parseJsonReportSafely(content);
+
+                        let finalSections = data?.sections || [];
+                        if (!Array.isArray(finalSections) || finalSections.length < 4) {
+                          const chatSections = parseMarkdownToPdfSections(message.content);
+                          if (chatSections.length > finalSections.length) {
+                            finalSections = chatSections;
+                          }
                         }
+
+                        const finalTitle = data?.title || data?.reportType || 'Laporan Eksekutif Keuangan TelkomInfra';
+                        const finalFormat = (data?.format || 'PDF').toUpperCase();
+                        const finalPeriod = data?.period || reportDate;
+
+                        return (
+                          <div className="my-3">
+                            <ReportCard
+                              darkMode={darkMode}
+                              title={finalTitle}
+                              format={finalFormat as any}
+                              size="~200 KB"
+                              date={finalPeriod}
+                              sections={finalSections}
+                            />
+                          </div>
+                        );
                       }
                     }
                     // If it's just normal code, render the pre tag as usual

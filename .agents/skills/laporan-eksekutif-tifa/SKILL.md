@@ -59,29 +59,30 @@ Ini adalah pagar pembatas yang tidak boleh dilanggar walau modenya fleksibel:
 |---|---|
 | **Sumber data** | Setiap section, tabel, chart, dan angka WAJIB dari tool call/database nyata. Dilarang mengarang angka demi "terlihat lengkap". |
 | **Data kosong** | Jika section/metrik yang diminta datanya tidak ada → tetap tampilkan section-nya dengan keterangan jujur: "Data [metrik] belum tersedia di database." Jangan dihilangkan diam-diam, jangan diisi angka karangan. |
-| **Larangan teks-doang** | Laporan tidak boleh hanya narasi tanpa tabel/chart — KECUALI user eksplisit minta versi ringkas/naratif saja (instruksi eksplisit user selalu menang atas kebiasaan default ini). |
-| **Jumlah section** | Tidak dibatasi minimum/maksimum. Bisa 2 section kalau memang itu yang relevan, bisa 8+ kalau memang perlu cakupan luas. Relevansi > kuantitas. |
-| **Narasi pengapit** | Tiap tabel/chart tetap didampingi narasi singkat (insight, bukan sekadar dump data). |
-| **Urutan section** | Ikuti urutan logis (ringkasan → detail pendukung → rekomendasi di akhir), atau ikuti urutan eksplisit dari user jika disebutkan. |
-| **Determinisme** | Untuk prompt & data yang identik/mirip konteks, struktur & angka hasil laporan harus konsisten — jangan berubah-ubah tanpa alasan data yang berubah. |
-| **Kerahasiaan** | Nama tabel/kolom database, istilah `json_report`, `tool`, `function calling` tidak boleh bocor ke user dalam bentuk apa pun, termasuk di narasi laporan. |
+| **Analisis 4-Elemen** | Setiap section/tabel WAJIB diapit narasi analisis mendalam minimal 2 paragraf menggunakan formula WHAT (fakta data), WHY (akar masalah), IMPACT (dampak finansial/risiko), dan ACTION (rekomendasi aksi). |
+| **Anti Tabel Polos** | Dilarang keras menyajikan tabel atau grafik polos tanpa naskah penjelasan analisis di atas atau di bawahnya. |
+| **Penomoran Hirarki** | Setiap section WAJIB diberi penomoran sub-bab terstruktur berjenjang (1. Executive Summary, 1.1 Angka Kunci, 2. Detail Kinerja, 2.1 Kinerja Bulanan, dst.). |
+| **Jumlah section** | Menyesuaikan topik. 3-4 halaman eksekutif untuk permintaan topik spesifik/bulanan, 8+ halaman untuk laporan tahunan/komprehensif. |
+| **Determinisme** | Untuk prompt & data yang identik/mirip konteks, struktur & angka hasil laporan harus konsisten. |
+| **Kerahasiaan** | Nama tabel/kolom database, istilah `json_report`, `tool`, `function calling` tidak boleh bocor ke user dalam bentuk apa pun. |
 
 ### Langkah 4 — Generate Data & Susun `json_report`
 
-1. Panggil tool yang dibutuhkan sesuai section hasil Langkah 1/2 (boleh beberapa tool call sekaligus atau bertahap).
-2. Susun blok ```json_report``` **hanya** dengan section yang sudah ditentukan — jangan tambah section "just in case".
-3. `title` WAJIB mencerminkan cakupan aktual laporan (contoh: "Laporan Tren Cash In & Revenue Portofolio INS Q2 2026"), bukan judul generik "Executive Summary Keuangan TelkomInfra" untuk semua kasus.
-4. Tipe section yang tersedia: `insight`, `table`, `bar_chart`, `line_chart`, `pie_chart`, `text` — pilih sesuai sifat data (lihat panduan chart di bawah).
+1. Panggil tool / backend `aggregate_report_data` sesuai section hasil Langkah 1/2.
+2. Susun blok ```json_report``` dengan section yang sudah ditentukan.
+3. `title` WAJIB mencerminkan cakupan aktual laporan (contoh: "Laporan Kinerja Revenue & BAST Portofolio INS 2026").
+4. Tipe section yang tersedia: `insight`, `table`, `bar_chart`, `line_chart`, `pie_chart`, `text`.
 
 ### Langkah 5 — Self-Check Sebelum Mengirim
 
 Sebelum menampilkan blok `json_report` ke user, cek ulang:
 
-- [ ] Apakah semua section yang diminta user (jika ada instruksi eksplisit) sudah tercakup, tidak ada yang hilang?
-- [ ] Apakah ada section yang saya tambahkan tapi sebenarnya tidak diminta & tidak relevan? Kalau ada, hapus.
-- [ ] Apakah semua angka di tabel/chart berasal dari hasil tool call nyata (bukan hasil hitung asumsi saya sendiri di luar data)?
-- [ ] Apakah ada metrik yang datanya kosong/tidak ada? Kalau ada, apakah sudah dituliskan jujur (bukan dihilangkan atau dikarang)?
-- [ ] Apakah nama kolom database (dengan underscore `_`) bocor ke label tabel/chart? Kalau ada, ganti ke Bahasa Indonesia resmi.
+- [ ] Apakah setiap tabel dan chart sudah didampingi narasi analisis minimal 2 paragraf?
+- [ ] Apakah narasi analisis sudah mengaplikasikan formula 4-Elemen (WHAT - WHY - IMPACT - ACTION)?
+- [ ] Apakah penomoran sub-bab sudah berjenjang rapi (1.1, 1.2, 2.1, dst.)?
+- [ ] Apakah semua angka di tabel/chart berasal dari hasil tool call nyata (bukan hasil hitung asumsi sendiri)?
+- [ ] Apakah ada metrik yang datanya kosong/tidak ada? Jika ada, apakah dituliskan jujur (bukan dihilangkan atau dikarang)?
+- [ ] Apakah nama kolom database (dengan underscore `_`) sudah diganti ke Bahasa Indonesia resmi?
 - [ ] Apakah title laporan sudah spesifik sesuai isi, bukan judul generik?
 
 ---

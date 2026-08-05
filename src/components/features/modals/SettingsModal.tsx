@@ -139,9 +139,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
               onChange={(e) => setLlmModel(e.target.value)}
               className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white text-sm"
             >
-              <option value="flash">Gemini Flash (Cepat & Ringan)</option>
-              <option value="pro">Gemini Pro (Analisis Mendalam)</option>
-              <option value="advanced">Gemini Advanced (Kompleks)</option>
+              <option value="grok-4.20">xAI Grok 4.20 (Utama & Presisi)</option>
+              <option value="grok-2">xAI Grok 2 (Cepat)</option>
             </select>
           </div>
         </div>

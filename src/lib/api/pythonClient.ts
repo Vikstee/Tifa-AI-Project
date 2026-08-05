@@ -84,3 +84,17 @@ export const searchVectorPython = async (query: string, file_name?: string, top_
     return { error: error.message };
   }
 };
+
+export const aggregateReportDataPython = async (table: string = 'data_po-cashin') => {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/aggregate_report_data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table })
+    });
+    return await safeJsonParse(res);
+  } catch (error: any) {
+    console.error('Error fetching python report aggregation:', error);
+    return { error: error.message };
+  }
+};

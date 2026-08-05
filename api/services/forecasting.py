@@ -7,13 +7,13 @@ def process_cashflow_prediction(supabase, request_data):
     try:
         months_ahead = request_data.get('months_ahead', 3)
         
-        # Fetch cash flow data from project_metrics table
-        res = supabase.table("project_metrics").select("period, cash_in, bast_amount").execute()
+        # Fetch cash flow data from data_po-cashin table
+        res = supabase.table("data_po-cashin").select("period, cash_in, bast_amount").execute()
         
         df = pd.DataFrame(res.data)
         
         if df.empty:
-            return {"error": "No data available for forecasting in project_metrics"}
+            return {"error": "No data available for forecasting in data_po-cashin"}
             
         df['date'] = pd.to_datetime(df['period'], errors='coerce')
         df = df.dropna(subset=['date'])

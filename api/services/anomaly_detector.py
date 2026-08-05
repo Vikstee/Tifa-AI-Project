@@ -4,15 +4,17 @@ def process_anomaly_detection(supabase, request_data):
     if not supabase:
         return {"error": "Supabase not configured"}
     try:
-        table = request_data.get('table', 'invoices')
-        amount_col = request_data.get('amount_col', 'amount')
+        table = request_data.get('table', 'data_po-cashin')
+        amount_col = request_data.get('amount_col', 'revenue')
         
         # Fetch data
-        res = supabase.table(table).select(f"id, client_name, {amount_col}, status").execute()
+        res = supabase.table(table).select(f"id, project_name, customer, {amount_col}").execute()
         df = pd.DataFrame(res.data)
         
         if df.empty:
             return {"anomalies": [], "message": "Tidak ada data."}
+            
+        df['client_name'] = df['project_name'].fillna(df['customer']).fillna('Unknown Project')
             
         df[amount_col] = pd.to_numeric(df[amount_col], errors='coerce').fillna(0)
         

@@ -4,9 +4,9 @@ def process_chart_aggregation(supabase, request_data):
     if not supabase:
         return {"error": "Supabase not configured"}
     try:
-        table = request_data.get('table', 'purchase_orders')
-        group_by = request_data.get('group_by', 'status')
-        sum_col = request_data.get('sum_col', 'amount')
+        table = request_data.get('table', 'data_po-cashin')
+        group_by = request_data.get('group_by', 'portfolio')
+        sum_col = request_data.get('sum_col', 'revenue')
         
         res = supabase.table(table).select(f"{group_by}, {sum_col}").execute()
         df = pd.DataFrame(res.data)
