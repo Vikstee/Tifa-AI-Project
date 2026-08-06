@@ -39,5 +39,9 @@ create index if not exists whatsapp_tifa_requests_group_idx
 alter table public.whatsapp_allowed_groups enable row level security;
 alter table public.whatsapp_tifa_requests enable row level security;
 
--- No public policies are created intentionally. The worker/API must use the
--- Supabase service-role key kept only on the server, never in the browser.
+-- Whitelisted WhatsApp Groups Seed
+insert into public.whatsapp_allowed_groups (group_jid, group_name, is_active)
+values 
+  ('120363412012087280@g.us', 'Grup Utama TIFA', true),
+  ('120363427893930317@g.us', 'Grup Testing AI', true)
+on conflict (group_jid) do update set is_active = true;

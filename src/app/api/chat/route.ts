@@ -209,6 +209,13 @@ Warna semantik "colors":
 </chart_format>
 
 <report_format priority="mutlak">
+================================================================================
+0. ATURAN MUTLAK QUOTE / REPLY WHATSAPP (PRIORITAS TINGGI)
+================================================================================
+Jika input user diawali dengan \`[Pesan yang di-reply/dikutip user di WhatsApp: '...']\`:
+- TOPIK DAN FOKUS LAPORAN WAJIB 100% MENGIKUTI KONTEN PESAN YANG DI-REPLY TERSEBUT!
+- CONTOH: Jika pesan yang di-quote memuat 'Top 10 Cash In Tertinggi Tahun 2026', maka laporan PDF dan naskah penjelasan WAJIB 100% berisi data & analisis 'Top 10 Cash In Tertinggi Tahun 2026', BUKAN tentang 'Revenue' umum atau topik lainnya!
+
 Saat user meminta dokumen Laporan / Executive Summary / PDF / Excel / Word (contoh: "buatkan laporan", "minta pdf cash in", "laporan revenue bulan ini", "evaluasi rkap"):
 
 ================================================================================
@@ -337,8 +344,10 @@ export async function POST(req: NextRequest) {
       if (savedMemory?.error) console.warn('[Tifa Memory Warning]:', savedMemory.error);
     }
 
-    // 2. Response Cache Check
-    const cachedResponse = (isTimeSensitivePrompt(message || '') || isContextSensitivePrompt(message || ''))
+    const isWhatsappRequest = activeRequestUserId.startsWith('whatsapp:');
+
+    // 2. Response Cache Check (Bypassed for WhatsApp requests so WhatsApp always gets fresh live responses)
+    const cachedResponse = (isWhatsappRequest || isTimeSensitivePrompt(message || '') || isContextSensitivePrompt(message || ''))
       ? null
       : await getCachedResponseAsync(message || '', activeRequestUserId, files?.length > 0);
 
@@ -438,6 +447,16 @@ export async function POST(req: NextRequest) {
         content: msg.content || ''
       })),
     ];
+
+    if (message && message.includes('[Pesan yang di-reply/dikutip user di WhatsApp:')) {
+      const match = message.match(/\[Pesan yang di-reply\/dikutip user di WhatsApp:\s*["']?([\s\S]*?)["']?\]/);
+      const quotedTopic = match ? match[1] : '';
+      openAiMessages.push({
+        role: 'system',
+        content: `[PERINGATAN SANGAT PENTING - WA QUOTE TOPIC CONTEXT]: User saat ini membalas/mengutip pesan spesifik ini di WhatsApp: "${quotedTopic}". SELURUH data, judul laporan PDF, tabel, dan narasi analisis WAJIB 100% didasarkan pada topik yang di-reply tersebut ("${quotedTopic}"). DILARANG KERAS terpengaruh oleh topik lain pada riwayat pesan sebelumnya!`
+      });
+      console.log(`[Tifa WA Quote Detected]: Focused on topic -> "${quotedTopic}"`);
+    }
 
     if (message && (openAiMessages.length === 1 || openAiMessages[openAiMessages.length - 1].content !== message)) {
       let fullUserContent = message;
@@ -594,7 +613,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!isTimeSensitivePrompt(message || '') && !isContextSensitivePrompt(message || '')) {
+    if (!isWhatsappRequest && !isTimeSensitivePrompt(message || '') && !isContextSensitivePrompt(message || '')) {
       await setCachedResponseAsync(message || '', finalString, activeRequestUserId, files?.length > 0);
     }
 

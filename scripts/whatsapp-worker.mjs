@@ -78,22 +78,53 @@ function unwrapMessage(message) {
   return current;
 }
 
+function extractMessageText(msgObj) {
+  if (!msgObj) return '';
+  if (typeof msgObj === 'string') return msgObj;
+  
+  if (msgObj.conversation) return msgObj.conversation;
+  if (msgObj.text) return msgObj.text;
+  if (msgObj.extendedTextMessage?.text) return msgObj.extendedTextMessage.text;
+  if (msgObj.imageMessage?.caption) return msgObj.imageMessage.caption;
+  if (msgObj.videoMessage?.caption) return msgObj.videoMessage.caption;
+  if (msgObj.documentMessage?.caption) return msgObj.documentMessage.caption;
+
+  if (msgObj.ephemeralMessage?.message) return extractMessageText(msgObj.ephemeralMessage.message);
+  if (msgObj.viewOnceMessage?.message) return extractMessageText(msgObj.viewOnceMessage.message);
+  if (msgObj.viewOnceMessageV2?.message) return extractMessageText(msgObj.viewOnceMessageV2.message);
+  if (msgObj.message) return extractMessageText(msgObj.message);
+
+  return '';
+}
+
 function getText(message) {
   const body = unwrapMessage(message);
-  return body.conversation || body.extendedTextMessage?.text || body.imageMessage?.caption || body.videoMessage?.caption || '';
+  const text = extractMessageText(body);
+  if (text) return text;
+  return extractMessageText(message?.message);
 }
 
 function getContextInfo(message) {
   const body = unwrapMessage(message);
-  return body.extendedTextMessage?.contextInfo || body.imageMessage?.contextInfo || body.videoMessage?.contextInfo || {};
+  return (
+    body.extendedTextMessage?.contextInfo ||
+    body.imageMessage?.contextInfo ||
+    body.videoMessage?.contextInfo ||
+    body.documentMessage?.contextInfo ||
+    body.buttonsResponseMessage?.contextInfo ||
+    body.templateButtonReplyMessage?.contextInfo ||
+    body.listResponseMessage?.contextInfo ||
+    message?.message?.extendedTextMessage?.contextInfo ||
+    message?.message?.contextInfo ||
+    {}
+  );
 }
 
 function getQuotedText(message) {
   const context = getContextInfo(message);
   const quoted = context.quotedMessage;
   if (!quoted) return '';
-  const body = unwrapMessage({ message: quoted });
-  return body.conversation || body.extendedTextMessage?.text || body.imageMessage?.caption || body.videoMessage?.caption || '';
+  return extractMessageText(quoted);
 }
 
 function normaliseId(value) {
@@ -393,13 +424,13 @@ async function start() {
         if (report) {
           report = attachPreviousCharts(report, groupJid);
           visuals = [];
-        } else if (isReportRequest(prompt)) {
-          report = buildFallbackReport(prompt, rawReply, visuals);
+        } else if (isReportRequest(fullPrompt)) {
+          report = buildFallbackReport(fullPrompt, rawReply, visuals);
           report = attachPreviousCharts(report, groupJid);
           visuals = [];
           console.warn('[TIFA WhatsApp] json_report tidak ditemukan; PDF fallback dibuat dari jawaban dan visual yang tersedia.');
         }
-        const reply = isReportRequest(prompt) ? cleanReportReply(removeMarkdownTables(rawReply)) : (cleanReply(removeMarkdownTables(rawReply)) || 'Laporan berhasil dibuat.');
+        const reply = isReportRequest(fullPrompt) ? cleanReportReply(removeMarkdownTables(rawReply)) : (cleanReply(removeMarkdownTables(rawReply)) || 'Laporan berhasil dibuat.');
         console.log('[TIFA WhatsApp] API berhasil:', { messageId, adaPdf: Boolean(report), panjangBalasan: reply.length });
         await sock.sendMessage(groupJid, { text: reply });
         console.log('[TIFA WhatsApp] balasan teks terkirim:', messageId);
