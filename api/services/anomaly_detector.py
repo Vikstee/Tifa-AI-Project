@@ -1,18 +1,19 @@
 import pandas as pd
+from services.db_helper import fetch_table_data
 
-def process_anomaly_detection(supabase, request_data):
-    if not supabase:
-        return {"error": "Supabase not configured"}
+def process_anomaly_detection(db_client, request_data):
     try:
-        table = request_data.get('table', 'invoices')
-        amount_col = request_data.get('amount_col', 'amount')
+        table = request_data.get('table', 'data_po-cashin')
+        amount_col = request_data.get('amount_col', 'revenue')
         
         # Fetch data
-        res = supabase.table(table).select(f"id, client_name, {amount_col}, status").execute()
-        df = pd.DataFrame(res.data)
+        rows = fetch_table_data(table, f"`id`, `project_name`, `customer`, `{amount_col}`")
+        df = pd.DataFrame(rows)
         
         if df.empty:
             return {"anomalies": [], "message": "Tidak ada data."}
+            
+        df['client_name'] = df['project_name'].fillna(df['customer']).fillna('Unknown Project')
             
         df[amount_col] = pd.to_numeric(df[amount_col], errors='coerce').fillna(0)
         
@@ -49,7 +50,7 @@ def process_anomaly_detection(supabase, request_data):
             "total_data_analyzed": len(df),
             "anomalies_found": len(anomalies),
             "anomalies": anomalies,
-            "message": "Deteksi Anomali Statistik (Z-Score & Duplication) berhasil dijalankan oleh Python."
+            "message": "Deteksi Anomali Statistik (Z-Score & Duplication) berhasil dijalankan oleh Python pada database MySQL."
         }
     except Exception as e:
         return {"error": str(e)}

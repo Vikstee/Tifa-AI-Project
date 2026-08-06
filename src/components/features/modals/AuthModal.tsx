@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { supabase } from '@/lib/supabaseClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -27,54 +26,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     setSuccessMessage('');
     try {
       if (isSignUp) {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: name,
-              wa_number: waNumber,
-              llm_model: 'flash' // Default model
-            },
-          },
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name, waNumber }),
         });
-        if (signUpError) throw signUpError;
-        if (data.session) {
-          onLoginSuccess(data.session.access_token, {
-            id: data.user?.id,
-            email: data.user?.email,
-            name: data.user?.user_metadata?.full_name || email.split('@')[0],
-          });
-        } else {
-          // Sometimes email confirmation is required by default on Supabase
-          setIsSignUp(false);
-          setSuccessMessage('Pendaftaran berhasil! Silakan login untuk melanjutkan.');
-          setPassword('');
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Pendaftaran gagal.');
         }
+
+        setIsSignUp(false);
+        setSuccessMessage('Pendaftaran akun berhasil! Silakan masuk menggunakan akun Anda.');
+        setPassword('');
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
         });
-        if (signInError) {
-          if (signInError.message.includes('Invalid login credentials')) {
-            throw new Error('Email belum terdaftar atau password salah.');
-          }
-          if (signInError.message.includes('Email not confirmed')) {
-            throw new Error('Email belum dikonfirmasi. Harap matikan "Confirm email" di pengaturan Supabase Anda, atau cek kotak masuk email Anda.');
-          }
-          throw signInError;
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Login gagal.');
         }
-        if (data.session) {
-          onLoginSuccess(data.session.access_token, {
-            id: data.user?.id,
-            email: data.user?.email,
-            name: data.user?.user_metadata?.full_name || email.split('@')[0],
-          });
+
+        if (data.token && data.user) {
+          onLoginSuccess(data.token, data.user);
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Autentikasi gagal');
+      setError(err.message || 'Autentikasi gagal.');
     } finally {
       setLoading(false);
     }
@@ -96,122 +77,110 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
           </h2>
           <p className="text-gray-500 dark:text-telkom-gray text-sm">
             {isSignUp
-              ? 'Buat akun uji coba untuk mencoba aplikasi ini.'
+              ? 'Daftar akun baru untuk mulai menggunakan sistem TIFA AI.'
               : 'Silakan masuk menggunakan akun Anda untuk memulai percakapan.'}
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 text-red-500 text-sm rounded-lg border border-red-500/20">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm border border-red-200 dark:border-red-800">
             {error}
           </div>
         )}
 
         {successMessage && (
-          <div className="mb-4 p-3 bg-green-500/10 text-green-600 dark:text-green-400 text-sm rounded-lg border border-green-500/20">
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm border border-green-200 dark:border-green-800">
             {successMessage}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nama Lengkap</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-telkom-red/50 text-gray-900 dark:text-white"
-                  placeholder="Nama Anda"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nomor WhatsApp</label>
-                <input
-                  type="text"
-                  value={waNumber}
-                  onChange={(e) => setWaNumber(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-telkom-red/50 text-gray-900 dark:text-white"
-                  placeholder="+6281234567890"
-                  required
-                />
-              </div>
-            </>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nama Lengkap
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Contoh: Viki Firmansyah"
+                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-telkom-dark border border-gray-200 dark:border-telkom-border-dark rounded-xl text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-telkom-red transition-all"
+              />
+            </div>
           )}
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Alamat Email
+            </label>
             <input
               type="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-telkom-red/50 text-gray-900 dark:text-white"
-              placeholder="nama@telkominfra.co.id"
-              required
+              placeholder="nama@telkom.co.id"
+              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-telkom-dark border border-gray-200 dark:border-telkom-border-dark rounded-xl text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-telkom-red transition-all"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Kata Sandi (Password)
+            </label>
             <input
               type="password"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-telkom-charcoal border border-gray-200 dark:border-telkom-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-telkom-red/50 text-gray-900 dark:text-white"
               placeholder="••••••••"
-              required
+              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-telkom-dark border border-gray-200 dark:border-telkom-border-dark rounded-xl text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-telkom-red transition-all"
             />
           </div>
+
+          {isSignUp && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                No. WhatsApp (Opsional)
+              </label>
+              <input
+                type="text"
+                value={waNumber}
+                onChange={(e) => setWaNumber(e.target.value)}
+                placeholder="628123456789"
+                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-telkom-dark border border-gray-200 dark:border-telkom-border-dark rounded-xl text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-telkom-red transition-all"
+              />
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-telkom-red text-white rounded-lg font-medium hover:bg-telkom-red-dark transition-colors disabled:opacity-70 flex justify-center items-center mt-2"
+            className="w-full py-3 px-4 bg-telkom-red hover:bg-red-700 text-white rounded-xl font-medium transition-all shadow-md shadow-telkom-red/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm mt-2"
           >
             {loading ? (
-              <svg
-                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : isSignUp ? (
-              'Daftar'
+              'Daftar Sekarang'
             ) : (
-              'Masuk'
+              'Masuk Akun'
             )}
           </button>
         </form>
 
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500 dark:text-telkom-gray">
-            {isSignUp ? 'Sudah punya akun?' : 'Belum punya akun?'}{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError('');
-                setSuccessMessage('');
-              }}
-              className="text-telkom-red hover:underline font-medium"
-            >
-              {isSignUp ? 'Masuk di sini' : 'Daftar di sini'}
-            </button>
-          </p>
+        <div className="mt-6 text-center text-sm text-gray-500 dark:text-telkom-gray">
+          {isSignUp ? 'Sudah punya akun?' : 'Belum punya akun?'}{' '}
+          <button
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError('');
+              setSuccessMessage('');
+            }}
+            className="text-telkom-red font-medium hover:underline focus:outline-none"
+          >
+            {isSignUp ? 'Masuk di sini' : 'Daftar di sini'}
+          </button>
         </div>
       </div>
     </div>
@@ -219,4 +188,3 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 };
 
 export default AuthModal;
-

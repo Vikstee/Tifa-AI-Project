@@ -25,6 +25,7 @@ export interface ChartData {
   data: any[];
   keys: string[]; // Data keys to render (e.g., ["Produk A", "Produk B"])
   xAxisKey?: string; // e.g., "name"
+  colors?: string[]; // Semantic color hints from AI (e.g., ["slate", "emerald"])
 }
 
 interface ChartViewerProps {
@@ -46,16 +47,71 @@ const COLORS = [
   '#6366F1', // indigo
 ];
 
-// Format large numbers into readable IDR shorthand: 500000000 → 500Jt, 1200000000 → 1,2M
 function formatIDR(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace('.', ',')}M`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}Jt`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}Rb`;
-  return value.toString();
+  if (typeof value !== 'number') return String(value);
+  if (value >= 1_000_000_000_000) return `Rp ${(value / 1_000_000_000_000).toFixed(3).replace('.', ',')} T`;
+  if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(2).replace('.', ',')} M`;
+  if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(2).replace('.', ',')} Jt`;
+  if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0).replace('.', ',')} Rb`;
+  return `Rp ${value.toLocaleString('id-ID')}`;
 }
+
+const getColorForKey = (key: string, index: number, semanticColors?: string[]) => {
+  if (semanticColors && semanticColors[index]) {
+    const hint = semanticColors[index].toLowerCase();
+    if (hint === 'slate' || hint === 'gray') return '#64748b'; // slate-500
+    if (hint === 'emerald' || hint === 'green') return '#10B981'; // emerald-500
+    if (hint === 'amber' || hint === 'orange') return '#F59E0B'; // amber-500
+    if (hint === 'red' || hint === 'rose') return '#E4002B'; // red
+    if (hint === 'blue') return '#0078FF'; // blue
+  }
+
+  const k = key.toLowerCase();
+  if (k.includes('rkap') || k.includes('target') || k.includes('baseline')) {
+    return '#64748b'; // slate-500 (gray-ish blue)
+  }
+  if (k.includes('invoice') || k.includes('actual') || k.includes('realisasi')) {
+    return '#10B981'; // emerald-500 (bright green)
+  }
+  if (k.includes('selisih') || k.includes('gap') || k.includes('unbilled')) {
+    return '#F59E0B'; // amber-500
+  }
+  return COLORS[index % COLORS.length];
+};
 
 function formatIDRFull(value: number): string {
   return 'Rp ' + value.toLocaleString('id-ID');
+}
+
+// Format database keys or underscore strings into clean, user-friendly Indonesian labels
+export function formatLegendLabel(rawKey: string): string {
+  if (!rawKey) return '';
+  const dictionary: Record<string, string> = {
+    realisasi_revenue_rp: 'Realisasi Revenue (Rp)',
+    revenue: 'Realisasi Revenue (Rp)',
+    rkap_rp: 'Target RKAP (Rp)',
+    rkap: 'Target RKAP (Rp)',
+    outlook_rp: 'Proyeksi Outlook (Rp)',
+    outlook: 'Proyeksi Outlook (Rp)',
+    cash_in_rp: 'Total Cash In (Rp)',
+    cash_in: 'Total Cash In (Rp)',
+    bast_rp: 'Nilai BAST (Rp)',
+    bast: 'Nilai BAST (Rp)',
+    invoice_rp: 'Total Invoice (Rp)',
+    invoice: 'Total Invoice (Rp)',
+    denda_pinalty_rp: 'Denda Pinalty (Rp)',
+    pinalty: 'Denda Pinalty (Rp)',
+    po_amount: 'Nominal PO (Rp)',
+  };
+
+  const lower = rawKey.trim().toLowerCase();
+  if (dictionary[lower]) return dictionary[lower];
+
+  let formatted = rawKey.replace(/_/g, ' ');
+  if (formatted.toLowerCase().endsWith(' rp')) {
+    formatted = formatted.slice(0, -3) + ' (Rp)';
+  }
+  return formatted.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Custom Tooltip to show readable values
@@ -71,13 +127,13 @@ const CustomTooltip = ({ active, payload, label, darkMode }: any) => {
           border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
           fontSize: '12px',
           color: darkMode ? '#e5e7eb' : '#374151',
-          maxWidth: '220px',
+          maxWidth: '260px',
         }}
       >
         {label && <p style={{ fontWeight: 700, marginBottom: 6 }}>{label}</p>}
         {payload.map((p: any, i: number) => (
           <p key={i} style={{ color: p.color, margin: '3px 0' }}>
-            <span style={{ fontWeight: 600 }}>{p.name}: </span>
+            <span style={{ fontWeight: 600 }}>{formatLegendLabel(p.name)}: </span>
             {typeof p.value === 'number' ? formatIDRFull(p.value) : p.value}
           </p>
         ))}
@@ -95,7 +151,7 @@ const CustomLegend = ({ payload, darkMode }: any) => {
       {payload.map((entry: any, index: number) => (
         <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: darkMode ? '#d1d5db' : '#4b5563' }}>
           <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: entry.color, flexShrink: 0 }} />
-          <span>{entry.value}</span>
+          <span className="font-medium">{formatLegendLabel(entry.value)}</span>
         </div>
       ))}
     </div>
@@ -117,7 +173,7 @@ const renderPieLabel = ({ cx, cy, midAngle, outerRadius, percent, name }: any) =
 };
 
 export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
-  const { type, title, data, keys, xAxisKey = 'name' } = config;
+  const { type, title, data, keys, xAxisKey = 'name', colors: semanticColors } = config;
 
   const textColor = darkMode ? '#9ca3af' : '#6b7280';
   const gridColor = darkMode ? '#2d3748' : '#f0f0f0';
@@ -137,7 +193,7 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
     switch (type) {
       case 'bar':
         return (
-          <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 60 }}>
+          <BarChart data={data} margin={{ top: 35, right: 20, left: 10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
             <XAxis
               dataKey={xAxisKey}
@@ -163,17 +219,27 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
               <Bar
                 key={key}
                 dataKey={key}
-                fill={COLORS[index % COLORS.length]}
-                radius={[5, 5, 0, 0]}
-                maxBarSize={60}
-              />
+                fill={getColorForKey(key, index, semanticColors)}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={120}
+              >
+                <LabelList 
+                  dataKey={key} 
+                  position="top" 
+                  formatter={isIDR ? formatIDR : undefined} 
+                  fontSize={11} 
+                  fill={textColor} 
+                  offset={10} 
+                  fontWeight={600}
+                />
+              </Bar>
             ))}
           </BarChart>
         );
 
       case 'line':
         return (
-          <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 60 }}>
+          <LineChart data={data} margin={{ top: 35, right: 20, left: 10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
             <XAxis
               dataKey={xAxisKey}
@@ -199,9 +265,9 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
                 key={key}
                 type="monotone"
                 dataKey={key}
-                stroke={COLORS[index % COLORS.length]}
+                stroke={getColorForKey(key, index, semanticColors)}
                 strokeWidth={3}
-                dot={{ r: 5, fill: COLORS[index % COLORS.length], strokeWidth: 0 }}
+                dot={{ r: 5, fill: getColorForKey(key, index, semanticColors), strokeWidth: 0 }}
                 activeDot={{ r: 7 }}
               />
             ))}
@@ -227,7 +293,7 @@ export default function ChartViewer({ config, darkMode }: ChartViewerProps) {
               label={renderPieLabel}
             >
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                <Cell key={`cell-${index}`} fill={getColorForKey(keys[0], index, semanticColors) !== COLORS[index % COLORS.length] ? getColorForKey(keys[0], index, semanticColors) : COLORS[index % COLORS.length]} />
               ))}
             </Pie>
           </PieChart>

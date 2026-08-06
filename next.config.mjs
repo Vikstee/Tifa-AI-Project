@@ -4,6 +4,10 @@ import { imageHosts } from './image-hosts.config.mjs';
 const nextConfig = {
   productionBrowserSourceMaps: true,
   distDir: process.env.DIST_DIR || '.next',
+  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer'],
+  outputFileTracingIncludes: {
+    '/*': ['./node_modules/@sparticuz/chromium/bin/**'],
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

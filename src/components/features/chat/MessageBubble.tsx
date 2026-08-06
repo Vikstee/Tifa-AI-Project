@@ -37,6 +37,242 @@ const getInitials = (name?: string) => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
+const extractRawCodeText = (node: any, children: any): string => {
+  if (node?.children?.[0]?.value) {
+    return node.children[0].value;
+  }
+  if (typeof children === 'string') return children;
+  if (Array.isArray(children)) {
+    return children.map((c: any) => typeof c === 'string' ? c : (c?.props?.children || '')).join('');
+  }
+  if (children?.props?.children) {
+    return extractRawCodeText(null, children.props.children);
+  }
+  return '';
+};
+
+const parseJsonReportSafely = (raw: string): any | null => {
+  if (!raw || !raw.trim()) return null;
+  let str = raw.trim();
+
+  // Strip wrapping markdown code blocks if present
+  str = str.replace(/^```(?:json_report|json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  // 1. Native JS Object Evaluator (Handles Python dicts, single quotes, multi-line strings, trailing commas)
+  if (str.startsWith('{') && (str.includes("'title'") || str.includes('"title"') || str.includes('sections'))) {
+    try {
+      const evalFn = new Function(`return (${str});`);
+      const evalRes = evalFn();
+      if (evalRes && typeof evalRes === 'object' && (Array.isArray(evalRes.sections) || evalRes.title)) {
+        return evalRes;
+      }
+    } catch (e) {
+      // Continue to standard JSON parsing & sanitization
+    }
+  }
+
+  // 2. Direct JSON parse
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    // Continue cleanup
+  }
+
+  // 3. Clean trailing commas & invalid control characters
+  try {
+    let clean = str
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/[\u0000-\u001F]+/g, (m) => (m === '\n' || m === '\r' || m === '\t' ? m : ''));
+    return JSON.parse(clean);
+  } catch (e) {
+    // Continue auto-repair
+  }
+
+  // 4. Auto-close truncated string quotes and braces
+  try {
+    let openBraces = 0;
+    let openBrackets = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (char === '{') openBraces++;
+        else if (char === '}') openBraces = Math.max(0, openBraces - 1);
+        else if (char === '[') openBrackets++;
+        else if (char === ']') openBrackets = Math.max(0, openBrackets - 1);
+      }
+    }
+
+    let repaired = str;
+    if (inString) repaired += '"';
+    repaired += ']'.repeat(openBrackets);
+    repaired += '}'.repeat(openBraces);
+
+    return JSON.parse(repaired);
+  } catch (e) {
+    // Continue regex harvest
+  }
+
+  // 5. Regex harvesting fallback for malformed JSON with unescaped quotes inside strings
+  try {
+    const titleMatch = str.match(/["']title["']\s*:\s*["']([^"']+)["']/);
+    const title = titleMatch ? titleMatch[1] : 'Laporan Eksekutif Keuangan TelkomInfra';
+
+    const sections: any[] = [];
+    
+    // Extract headings
+    const headingMatches = Array.from(str.matchAll(/["']type["']\s*:\s*["']heading["']\s*,\s*["']text["']\s*:\s*["']([^"']+)["']/g));
+    for (const m of headingMatches) {
+      sections.push({ type: 'heading', text: m[1] });
+    }
+
+    // Extract text and insights
+    const textMatches = Array.from(str.matchAll(/["']type["']\s*:\s*["'](?:text|insight)["']\s*,\s*["']text["']\s*:\s*["']([^"']+)["']/g));
+    for (const m of textMatches) {
+      sections.push({ type: 'text', text: m[1] });
+    }
+
+    if (sections.length > 0) {
+      return { title, format: 'PDF', sections };
+    }
+  } catch (e) {
+    // Fallback
+  }
+
+  // 6. Ultimate Fallback: parse raw text lines into clean PDF sections (stripping any raw JSON syntax)
+  const cleanLines = str
+    .split('\n')
+    .map(l => l.replace(/^['"{}[\],]+/g, '').replace(/['"{}[\],]+$/g, '').trim())
+    .filter(l => {
+      const lower = l.toLowerCase().replace(/['"\s]/g, '');
+      const isJsonCodeLine = /^(type|title|sections|format|period|headers|rows):/.test(lower) || /['"](type|title|sections|format|headers|rows)['"]/.test(l);
+      return l && !isJsonCodeLine && !['{', '}', '[', ']', ','].includes(l);
+    });
+
+  if (cleanLines.length > 0) {
+    return {
+      title: 'Laporan Eksekutif Keuangan TelkomInfra',
+      format: 'PDF',
+      sections: cleanLines.map(line => {
+        if (/^\d+\.\s+/.test(line)) return { type: 'heading', text: line };
+        return { type: 'text', text: line };
+      })
+    };
+  }
+
+  return null;
+};
+
+const parseMarkdownToPdfSections = (markdownText: string): any[] => {
+  if (!markdownText) return [];
+  const sections: any[] = [];
+  const lines = markdownText.split('\n');
+
+  let currentTableHeaders: string[] | null = null;
+  let currentTableRows: string[][] = [];
+  let currentTableTitle = '';
+  let currentTextBuffer: string[] = [];
+
+  const flushTextBuffer = () => {
+    if (currentTextBuffer.length > 0) {
+      const fullText = currentTextBuffer.join('\n').trim();
+      if (fullText) {
+        if (/insight|rekomendasi|kesimpulan|tindak lanjut/i.test(fullText)) {
+          sections.push({ type: 'insight', text: fullText });
+        } else {
+          sections.push({ type: 'text', text: fullText });
+        }
+      }
+      currentTextBuffer = [];
+    }
+  };
+
+  const flushTable = () => {
+    if (currentTableHeaders && currentTableHeaders.length > 0 && currentTableRows.length > 0) {
+      sections.push({
+        type: 'table',
+        title: currentTableTitle || 'Tabel Data Financial',
+        headers: currentTableHeaders,
+        rows: currentTableRows
+      });
+    }
+    currentTableHeaders = null;
+    currentTableRows = [];
+    currentTableTitle = '';
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const line = rawLine.trim();
+
+    // Ignore code blocks (```json_report / ```json_chart)
+    if (line.startsWith('```')) {
+      flushTextBuffer();
+      flushTable();
+      if (line !== '```') {
+        while (i + 1 < lines.length && !lines[i + 1].trim().startsWith('```')) {
+          i++;
+        }
+        if (i + 1 < lines.length) i++;
+      }
+      continue;
+    }
+
+    // Check for Headings (# Heading, ## 1. Executive Summary, 1.1 Ringkasan)
+    if (/^#{1,4}\s+/.test(line) || /^\d+(\.\d+)*\s+[A-Z]/.test(line)) {
+      flushTextBuffer();
+      flushTable();
+      const cleanHeading = line.replace(/^#{1,4}\s+/, '').trim();
+      sections.push({ type: 'heading', text: cleanHeading });
+      continue;
+    }
+
+    // Check for Table Rows (| Col 1 | Col 2 |)
+    if (line.startsWith('|') && line.endsWith('|')) {
+      flushTextBuffer();
+      const cols = line.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+      if (cols.every(c => /^:?-+:?$/.test(c))) {
+        continue;
+      }
+
+      if (!currentTableHeaders) {
+        currentTableHeaders = cols;
+      } else {
+        currentTableRows.push(cols);
+      }
+      continue;
+    } else {
+      flushTable();
+    }
+
+    if (line) {
+      currentTextBuffer.push(line);
+    } else {
+      flushTextBuffer();
+    }
+  }
+
+  flushTextBuffer();
+  flushTable();
+
+  return sections;
+};
+
 export default React.memo(function MessageBubble({ message, darkMode, onEditMessage, userProfile }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = React.useState(false);
@@ -60,7 +296,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
   if (isUser) {
     return (
       <div className="flex justify-end animate-fadeIn message-item" data-date={message.created_at || new Date().toISOString()}>
-        <div className="max-w-[75%] flex flex-col items-end gap-1 group">
+        <div className="max-w-[88%] sm:max-w-[75%] flex flex-col items-end gap-1 group">
           {message.files && message.files.length > 0 && (
             <div className="flex flex-wrap justify-end gap-2 mb-1">
               {message.files.map((f, i) => (
@@ -78,7 +314,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
                   setEditContent(message.content);
                   setIsEditing(true);
                 }}
-                className={`opacity-60 hover:opacity-100 transition-opacity p-1.5 rounded-full mb-1 ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-200 text-gray-500'}`}
+                className={`opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100 transition-opacity p-1.5 rounded-full mb-1 ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-200 text-gray-500'}`}
                 title="Edit message"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,8 +324,7 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
             )}
             <div
               className={`relative text-sm leading-relaxed ${isEditing ? 'w-full min-w-[250px] sm:min-w-[400px]' : 'px-4 py-3 rounded-2xl rounded-br-sm'}
-              ${!darkMode && !isEditing ? 'bg-telkom-red text-white shadow-sm' : ''}
-              ${darkMode && !isEditing ? 'bg-telkom-red text-white shadow-sm' : ''}
+              ${!isEditing ? 'bg-gradient-to-br from-telkom-red to-[#FF4D4D] text-white shadow-[0_4px_16px_rgba(228,0,43,0.25)] border border-white/20' : ''}
             `}
             >
               {isEditing ? (
@@ -168,107 +403,132 @@ export default React.memo(function MessageBubble({ message, darkMode, onEditMess
 
         {/* Text content */}
         <div className={`text-sm leading-relaxed ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-          <div className={`prose prose-sm max-w-none break-words ${darkMode ? 'prose-invert' : ''}`}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                table: ({ node, ...props }: any) => (
-                  <div className={`overflow-x-auto my-4 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-gray-700 shadow-black/30' : 'border-gray-200 shadow-gray-200/50'}`}>
-                    <table className={`!m-0 w-full text-left border-collapse ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props} />
-                  </div>
-                ),
-                thead: ({ node, ...props }: any) => (
-                  <thead className={`${darkMode ? 'bg-gray-800/80 border-b border-gray-700' : 'bg-gray-50 border-b border-gray-200'}`} {...props} />
-                ),
-                tbody: ({ node, ...props }: any) => (
-                  <tbody className={`divide-y ${darkMode ? 'divide-gray-700 bg-gray-900/50' : 'divide-gray-200 bg-white'}`} {...props} />
-                ),
-                tr: ({ node, ...props }: any) => (
-                  <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50/80'}`} {...props} />
-                ),
-                th: ({ node, ...props }: any) => (
-                  <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-gray-200' : 'text-gray-600'}`} {...props} />
-                ),
-                td: ({ node, children, ...props }: any) => {
-                  // Normalize status text ONLY inside table cells — safe, won't touch JSON
-                  const normalizeCell = (text: string): string => {
-                    return text
-                      .replace(/[^\w\s]{1,4}\s*(Unpaid|Belum Dibayar)/gi, '🔴 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Paid|Lunas)(?!.*Unpaid)/gi, '🟢 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Pending)/gi, '🟡 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Approved|Disetujui)/gi, '✅ $1')
-                      .replace(/[^\w\s]{1,4}\s*(Rejected|Ditolak)/gi, '❌ $1')
-                      .replace(/[^\w\s]{1,4}\s*(Overdue)/gi, '⛔ $1')
-                      .replace(/[^\w\s]{1,4}\s*(Ongoing)/gi, '🔵 $1')
-                      .replace(/[^\w\s]{1,4}\s*(Completed|Selesai)/gi, '✅ $1');
-                  };
-                  const processedChildren = React.Children.map(children, (child) =>
-                    typeof child === 'string' ? normalizeCell(child) : child
-                  );
-                  return (
-                    <td className={`px-4 py-3 text-sm whitespace-nowrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
-                      {processedChildren}
-                    </td>
-                  );
-                },
-                pre({ node, children, ...props }: any) {
-                  // Check if the pre contains a code block with our json_chart language
-                  if (node?.children?.[0]?.tagName === 'code') {
-                    const codeNode = node.children[0];
-                    const className = codeNode.properties?.className?.[0] || '';
-                    if (className.includes('language-json_chart')) {
-                      try {
-                        const content = codeNode.children?.[0]?.value || '';
-                        const data: ChartData = JSON.parse(content.trim());
-                        return <ChartViewer config={data} darkMode={darkMode} />;
-                      } catch (e) {
-                        return (
-                          <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
-                            Error parsing chart data.
-                          </div>
-                        );
-                      }
-                    } else if (className.includes('language-json_report')) {
-                      try {
-                        const content = codeNode.children?.[0]?.value || '';
-                        const data = JSON.parse(content.trim());
+          {message.content.trim() ? (
+            <div className={`prose prose-sm max-w-none break-words ${darkMode ? 'prose-invert' : ''}`}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ node, ...props }: any) => <p className="!my-1.5 leading-relaxed" {...props} />,
+                  h1: ({ node, ...props }: any) => <h1 className="!mt-3.5 !mb-1.5 text-lg font-bold text-telkom-red" {...props} />,
+                  h2: ({ node, ...props }: any) => <h2 className="!mt-3 !mb-1 text-base font-bold text-telkom-red" {...props} />,
+                  h3: ({ node, ...props }: any) => <h3 className="!mt-2.5 !mb-1 text-sm font-semibold text-telkom-red flex items-center gap-1.5" {...props} />,
+                  blockquote: ({ node, ...props }: any) => (
+                    <blockquote className={`!my-2 border-l-4 border-telkom-red px-3 py-2 rounded-r-xl italic shadow-xs ${darkMode ? 'bg-telkom-red/10 text-gray-200' : 'bg-red-50/80 text-gray-800'}`} {...props} />
+                  ),
+                  hr: ({ node, ...props }: any) => <hr className={`!my-2.5 border-t ${darkMode ? 'border-gray-800' : 'border-gray-200'}`} {...props} />,
+                  ul: ({ node, ...props }: any) => <ul className="!my-1.5 pl-5 list-disc space-y-0.5" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="!my-1.5 pl-5 list-decimal space-y-0.5" {...props} />,
+                  li: ({ node, ...props }: any) => <li className="!my-0.5" {...props} />,
+                  table: ({ node, ...props }: any) => (
+                    <div className={`overflow-x-auto my-3 rounded-xl shadow-lg border transition-all duration-300 hover:shadow-xl ${darkMode ? 'border-gray-700 shadow-black/30' : 'border-gray-200 shadow-gray-200/50'}`}>
+                      <table className={`!m-0 w-full text-left border-collapse ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props} />
+                    </div>
+                  ),
+                  thead: ({ node, ...props }: any) => (
+                    <thead className={`${darkMode ? 'bg-gray-800/80 border-b border-gray-700' : 'bg-gray-50 border-b border-gray-200'}`} {...props} />
+                  ),
+                  tbody: ({ node, ...props }: any) => (
+                    <tbody className={`divide-y ${darkMode ? 'divide-gray-700 bg-gray-900/50' : 'divide-gray-200 bg-white'}`} {...props} />
+                  ),
+                  tr: ({ node, ...props }: any) => (
+                    <tr className={`transition-colors duration-200 ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50/80'}`} {...props} />
+                  ),
+                  th: ({ node, ...props }: any) => (
+                    <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-gray-200' : 'text-gray-600'}`} {...props} />
+                  ),
+                  td: ({ node, children, ...props }: any) => {
+                    // Normalize status text ONLY inside table cells — safe, won't touch JSON
+                    const normalizeCell = (text: string): string => {
+                      return text
+                        .replace(/[^\w\s]{1,4}\s*(Unpaid|Belum Dibayar)/gi, '🔴 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Paid|Lunas)(?!.*Unpaid)/gi, '🟢 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Pending)/gi, '🟡 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Approved|Disetujui)/gi, '✅ $1')
+                        .replace(/[^\w\s]{1,4}\s*(Rejected|Ditolak)/gi, '❌ $1')
+                        .replace(/[^\w\s]{1,4}\s*(Overdue)/gi, '⛔ $1')
+                        .replace(/[^\w\s]{1,4}\s*(Ongoing)/gi, '🔵 $1')
+                        .replace(/[^\w\s]{1,4}\s*(Completed|Selesai)/gi, '✅ $1');
+                    };
+                    const processedChildren = React.Children.map(children, (child) =>
+                      typeof child === 'string' ? normalizeCell(child) : child
+                    );
+                    return (
+                      <td className={`px-4 py-3 text-sm whitespace-nowrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} {...props}>
+                        {processedChildren}
+                      </td>
+                    );
+                  },
+                  pre({ node, children, ...props }: any) {
+                    // Check if the pre contains a code block with our json_chart language
+                    if (node?.children?.[0]?.tagName === 'code') {
+                      const codeNode = node.children[0];
+                      const className = codeNode.properties?.className?.[0] || '';
+                      if (className.includes('language-json_chart')) {
+                        try {
+                          const content = codeNode.children?.[0]?.value || '';
+                          const data: ChartData = JSON.parse(content.trim());
+                          return <ChartViewer config={data} darkMode={darkMode} />;
+                        } catch (e) {
+                          return (
+                            <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
+                              Error parsing chart data.
+                            </div>
+                          );
+                        }
+                      } else if (className.includes('language-json_report')) {
+                        const content = extractRawCodeText(codeNode, children);
+                        let data = parseJsonReportSafely(content);
+
+                        let finalSections = data?.sections || [];
+                        if (!Array.isArray(finalSections) || finalSections.length < 4) {
+                          const chatSections = parseMarkdownToPdfSections(message.content);
+                          if (chatSections.length > finalSections.length) {
+                            finalSections = chatSections;
+                          }
+                        }
+
+                        const finalTitle = data?.title || data?.reportType || 'Laporan Eksekutif Keuangan TelkomInfra';
+                        const finalFormat = (data?.format || 'PDF').toUpperCase();
+                        const finalPeriod = data?.period || reportDate;
+
                         return (
                           <div className="my-3">
                             <ReportCard
                               darkMode={darkMode}
-                              title={data.title || data.reportType || 'Laporan'}
-                              format={data.format as any || 'PDF'}
+                              title={finalTitle}
+                              format={finalFormat as any}
                               size="~200 KB"
-                              date={data.period || reportDate}
-                              sections={data.sections}
+                              date={finalPeriod}
+                              sections={finalSections}
                             />
-                          </div>
-                        );
-                      } catch (e) {
-                        return (
-                          <div className="text-red-500 text-xs border border-red-200 bg-red-50 p-3 rounded-lg my-2">
-                            Error parsing report data.
                           </div>
                         );
                       }
                     }
-                  }
-                  // If it's just normal code, render the pre tag as usual
-                  return <pre {...props}>{children}</pre>;
-                },
-                code({ node, inline, className, children, ...props }: any) {
-                  // We still keep the inline code styles here if needed
-                  return (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            >
-              {sanitizedContent}
-            </ReactMarkdown>
-          </div>
+                    // If it's just normal code, render the pre tag as usual
+                    return <pre {...props}>{children}</pre>;
+                  },
+                  code({ node, inline, className, children, ...props }: any) {
+                    // We still keep the inline code styles here if needed
+                    return (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {sanitizedContent}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 py-2 px-3 rounded-2xl w-fit bg-telkom-red/10 border border-telkom-red/20 my-1 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-telkom-red animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-telkom-red animate-bounce" style={{ animationDelay: '200ms' }} />
+              <span className="w-2 h-2 rounded-full bg-telkom-red animate-bounce" style={{ animationDelay: '400ms' }} />
+              <span className="text-xs font-medium text-telkom-red ml-1.5">TIFA sedang berpikir...</span>
+            </div>
+          )}
         </div>
 
         {/* Data table for table type */}

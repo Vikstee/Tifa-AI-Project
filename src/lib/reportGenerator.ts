@@ -1,4 +1,4 @@
-// reportGenerator.ts â€” TIFA writes structured PDF/Excel/Word from AI sections
+// reportGenerator.ts Ã¢â‚¬â€ TIFA writes structured PDF/Excel/Word from AI sections
 // Each section type (heading, text, table, bar_chart, pie_chart, insight) is rendered
 // programmatically with clean, professional layout. No screenshots.
 
@@ -67,9 +67,9 @@ async function fetchImageAsBase64(url: string): Promise<string> {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // PDF GENERATOR
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 function drawHeader(doc: any, title: string, period: string) {
   doc.setFillColor(...RED);
@@ -103,7 +103,7 @@ function drawFooter(doc: any, pageNum: number, total: number) {
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(160, 160, 160);
-  doc.text('TelkomInfra â€” TIFA AI Financial Assistant | RAHASIA', MARGIN, PAGE_H - 6);
+  doc.text('TelkomInfra Ã¢â‚¬â€ TIFA AI Financial Assistant | RAHASIA', MARGIN, PAGE_H - 6);
   doc.text(`Halaman ${pageNum} / ${total}`, PAGE_W - MARGIN, PAGE_H - 6, { align: 'right' });
 }
 
@@ -438,209 +438,766 @@ function renderLineChart(doc: any, section: ReportSection, y: number): number {
   return y + BOX_H;
 }
 
+function formatTableCellValue(val: any): string {
+  if (val === null || val === undefined) return '-';
+  const str = String(val).trim();
+  // Format unformatted large numbers into full exact Indonesian dot-separated format (e.g. 45309600 -> 45.309.600)
+  if (/^\d{6,}$/.test(str)) {
+    const num = Number(str);
+    if (!isNaN(num)) {
+      return num.toLocaleString('id-ID'); // Full exact real number, NO M or Jt shortening!
+    }
+  }
+  // Format date like 2026-01 -> Jan 2026
+  if (/^\d{4}-\d{2}$/.test(str)) {
+    const [y, m] = str.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const idx = parseInt(m, 10) - 1;
+    if (idx >= 0 && idx < 12) return `${months[idx]} ${y}`;
+  }
+  return str;
+}
+
+function analyzeColumnProperties(headers: string[], rows: string[][]): { widths: string[]; wraps: boolean[] } {
+  const colCount = headers.length;
+  const weights: number[] = [];
+  const wraps: boolean[] = [];
+
+  for (let colIdx = 0; colIdx < colCount; colIdx += 1) {
+    const headerText = (headers[colIdx] || '').trim();
+    let maxCharLen = headerText.length;
+    let hasLongTextWithSpaces = false;
+
+    for (const row of rows) {
+      const cellVal = String(row[colIdx] || '').trim();
+      maxCharLen = Math.max(maxCharLen, cellVal.length);
+      if (cellVal.length > 20 && cellVal.includes(' ')) hasLongTextWithSpaces = true;
+    }
+
+    const isNumberColumn = /(?:no|ranking|periode|rp|revenue|cash|invoice|bast|denda|target)/i.test(headerText);
+    const weight = colIdx === 0 && /^(no|#|ranking)$/i.test(headerText)
+      ? 42
+      : Math.max(isNumberColumn ? 72 : 95, Math.min(190, maxCharLen * (isNumberColumn ? 3.5 : 4.5) + 18));
+    weights.push(weight);
+    wraps.push(hasLongTextWithSpaces || maxCharLen > 18);
+  }
+
+  const total = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+  const widths = weights.map((weight) => `${(weight / total * 100).toFixed(2)}%`);
+  return { widths, wraps };
+}
+function sanitizePdfText(value: unknown): string {
+  return String(value ?? '')
+    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+    .replace(/ðŸ[\u0080-\uFFFF]{2,4}/g, '')
+    .replace(/Ã¢â‚¬â€|â€”|â€“/g, '-')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+function escapePdfHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char] || char));
+}
+function formatPdfText(value: unknown): string {
+  const clean = sanitizePdfText(value)
+    .replace(/__([^_\n]+?)__/g, '$1')
+    .replace(/^\s*(?:[-*]|â€¢|•)\s+/gm, '- ');
+  const escaped = escapePdfHtml(clean)
+    .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+?)\*/g, '<strong>$1</strong>');
+  return escaped.replace(/\r?\n/g, '<br>');
+}
+function normalizeSection(rawSection: any): any {
+  if (!rawSection || typeof rawSection !== 'object') {
+    return { type: 'text', text: String(rawSection || '') };
+  }
+  const s = { ...rawSection };
+
+  // 1. Normalize text / content / title values
+  const textVal = s.text ?? s.content ?? s.description ?? s.message ?? s.value ?? s.summary ?? s.insight ?? '';
+  s.text = typeof textVal === 'string' ? textVal : (typeof textVal === 'number' ? String(textVal) : '');
+  s.title = s.title ?? s.name ?? s.header ?? s.heading ?? '';
+
+  // 2. Normalize section type
+  let type = String(s.type || '').toLowerCase().trim();
+  if (['h1', 'h2', 'h3', 'header', 'heading', 'title'].includes(type)) {
+    s.type = 'heading';
+  } else if (['insight', 'recommendation', 'rekomendasi', 'summary', 'kpi', 'kpi_card'].includes(type)) {
+    s.type = 'insight';
+  } else if (['table', 'tabel', 'grid', 'data_table'].includes(type) || (s.headers && s.rows)) {
+    s.type = 'table';
+  } else if (['bar', 'bar_chart', 'line', 'line_chart', 'pie', 'pie_chart', 'chart', 'graph'].includes(type) || (s.labels && s.values)) {
+    if (type.includes('pie')) s.type = 'pie_chart';
+    else if (type.includes('line')) s.type = 'line_chart';
+    else s.type = 'bar_chart';
+  } else if (!type || type === 'text' || type === 'paragraph') {
+    s.type = 'text';
+  }
+
+  // 3. Normalize Table headers and rows
+  if (s.headers || s.columns || s.keys) {
+    const rawHeaders = s.headers || s.columns || s.keys;
+    if (Array.isArray(rawHeaders)) {
+      s.headers = rawHeaders.map(h => typeof h === 'object' ? (h.label || h.name || h.key || String(h)) : String(h));
+    }
+  }
+
+  if (s.rows || s.data) {
+    const rawRows = s.rows || s.data;
+    if (Array.isArray(rawRows)) {
+      s.rows = rawRows.map(r => {
+        if (Array.isArray(r)) return r.map(c => String(c ?? '-'));
+        if (typeof r === 'object' && r !== null) {
+          const keys = s.headers || Object.keys(r);
+          return keys.map((k: string) => String((r as any)[k] ?? (r as any)[k.toLowerCase()] ?? '-'));
+        }
+        return [String(r)];
+      });
+    }
+  }
+
+  // 4. Normalize Chart labels and values
+  if (s.data && Array.isArray(s.data) && (!s.labels || !s.values)) {
+    s.labels = s.data.map((item: any) => String(item.kategori || item.label || item.name || item.x || ''));
+    s.values = s.data.map((item: any) => Number(item.Total || item.value || item.val || item.y || 0));
+  }
+
+  return s;
+}
+
+function renderSingleSection(rawSection: any): string {
+  const s = normalizeSection(rawSection);
+  s.text = sanitizePdfText(s.text);
+  s.title = sanitizePdfText(s.title);
+  if (s.headers) s.headers = s.headers.map(sanitizePdfText);
+  if (s.labels) s.labels = s.labels.map(sanitizePdfText);
+  if (s.rows) s.rows = s.rows.map((row: string[]) => row.map(sanitizePdfText));
+
+  switch (s.type) {
+    case 'heading': {
+      const text = s.text || s.title || '';
+      if (!text) return '';
+      let levelClass = 'level-1';
+      if (/^\d+\.\d+\.\d+/.test(text)) {
+        levelClass = 'level-3';
+      } else if (/^\d+\.\d+/.test(text)) {
+        levelClass = 'level-2';
+      }
+      return `<div class="section-block"><h2 class="section-heading ${levelClass}">${text}</h2></div>`;
+    }
+    case 'text':
+      return s.text ? `<div class="section-block"><p class="section-text">${formatPdfText(s.text)}</p></div>` : '';
+    case 'insight':
+      return `<div class="section-block">
+        <div class="insight-box">
+          <div class="insight-title">${s.title || 'Insight & Rekomendasi'}</div>
+          <p class="insight-text">${formatPdfText(s.text || s.title || '')}</p>
+        </div>
+      </div>`;
+    case 'table': {
+      if (!s.headers || !s.rows || s.headers.length === 0 || s.rows.length === 0) return '';
+      const colCount = s.headers.length;
+      const colClass = `col-count-${Math.min(10, colCount)}`;
+      
+      const { widths, wraps } = analyzeColumnProperties(s.headers, s.rows);
+
+      const colGroup = s.headers.map((_: string, idx: number) => {
+        const w = widths[idx];
+        return `<col ${w !== 'auto' ? `style="width: ${w};"` : ''} />`;
+      }).join('');
+
+      const headerCols = s.headers.map((h: string, idx: number) => {
+        const isWrap = wraps[idx];
+        return `<th class="${isWrap ? 'col-wrap' : ''}">${h}</th>`;
+      }).join('');
+
+      const bodyRows = s.rows.map((row: string[]) => {
+        const cols = row.map((c: string, idx: number) => {
+          const isWrap = wraps[idx];
+          return `<td class="${isWrap ? 'col-wrap' : ''}">${formatTableCellValue(c)}</td>`;
+        }).join('');
+        return `<tr>${cols}</tr>`;
+      }).join('');
+
+      return `<div class="section-block">
+        ${s.title ? `<h3 class="table-title">${s.title}</h3>` : ''}
+        <div class="table-container">
+          <table class="${colClass}">
+            <colgroup>${colGroup}</colgroup>
+            <thead><tr>${headerCols}</tr></thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+    case 'bar_chart':
+    case 'pie_chart':
+    case 'line_chart':
+    case 'scatter':
+    case 'candlestick':
+    case 'gantt': {
+      const labels = s.labels || [];
+      const values = s.values || [];
+      if (!labels.length) return '';
+      const maxVal = Math.max(...values) * 1.15 || 1;
+      const barRows = labels.map((lbl: string, idx: number) => {
+        const val = values[idx] || 0;
+        const pct = Math.min(100, Math.max(2, Math.round((val / maxVal) * 100)));
+        const colorHex = ['#DC2626', '#2563EB', '#F59E0B', '#10B981', '#8B5CF6', '#EC4899'][idx % 6];
+        return `
+          <div class="chart-row">
+            <div class="chart-label">${lbl}</div>
+            <div class="chart-bar-bg">
+              <div class="chart-bar-fill" style="width: ${pct}%; background-color: ${colorHex};"></div>
+            </div>
+            <div class="chart-val">${fmtNum(val, s.unit)}</div>
+          </div>
+        `;
+      }).join('');
+      return `<div class="section-block">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <span class="chart-card-title">${s.title || 'Grafik Data'}</span>
+            ${s.unit ? `<span class="chart-card-badge">${s.unit.toUpperCase()}</span>` : ''}
+          </div>
+          <div class="chart-body">${barRows}</div>
+        </div>
+      </div>`;
+    }
+    default:
+      return s.text ? `<div class="section-block"><p class="section-text">${formatPdfText(s.text)}</p></div>` : '';
+  }
+}
+
+function paginateReportSections(sections: any[], maxPageContentHeight: number = 900): any[][] {
+  const pages: any[][] = [];
+  let currentPage: any[] = [];
+  let currentHeight = 0;
+
+  const normalizedSections = (sections || []).map(rawS => normalizeSection(rawS));
+
+  for (const s of normalizedSections) {
+    if (s.type === 'table' && s.rows && s.rows.length > 0) {
+      let remainingRows = [...s.rows];
+      let partIdx = 1;
+
+      while (remainingRows.length > 0) {
+        const rowH = 36;
+        const headerH = 45;
+        const availableH = maxPageContentHeight - currentHeight - headerH;
+        let rowsFit = Math.floor(availableH / rowH);
+
+        // Orphan prevention: if remaining rows exceed rowsFit by 1 or 2 rows, and total height still fits within tolerance, keep them on current page
+        if (remainingRows.length <= rowsFit + 2 && (currentHeight + headerH + remainingRows.length * rowH) <= (maxPageContentHeight + 50)) {
+          rowsFit = remainingRows.length;
+        }
+
+        if (rowsFit < 2 && currentPage.length > 0 && remainingRows.length > 1) {
+          pages.push(currentPage);
+          currentPage = [];
+          currentHeight = 0;
+          rowsFit = Math.floor((maxPageContentHeight - headerH) / rowH);
+        }
+
+        const fitCount = Math.max(1, Math.min(rowsFit, remainingRows.length));
+        const chunk = remainingRows.slice(0, fitCount);
+        remainingRows = remainingRows.slice(fitCount);
+
+        const subTitle = s.title 
+          ? (partIdx === 1 ? s.title : `${s.title} (Lanjutan ${partIdx - 1})`)
+          : undefined;
+
+        currentPage.push({
+          ...s,
+          rows: chunk,
+          title: subTitle
+        });
+
+        currentHeight += headerH + chunk.length * rowH + (currentPage.length > 1 ? 14 : 0);
+        partIdx++;
+
+        if (remainingRows.length > 0) {
+          pages.push(currentPage);
+          currentPage = [];
+          currentHeight = 0;
+        }
+      }
+    } else {
+      let secHeight = 50;
+      if (s.type === 'heading') secHeight = 35;
+      else if (s.type === 'text') secHeight = Math.ceil((s.text || '').length / 85) * 18 + 15;
+      else if (s.type === 'insight') secHeight = Math.ceil((s.text || '').length / 80) * 18 + 40;
+      else if (s.labels) secHeight = 55 + (s.labels || []).length * 30;
+      else if (s.content) secHeight = Math.ceil((s.content || '').length / 80) * 18 + 30;
+
+      if (currentPage.length > 0) {
+        secHeight += 14;
+      }
+
+      if (s.pageBreakBefore && currentPage.length > 0) {
+        pages.push(currentPage);
+        currentPage = [s];
+        currentHeight = secHeight;
+      } else if (currentHeight + secHeight > (maxPageContentHeight + 20) && currentPage.length > 0) {
+        pages.push(currentPage);
+        currentPage = [s];
+        currentHeight = secHeight;
+      } else {
+        currentPage.push(s);
+        currentHeight += secHeight;
+      }
+    }
+  }
+
+  if (currentPage.length > 0) {
+    pages.push(currentPage);
+  }
+
+  return pages.length > 0 ? pages : [[]];
+}
+
+export function generateHTMLFromSections(
+  title: string,
+  subtitle: string,
+  period: string,
+  sections?: (ReportSection & { content?: string })[],
+  rawHtml?: string
+): string {
+  if (rawHtml && rawHtml.trim().length > 0) {
+    return rawHtml;
+  }
+
+  const paginatedPages = paginateReportSections(sections || []);
+  const totalPages = paginatedPages.length;
+
+  const pagesHtml = paginatedPages.map((pageSections, pIdx) => {
+    const pageNum = pIdx + 1;
+    const contentHtml = pageSections.map(s => renderSingleSection(s)).join('');
+
+    return `
+      <div class="a4-page" id="page-${pageNum}">
+        <div class="header-bar">
+          <div>
+            <div class="brand-title">TELKOMINFRA</div>
+            <div class="doc-title">${title}</div>
+            ${subtitle ? `<div class="doc-subtitle">${subtitle}</div>` : ''}
+          </div>
+          <div class="meta-info">
+            <div class="meta-badge">Periode: ${period || 'Terbaru'}</div>
+            <div>Dicetak: ${nowWIB()}</div>
+          </div>
+        </div>
+
+        <main class="page-content">
+          ${contentHtml || '<p class="section-text">Tidak ada konten laporan yang tersedia.</p>'}
+        </main>
+
+        <div class="footer-bar">
+          <div>TelkomInfra - TIFA AI Financial Assistant | RAHASIA</div>
+          <div>Halaman ${pageNum} dari ${totalPages}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: Arial, 'Noto Sans', 'Segoe UI', sans-serif;
+      background-color: #f1f5f9;
+      color: #1e293b;
+      padding: 20px 0;
+      margin: 0 auto;
+      line-height: 1.4;
+    }
+
+    @media print {
+      @page { size: A4 portrait; margin: 0; }
+      body { background-color: #ffffff; padding: 0; }
+      .a4-page { box-shadow: none !important; margin: 0 !important; page-break-after: always; }
+    }
+
+    .a4-page {
+      width: 794px;
+      height: 1123px;
+      padding: 36px 40px 42px 40px;
+      background: #ffffff;
+      box-sizing: border-box;
+      margin: 0 auto 24px auto;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 2px solid #dc2626;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      min-height: 55px;
+      height: auto;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #dc2626;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+
+    .doc-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-top: 2px;
+      line-height: 1.2;
+    }
+
+    .doc-subtitle {
+      font-size: 11.5px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .meta-info {
+      text-align: right;
+      font-size: 10.5px;
+      color: #64748b;
+    }
+
+    .meta-badge {
+      display: inline-block;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .page-content {
+      flex: 1;
+      min-height: 0;
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-block {
+      width: 100%;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .section-heading {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      border-left: 4px solid #dc2626;
+      padding-left: 10px;
+      margin-top: 6px;
+      margin-bottom: 6px;
+    }
+
+    .section-heading.level-1 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      border-left: 5px solid #dc2626;
+      padding-left: 12px;
+      margin-top: 10px;
+      margin-bottom: 8px;
+    }
+
+    .section-heading.level-2 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #1e293b;
+      border-left: 3px solid #ef4444;
+      padding-left: 10px;
+      margin-top: 8px;
+      margin-bottom: 6px;
+    }
+
+    .section-heading.level-3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      border-left: 2px solid #94a3b8;
+      padding-left: 8px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    .section-text {
+      font-size: 12px;
+      color: #334155;
+      line-height: 1.5;
+    }
+
+    .insight-box {
+      background-color: #fef2f2;
+      border-left: 4px solid #dc2626;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .insight-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #991b1b;
+      margin-bottom: 4px;
+    }
+
+    .insight-text {
+      font-size: 11.5px;
+      color: #7f1d1d;
+      line-height: 1.45;
+    }
+
+    .table-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    .table-container {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    table {
+      width: 100%;
+      max-width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      font-size: 11px;
+      text-align: left;
+    }
+
+    table.col-count-7, table.col-count-8, table.col-count-9, table.col-count-10 {
+      font-size: 8.5px;
+    }
+    table.col-count-7 th, table.col-count-7 td,
+    table.col-count-8 th, table.col-count-8 td,
+    table.col-count-9 th, table.col-count-9 td,
+    table.col-count-10 th, table.col-count-10 td {
+      padding: 6px 7px;
+    }
+
+    table.col-count-5, table.col-count-6 {
+      font-size: 9.5px;
+    }
+    table.col-count-5 th, table.col-count-5 td,
+    table.col-count-6 th, table.col-count-6 td {
+      padding: 6px 8px;
+    }
+
+    thead th {
+      background-color: #1e293b;
+      color: #ffffff;
+      font-weight: 600;
+      padding: 7px 9px;
+      border-bottom: 2px solid #cbd5e1;
+      white-space: normal;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    thead th.col-wrap, tbody td.col-wrap {
+      white-space: normal;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    tbody td {
+      padding: 6px 9px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+      vertical-align: top;
+      white-space: normal;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    .chart-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .chart-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .chart-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .chart-card-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      background: #d1fae5;
+      color: #065f46;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .chart-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 7px;
+      font-size: 11px;
+    }
+
+    .chart-label {
+      width: 170px;
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chart-bar-bg {
+      flex: 1;
+      height: 9px;
+      background: #f1f5f9;
+      border-radius: 5px;
+      margin: 0 10px;
+      overflow: hidden;
+    }
+
+    .chart-bar-fill {
+      height: 100%;
+      border-radius: 5px;
+    }
+
+    .chart-val {
+      width: 85px;
+      text-align: right;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .footer-bar {
+      margin-top: 14px;
+      padding-top: 8px;
+      border-top: 1px solid #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9.5px;
+      color: #94a3b8;
+      min-height: 25px;
+      height: auto;
+      line-height: 1.35;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  ${pagesHtml}
+</body>
+</html>`;
+}
+
 export const generatePDFReport = async (
   title: string,
   subtitle: string,
   period: string,
-  sections?: ReportSection[]
-): Promise<{ url: string; size: number }> => {
-  const { jsPDF }         = await import('jspdf');
-  const { default: autoTable } = await import('jspdf-autotable');
-  
-  const logoB64 = await fetchImageAsBase64('/tifa_light.png');
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-    compress: true
-  });
-  
-  renderCoverPage(doc, title, subtitle, period, logoB64);
-  
-  let curY = PAGE_H; 
-  let pageNum = 1;
+  sections?: ReportSection[],
+  customHtml?: string
+): Promise<{ url: string; size: number; htmlString: string }> => {
+  const { jsPDF } = await import('jspdf');
+  const html2canvas = (await import('html2canvas')).default;
 
-  const newPage = () => {
-    doc.addPage();
-    pageNum++;
-    drawHeader(doc, title, period);
-    curY = 42;
-  };
+  const htmlString = generateHTMLFromSections(title, subtitle, period, sections, customHtml);
 
-  const need = (h: number) => {
-    if (curY + h > PAGE_H - 18) newPage();
-  };
+  // Render HTML in absolute off-screen container for html2canvas capture
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = '794px';
+  container.style.backgroundColor = '#ffffff';
+  container.innerHTML = htmlString;
+  document.body.appendChild(container);
 
-  if (!sections || sections.length === 0) {
-    newPage();
-    curY = renderText(doc, 'Tidak ada konten laporan yang tersedia.', curY);
-  } else {
-    for (const s of sections) {
-      if (s.pageBreakBefore || curY > PAGE_H - 40) {
-        newPage();
-      }
-      
-      switch (s.type) {
-        case 'heading': {
-          need(20);
-          curY = renderHeading(doc, s.text || '', curY);
-          break;
-        }
-        case 'text': {
-          if (!s.text) break;
-          const lines = doc.splitTextToSize(s.text, CONTENT_W);
-          need(lines.length * 6 + 6);
-          curY = renderText(doc, s.text, curY);
-          break;
-        }
-        case 'table': {
-          if (!s.headers || !s.rows) break;
-          if (s.title) {
-            need(12);
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...DARK);
-            doc.text(s.title, MARGIN, curY);
-            curY += 6;
-          }
-          need(40);
-          autoTable(doc, {
-            startY: curY,
-            head: [s.headers],
-            body: s.rows,
-            theme: 'grid',
-            margin: { left: MARGIN, right: MARGIN },
-            headStyles: {
-              textColor: [255, 255, 255],
-              fontStyle: 'bold',
-              fontSize: 8.5,
-              cellPadding: { top: 5, right: 4, bottom: 5, left: 4 },
-            },
-            bodyStyles: {
-              fontSize: 8.5,
-              textColor: DARK,
-              cellPadding: { top: 3.5, right: 4, bottom: 3.5, left: 4 },
-            },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            tableLineColor: [226, 232, 240],
-            tableLineWidth: 0.2,
-            didParseCell: (data: any) => {
-              if (data.section === 'head') {
-                const color = HEADER_PALETTE_RGB[data.column.index % HEADER_PALETTE_RGB.length];
-                data.cell.styles.fillColor = color;
-              }
-            }
-          });
-          curY = (doc as any).lastAutoTable.finalY + 10;
-          break;
-        }
-        case 'insight': {
-          if (!s.text) break;
-          need(40);
-          curY = renderInsight(doc, s.text, curY);
-          break;
-        }
-        case 'bar_chart': {
-          need(60);
-          curY = renderHorizontalBarChart(doc, s, curY);
-          break;
-        }
-        case 'pie_chart': {
-          need(70);
-          curY = renderPieChart(doc, s, curY);
-          break;
-        }
-        case 'line_chart': {
-          need(90);
-          curY = renderLineChart(doc, s, curY);
-          break;
-        }
-        case 'scatter':
-        case 'candlestick':
-        case 'gantt': {
-          if (!s.labels || !s.values) break;
-          const chartRows = s.labels.map((lbl, i) => [
-            lbl, 
-            fmtNum(s.values![i], s.unit)
-          ]);
-          
-          if (s.title) {
-            need(12);
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...DARK);
-            doc.text(`${s.title} (Data Tabel)`, MARGIN, curY);
-            curY += 6;
-          }
-          need(40);
-          autoTable(doc, {
-            startY: curY,
-            head: [['Kategori', 'Nilai']],
-            body: chartRows,
-            theme: 'grid',
-            margin: { left: MARGIN, right: MARGIN },
-            headStyles: { fillColor: RED, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-            bodyStyles: { fontSize: 9, textColor: DARK },
-            alternateRowStyles: { fillColor: LIGHT },
-            tableLineColor: BORDER,
-            tableLineWidth: 0.2,
-          });
-          curY = (doc as any).lastAutoTable.finalY + 10;
-          break;
-        }
-      }
+  try {
+    const pageEls = Array.from(container.querySelectorAll('.a4-page')) as HTMLElement[];
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+
+    for (let i = 0; i < pageEls.length; i++) {
+      const pageEl = pageEls[i];
+      const canvas = await html2canvas(pageEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 794
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
     }
-  }
 
-  const totalPages = doc.getNumberOfPages();
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p);
-    if (p === 1) {
-      doc.setDrawColor(...BORDER);
-      doc.setLineWidth(0.3);
-      doc.line(MARGIN, PAGE_H - 11, PAGE_W - MARGIN, PAGE_H - 11);
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(160, 160, 160);
-      doc.text('TelkomInfra â€” RAHASIA', MARGIN, PAGE_H - 6);
-    } else {
-      drawFooter(doc, p, totalPages);
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
     }
-  }
 
-  // END OF REPORT PAGE
-  doc.addPage();
-  pageNum++;
-  doc.setFontSize(28);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...RED);
-  doc.text('End Of Report', PAGE_W / 2, PAGE_H / 2 - 15, { align: 'center' });
-  
-  doc.setFontSize(24);
-  doc.setTextColor(...DARK);
-  doc.text('Thank You', PAGE_W / 2, PAGE_H / 2 + 5, { align: 'center' });
-  
-  doc.setFontSize(10);
-  doc.setTextColor(150, 150, 150);
-  const genText = 'GENERATED BY  TIFA';
-  doc.text(genText, PAGE_W / 2, PAGE_H - 45, { align: 'center' });
-  
-  if (logoB64) {
-    try {
-      const textW = doc.getTextWidth(genText);
-      doc.addImage(logoB64, 'PNG', PAGE_W / 2 - textW / 2, PAGE_H - 42, textW, textW);
-    } catch (e) {
-      console.warn('Could not add logo to closing page', e);
+    const blob = pdf.output('blob');
+    return { url: URL.createObjectURL(blob), size: blob.size, htmlString };
+  } catch (err) {
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
     }
+    console.error('HTML to PDF generation failed:', err);
+    throw err;
   }
-  const blob = doc.output('blob');
-  return { url: URL.createObjectURL(blob), size: blob.size };
 };
 
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // EXCEL GENERATOR
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 export const generateExcelReport = async (
   title: string,
@@ -823,9 +1380,9 @@ export const generateExcelReport = async (
 };
 
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // WORD GENERATOR
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /** Render a horizontal bar chart to a PNG ArrayBuffer using Canvas API */
 async function renderBarChartToImage(

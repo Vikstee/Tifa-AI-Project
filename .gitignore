@@ -21,6 +21,7 @@ Thumbs.db
 
 # Vercel deployment
 .vercel/
+.vercel
 
 # Optional: if using TypeScript
 *.tsbuildinfo
@@ -35,7 +36,6 @@ jest-test-results.json
 
 # Optional: if using TurboRepo or monorepo
 turbo/
-.vercel
 
 # Environment variables
 .env
@@ -47,3 +47,16 @@ turbo/
 
 # Confidential Documents
 docs/
+
+# WhatsApp/Baileys local sessions
+.wwebjs_auth/
+.wwebjs_baileys_auth/
+.wwebjs_baileys_auth_backup/
+.wwebjs_cache/
+/.wwebjs_auth/**
+/.wwebjs_baileys_auth/**
+/.wwebjs_baileys_auth_backup/**
+# Python cache
+__pycache__/
+*.pyc
+
