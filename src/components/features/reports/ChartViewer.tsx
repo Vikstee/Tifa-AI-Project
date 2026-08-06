@@ -47,13 +47,13 @@ const COLORS = [
   '#6366F1', // indigo
 ];
 
-// Format large numbers into readable IDR shorthand: 500000000 → 500Jt, 1200000000 → 1,2M
 function formatIDR(value: number): string {
-  if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(2).replace('.', ',')}T`;
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace('.', ',')}M`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}Jt`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}Rb`;
-  return value.toString();
+  if (typeof value !== 'number') return String(value);
+  if (value >= 1_000_000_000_000) return `Rp ${(value / 1_000_000_000_000).toFixed(3).replace('.', ',')} T`;
+  if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(2).replace('.', ',')} M`;
+  if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(2).replace('.', ',')} Jt`;
+  if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0).replace('.', ',')} Rb`;
+  return `Rp ${value.toLocaleString('id-ID')}`;
 }
 
 const getColorForKey = (key: string, index: number, semanticColors?: string[]) => {

@@ -200,6 +200,11 @@ Format JSON Chart:
   ]
 }
 \`\`\`
+
+Aturan Nominal Angka Grafik:
+- Gunakan nilai numerik murni presisi asli sesuai database dalam Rupiah (contoh: 1250042455054, 631966780584, 596558444192).
+- DILARANG KERAS membulatkan angka nominal pada data json_chart secara kasar (seperti mengganti 596558444192 menjadi 850 atau 457)!
+
 Warna semantik "colors":
 - "slate"/"gray": Target, budget, RKAP, baseline.
 - "emerald"/"green": Realisasi positif, pendapatan, profit.
@@ -395,39 +400,93 @@ export async function POST(req: NextRequest) {
     // Real-time Database Pre-fetch from data_po-cashin
     try {
       const lowerMsg = (message || '').toLowerCase();
-      let sortCol = 'revenue';
-      if (lowerMsg.includes('rkap') || lowerMsg.includes('risiko') || lowerMsg.includes('target')) {
-        sortCol = 'rkap';
-      } else if (lowerMsg.includes('cash in') || lowerMsg.includes('cash_in')) {
-        sortCol = 'cash_in';
+      const yearMatch = lowerMsg.match(/\b(19\d{2}|20\d{2})\b/);
+      let targetYear = yearMatch ? yearMatch[1] : null;
+
+      if (!targetYear) {
+        // Query latest available year dynamically from MySQL database `data_po-cashin`
+        const latestYearRow = await queryMysql<any>(
+          "SELECT MAX(SUBSTRING(period, 1, 4)) as max_year FROM `data_po-cashin` WHERE period IS NOT NULL AND period != ''"
+        );
+        targetYear = latestYearRow[0]?.max_year || new Date().getFullYear().toString();
       }
 
-      const cleanSort = sortCol === 'rkap' ? 'rkap' : (sortCol === 'cash_in' ? 'cash_in' : 'revenue');
-      const metricsData = await queryMysql<any>(
-        `SELECT period, rkap, outlook_amount, revenue, cash_in, bast_amount, invoice, pinalty, project_name, portfolio, customer FROM \`data_po-cashin\` WHERE \`${cleanSort}\` > 0 ORDER BY \`${cleanSort}\` DESC LIMIT 15`
+      // 1. Aggregated Totals
+      const totalRows = await queryMysql<any>(
+        `SELECT 
+           SUM(revenue) as total_revenue,
+           SUM(rkap) as total_rkap,
+           SUM(outlook_amount) as total_outlook,
+           SUM(cash_in) as total_cash_in,
+           SUM(bast_amount) as total_bast,
+           SUM(invoice) as total_invoice,
+           SUM(pinalty) as total_pinalty,
+           COUNT(*) as total_records
+         FROM \`data_po-cashin\`
+         WHERE period LIKE ?`,
+        [`${targetYear}%`]
+      );
+      const totals = totalRows[0] || {};
+
+      // 2. Aggregated Portfolios
+      const portRows = await queryMysql<any>(
+        `SELECT portfolio, SUM(revenue) as revenue, SUM(rkap) as rkap, SUM(cash_in) as cash_in, SUM(bast_amount) as bast
+         FROM \`data_po-cashin\`
+         WHERE period LIKE ? AND portfolio IS NOT NULL
+         GROUP BY portfolio
+         ORDER BY revenue DESC`,
+        [`${targetYear}%`]
       );
 
-      if (metricsData && metricsData.length > 0) {
-        const dbRows = metricsData.map((m: any, idx: number) => ({
-          ranking: idx + 1,
-          nama_proyek: m.project_name || 'Proyek TelkomInfra',
-          portofolio: m.portfolio || 'General',
-          customer: m.customer || 'Internal',
-          periode: m.period,
-          "Realisasi Revenue (Rp)": m.revenue || 0,
-          "Target RKAP (Rp)": m.rkap || 0,
-          "Proyeksi Outlook (Rp)": m.outlook_amount || 0,
-          "Total Cash In (Rp)": m.cash_in || 0,
-          "Nilai BAST (Rp)": m.bast_amount || 0,
-          "Total Invoice (Rp)": m.invoice || 0,
-          "Denda Pinalty (Rp)": m.pinalty || 0
-        }));
+      // 3. Exact Top 5 Projects by Revenue
+      const topProjects = await queryMysql<any>(
+        `SELECT project_name, portfolio, SUM(revenue) as revenue, SUM(rkap) as rkap, SUM(cash_in) as cash_in
+         FROM \`data_po-cashin\`
+         WHERE period LIKE ? AND project_name IS NOT NULL
+         GROUP BY project_name, portfolio
+         ORDER BY revenue DESC
+         LIMIT 5`,
+        [`${targetYear}%`]
+      );
 
-        dynamicSystem += `\n\n[DATABASE DATA REAL-TIME RESMI MYSQL TELKOMINFRA ('data_po-cashin')]:\n${JSON.stringify(dbRows, null, 2)}\n\nPERINGATAN (ANTI HALUSINASI & AKURASI DATA):
-1. DILARANG KERAS mengarang nama proyek fiktif atau angka estimasi buatan sendiri.
-2. Nama proyek HANYA DAN WAJIB 100% diambil dari list 'nama_proyek' pada data resmi MySQL di atas atau hasil pemanggilan tool.
-3. Angka nominal Revenue, RKAP, Outlook, dan Cash In WAJIB 100% menggunakan angka asli dari database di atas.
-4. Data proyek dan keuangan tahun 2026 TERSEDIA 100% di tabel database MySQL ('data_po-cashin'). DILARANG KERAS membalas data 2026 tidak ada atau hanya memuat data hingga 2025!`;
+      if (totals && totals.total_records > 0) {
+        dynamicSystem += `\n\n[DATABASE DATA AKURAT RESMI MYSQL TELKOMINFRA ('data_po-cashin') UNTUK TAHUN ${targetYear}]:
+- Total Records: ${totals.total_records} proyek
+- Total Realisasi Revenue: Rp ${Number(totals.total_revenue || 0).toLocaleString('id-ID')}
+- Total Target RKAP: Rp ${Number(totals.total_rkap || 0).toLocaleString('id-ID')}
+- Total Proyeksi Outlook: Rp ${Number(totals.total_outlook || 0).toLocaleString('id-ID')}
+- Total Cash In: Rp ${Number(totals.total_cash_in || 0).toLocaleString('id-ID')}
+- Total Nilai BAST: Rp ${Number(totals.total_bast || 0).toLocaleString('id-ID')}
+- Total Nilai Invoice: Rp ${Number(totals.total_invoice || 0).toLocaleString('id-ID')}
+- Total Denda Pinalty: Rp ${Number(totals.total_pinalty || 0).toLocaleString('id-ID')}
+
+[RINCIAN PORTOFOLIO TAHUN ${targetYear} (WAJIB GUNAKAN ANGKA INI UNTUK GRAFIK BATANG & REKAP PORTOFOLIO)]:
+${JSON.stringify(portRows.map(p => ({
+  portofolio: p.portfolio,
+  "Realisasi Revenue (Rp)": p.revenue || 0,
+  "Target RKAP (Rp)": p.rkap || 0,
+  "Total Cash In (Rp)": p.cash_in || 0,
+  "Nilai BAST (Rp)": p.bast || 0
+})), null, 2)}
+
+[TOP 5 PROYEK KONTRIBUTOR REVENUE TAHUN ${targetYear} (WAJIB DITAMPILKAN TEPAT 100% DARI LIST INI)]:
+${JSON.stringify(topProjects.map((tp, idx) => ({
+  ranking: idx + 1,
+  nama_proyek: tp.project_name,
+  portofolio: tp.portfolio,
+  "Realisasi Revenue (Rp)": tp.revenue || 0,
+  "Target RKAP (Rp)": tp.rkap || 0,
+  "Total Cash In (Rp)": tp.cash_in || 0
+})), null, 2)}
+
+PERINGATAN MUTLAK KEPADA AI:
+1. PADA GRAFIK BATANG (json_chart) DAN NASKAH LAPORAN, ANGKA PORTOFOLIO WAJIB 100% MENGGUNAKAN DATA DI ATAS!
+2. Rincian Revenue Portofolio ${targetYear}:
+   - INS: Rp ${Number(portRows.find(p => p.portfolio === 'INS')?.revenue || 0).toLocaleString('id-ID')}
+   - SCS: Rp ${Number(portRows.find(p => p.portfolio === 'SCS')?.revenue || 0).toLocaleString('id-ID')}
+   - PS: Rp ${Number(portRows.find(p => p.portfolio === 'PS')?.revenue || 0).toLocaleString('id-ID')}
+3. DILARANG KERAS MENGARANG ANGKA PS (seperti 850M) ATAU SCS (seperti 457M)! GUNAKAN NILAI ASLI SESUAI DATABASE!
+4. PADA DAFTAR TOP 5 PROYEK KONTRIBUTOR REVENUE TAHUN ${targetYear}, WAJIB MENAMPILKAN PROYEK PADA LIST TOP 5 DI ATAS!`;
       }
     } catch (err) {
       console.warn('[Tifa DB prefetch warning]:', err);
