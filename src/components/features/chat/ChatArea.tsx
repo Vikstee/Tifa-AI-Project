@@ -9,7 +9,6 @@ import PromptChips from './PromptChips';
 import InputBar from './InputBar';
 import TypingIndicator from './TypingIndicator';
 import ReportCard from '../reports/ReportCard';
-import { supabase } from '@/lib/supabaseClient';
 import { generatePDFReport, generateExcelReport, generateWordReport } from '@/lib/reportGenerator';
 
 interface UploadedFile {
@@ -335,39 +334,25 @@ export default function ChatArea({
 
     const userMsgFiles = currentFiles.map(f => ({ name: f.name, size: f.size, type: f.type, url: f.url }));
 
-    if (currentSessionId) {
-      let uploadedUrls: any[] = [];
       try {
-        for (const uf of uploadedFiles) {
-          if (!uf.file) continue;
-          const filePath = `${currentSessionId}/${Date.now()}_${uf.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-          const { data, error } = await supabase.storage.from('chat_attachments').upload(filePath, uf.file);
-          if (!error && data) {
-            const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
-            uploadedUrls.push({ name: uf.name, size: uf.size, type: uf.type, url: publicUrlData.publicUrl });
-          }
-        }
-      } catch (e) {
-        console.warn('Bucket chat_attachments mungkin belum dibuat:', e);
-      }
-
-      const { error: insertError } = await supabase.from('chat_messages').insert({
-        session_id: currentSessionId,
-        role: 'user',
-        content: currentInput || `[${uploadedFiles.length} file diunggah]`,
-        files: uploadedUrls.length > 0 ? uploadedUrls : userMsgFiles
-      });
-      
-      if (insertError) {
-        console.warn('Gagal insert dengan kolom files (mungkin kolom belum dibuat):', insertError);
-        // Fallback without files column if migration not run
-        await supabase.from('chat_messages').insert({
-          session_id: currentSessionId,
-          role: 'user',
-          content: currentInput || `[${uploadedFiles.length} file diunggah]`
+        await fetch('/api/chat/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'add_message',
+            message: {
+              id: `user-${Date.now()}`,
+              session_id: currentSessionId,
+              user_id: userProfile?.id || userProfile?.user_uuid || 'default_user',
+              role: 'user',
+              content: currentInput || `[${uploadedFiles.length} file diunggah]`,
+              attachments: userMsgFiles
+            }
+          })
         });
+      } catch (e) {
+        console.warn('Failed to save user message to MySQL:', e);
       }
-    }
 
     const userMsg: Message = {
       id: `msg-${Date.now()}`,
@@ -458,12 +443,24 @@ export default function ChatArea({
       );
       
       if (currentSessionId) {
-        await supabase.from('chat_messages').insert({
-          session_id: currentSessionId,
-          role: 'ai',
-          content: fullText
-        });
-        // Bump updated_at on the session so it rises to top of sidebar
+        try {
+          await fetch('/api/chat/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'add_message',
+              message: {
+                id: `ai-${Date.now()}`,
+                session_id: currentSessionId,
+                user_id: userProfile?.id || userProfile?.user_uuid || 'default_user',
+                role: 'ai',
+                content: fullText,
+              }
+            })
+          });
+        } catch (e) {
+          console.warn('Failed to save AI message to MySQL:', e);
+        }
         onConversationActivity?.(currentSessionId);
       }
     } catch (error: any) {
@@ -495,29 +492,8 @@ export default function ChatArea({
     const originalMessage = chatHistory[msgIndex];
     const truncatedHistory = chatHistory.slice(0, msgIndex);
     
-    // Attempt to delete from Supabase if we have a session
-    if (activeConversation) {
-      try {
-        const { data: dbMsgs } = await supabase
-          .from('chat_messages')
-          .select('id')
-          .eq('session_id', activeConversation)
-          .order('created_at', { ascending: true });
-          
-        if (dbMsgs && dbMsgs.length >= msgIndex) {
-          const msgsToDelete = dbMsgs.slice(msgIndex).map(m => m.id);
-          if (msgsToDelete.length > 0) {
-            await supabase.from('chat_messages').delete().in('id', msgsToDelete);
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to delete subsequent messages from db', e);
-      }
-    }
-
-    // Pass original files if any
+    // Truncate history
     const filesToKeep = originalMessage.files || [];
-    
     handleSend(newText, filesToKeep, truncatedHistory);
   };
 

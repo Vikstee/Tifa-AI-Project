@@ -1,16 +1,14 @@
 import pandas as pd
 import numpy as np
+from services.db_helper import fetch_table_data
 
-def process_cashflow_prediction(supabase, request_data):
-    if not supabase:
-        return {"error": "Supabase not configured"}
+def process_cashflow_prediction(db_client, request_data):
     try:
         months_ahead = request_data.get('months_ahead', 3)
         
         # Fetch cash flow data from data_po-cashin table
-        res = supabase.table("data_po-cashin").select("period, cash_in, bast_amount").execute()
-        
-        df = pd.DataFrame(res.data)
+        rows = fetch_table_data("data_po-cashin", "`period`, `cash_in`, `bast_amount`")
+        df = pd.DataFrame(rows)
         
         if df.empty:
             return {"error": "No data available for forecasting in data_po-cashin"}

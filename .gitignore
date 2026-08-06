@@ -1,4 +1,4 @@
-﻿# Node modules
+# Node modules
 node_modules/
 package-lock.json
 
@@ -56,4 +56,7 @@ docs/
 /.wwebjs_auth/**
 /.wwebjs_baileys_auth/**
 /.wwebjs_baileys_auth_backup/**
-/.wwebjs_cache/**
+# Python cache
+__pycache__/
+*.pyc
+

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { generatePDFReport, generateExcelReport, generateWordReport, generateHTMLFromSections } from '@/lib/reportGenerator';
 
 const hydrateSections = async (originalSections: any[]) => {
@@ -15,63 +14,7 @@ const hydrateSections = async (originalSections: any[]) => {
     }
 
     if (sec.type === 'table' && sec.query_meta) {
-      const { tableName, filterColumn, filterValue, orderBy, ascending = false, limit = 20 } = sec.query_meta;
-      if (tableName) {
-        try {
-          let query = supabase.from(tableName).select('*');
-          if (filterColumn && filterValue) {
-             if (filterValue.startsWith('>=') || filterValue.startsWith('<=')) {
-                const op = filterValue.substring(0, 2);
-                const val = filterValue.substring(2).trim();
-                if (op === '>=') query = query.gte(filterColumn, val);
-                else query = query.lte(filterColumn, val);
-              } else if (filterValue.startsWith('>')) {
-                query = query.gt(filterColumn, filterValue.substring(1).trim());
-              } else if (filterValue.startsWith('<')) {
-                query = query.lt(filterColumn, filterValue.substring(1).trim());
-              } else {
-                query = query.ilike(filterColumn, `%${filterValue}%`);
-              }
-          }
-          if (orderBy) {
-            query = query.order(orderBy, { ascending: !!ascending });
-          }
-          if (limit && typeof limit === 'number') {
-            query = query.limit(limit);
-          }
-
-          const { data, error } = await query;
-          if (!error && data && data.length > 0) {
-             let enrichedData = data;
-             // Auto-resolve project_name
-             if (data[0].project_id) {
-               const uuids = Array.from(new Set(data.map((d: any) => d.project_id)));
-               const { data: projs } = await supabase.from('data_po-cashin').select('id, project_name').in('id', uuids);
-               if (projs) {
-                 const projMap = Object.fromEntries(projs.map((p: any) => [p.id, p.project_name]));
-                 enrichedData = data.map((d: any) => ({
-                   ...d,
-                   project_id: projMap[d.project_id] ? `${projMap[d.project_id]}` : d.project_id
-                 }));
-               }
-             }
-             
-             const excludedKeys = ['id', 'created_at', 'updated_at', 'user_id'];
-             const headers = Object.keys(enrichedData[0]).filter(k => !excludedKeys.includes(k) && typeof enrichedData[0][k] !== 'object');
-             const rows = enrichedData.map((row: any) => headers.map(h => {
-                const val = row[h];
-                if (val === null || val === undefined) return '-';
-                return String(val);
-             }));
-             
-             sec.headers = headers.map(h => h.replace(/_/g, ' ').toUpperCase());
-             sec.rows = rows;
-             if (sec.title) sec.title += ` (Full Data: ${rows.length} baris)`;
-          }
-        } catch(e) {
-          console.error("Hydration error:", e);
-        }
-      }
+      continue;
     }
   }
   return newSections;
@@ -119,15 +62,17 @@ export default function ReportCard({
   const [isSendingWa, setIsSendingWa] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.user_metadata?.wa_number) {
-        let val = user.user_metadata.wa_number;
+    try {
+      const savedUserStr = localStorage.getItem('tifa_user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        let val = savedUser?.wa_number || '';
         if (val.startsWith('0')) {
           val = '62' + val.substring(1);
         }
         setWaTargetNumber(val);
       }
-    });
+    } catch {}
   }, []);
 
   // Normalize format string (e.g. "pdf" -> "PDF", "word" -> "Word", "excel" -> "Excel")
@@ -164,25 +109,7 @@ export default function ReportCard({
       setIsGeneratingLazy(false);
     }
 
-    let publicLink = '';
-    try {
-      const res = await fetch(downloadUrl as string);
-      const blob = await res.blob();
-      
-      const fileName = `wa_share_${Date.now()}_${title.replace(/[^a-zA-Z0-9]/g, '_')}.${format.toLowerCase()}`;
-      const { data, error } = await supabase.storage.from('chat_attachments').upload(fileName, blob, {
-        contentType: blob.type
-      });
-      
-      if (!error && data) {
-        const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName);
-        publicLink = publicUrlData.publicUrl;
-      } else {
-        console.error('Upload error:', error);
-      }
-    } catch (e) {
-      console.error('Failed to upload file for WA share', e);
-    }
+    let publicLink = downloadUrl || '';
 
     const hour = new Date().getHours();
     let timeGreeting = 'Selamat pagi';

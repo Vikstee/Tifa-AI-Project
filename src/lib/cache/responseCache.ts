@@ -2,7 +2,7 @@
 // Provides instant (<0.5s) answers for repeated or contextually identical queries
 // Persists knowledge indefinitely in Supabase PostgreSQL while accelerating RAM lookups
 
-import { getKnowledgeBankMemory, saveKnowledgeBankMemory } from '@/lib/db/supabaseQueries';
+import { getKnowledgeBankMemory, saveKnowledgeBankMemory } from '@/lib/db/mysqlQueries';
 
 interface CacheEntry {
   responseText: string;

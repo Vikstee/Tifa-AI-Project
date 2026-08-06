@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { queryMysql } from '@/lib/db/mysqlClient';
 
 export async function POST(req: NextRequest) {
   try {
     const { historyTitles, userName } = await req.json();
-
     const grokKey = process.env.XAI_GROK_API_KEY || process.env.GROK_API_KEY || process.env.GROQ_API_KEY || '';
 
     if (!grokKey) {
@@ -20,14 +19,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch recent user messages across sessions to find frequent topics
-    const { data: recentMessages } = await supabase
-      .from('chat_messages')
-      .select('content')
-      .eq('role', 'user')
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    const recentQueries = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
+    let recentQueries: string[] = [];
+    try {
+      const rows = await queryMysql<any>(
+        "SELECT content FROM chat_messages WHERE role = 'user' ORDER BY created_at DESC LIMIT 20"
+      );
+      recentQueries = rows.map((m: any) => m.content).filter((c: string) => c && c.length > 10);
+    } catch {
+      recentQueries = [];
+    }
 
     const isXai = grokKey.startsWith('xai-');
     const endpoint = isXai ? 'https://api.x.ai/v1/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions';
@@ -79,38 +79,12 @@ HANYA kembalikan valid JSON tanpa markdown (tanpa \`\`\`json).`;
   } catch (error: any) {
     console.warn('[Tifa Welcome] Fallback triggered:', error?.message || error);
 
-    let fallbackPrompts: any[] = [];
-    try {
-      const { data: recentMessages } = await supabase
-        .from('chat_messages')
-        .select('content')
-        .eq('role', 'user')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      const recent = recentMessages?.map((m: any) => m.content).filter(c => c.length > 10) || [];
-      const uniqueQueries = Array.from(new Set(recent)).slice(0, 4);
-      const fallbackIcons = ['💬', '🔍', '📊', '💡'];
-
-      if (uniqueQueries.length > 0) {
-        fallbackPrompts = (uniqueQueries as string[]).map((q: string, idx: number) => ({
-          icon: fallbackIcons[idx % fallbackIcons.length],
-          text: q.length > 40 ? q.substring(0, 40) + '...' : q,
-          desc: 'Riwayat pertanyaan'
-        }));
-      }
-    } catch (e) {
-      console.error('Failed to fetch fallback from DB', e);
-    }
-
-    if (fallbackPrompts.length === 0) {
-      fallbackPrompts = [
-        { icon: '📊', text: 'Tampilkan status PO bulan ini', desc: 'Ringkasan Purchase Order aktif' },
-        { icon: '💰', text: 'Analisis cash flow Q3 2024', desc: 'Arus kas masuk dan keluar' },
-        { icon: '📋', text: 'Laporan aging piutang', desc: 'Piutang berdasarkan umur' },
-        { icon: '🔍', text: 'Rekonsiliasi invoice outstanding', desc: 'Invoice yang belum terbayar' },
-      ];
-    }
+    const fallbackPrompts = [
+      { icon: '📊', text: 'Tampilkan status PO bulan ini', desc: 'Ringkasan Purchase Order aktif' },
+      { icon: '💰', text: 'Analisis cash flow Q3 2024', desc: 'Arus kas masuk dan keluar' },
+      { icon: '📋', text: 'Laporan aging piutang', desc: 'Piutang berdasarkan umur' },
+      { icon: '🔍', text: 'Rekonsiliasi invoice outstanding', desc: 'Invoice yang belum terbayar' },
+    ];
 
     return NextResponse.json(
       {

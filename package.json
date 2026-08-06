@@ -49,14 +49,15 @@
         "type-check": "tsc --noEmit",
         "worker": "node scripts/whatsapp-worker-launcher.mjs",
         "worker:local": "node scripts/whatsapp-worker-launcher.mjs local",
-        "worker:vercel": "node scripts/whatsapp-worker-launcher.mjs vercel"
+        "worker:vercel": "node scripts/whatsapp-worker-launcher.mjs vercel",
+        "db:init": "node scripts/init-mysql-db.mjs"
     },
     "dependencies": {
         "@dhiwise/component-tagger": "^1.0.15",
         "@google/generative-ai": "^0.24.1",
         "@heroicons/react": "^2.2.0",
         "@sparticuz/chromium": "^149.0.0",
-        "@supabase/supabase-js": "^2.110.1",
+        "mysql2": "^3.12.0",
         "@tailwindcss/forms": "^0.5.10",
         "@tailwindcss/typography": "^0.5.16",
         "@types/file-saver": "^2.0.7",

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState, use } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import MessageBubble, { Message } from '@/components/features/chat/MessageBubble';
 import { ShareIcon, ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -19,32 +18,24 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
     const fetchSharedChat = async () => {
       try {
         setIsLoading(true);
-        // Fetch session
-        const { data: session, error: sessionError } = await supabase
-          .from('chat_sessions')
-          .select('*')
-          .eq('id', resolvedParams.id)
-          .single();
+        const res = await fetch(`/api/chat/history?sessionId=${encodeURIComponent(resolvedParams.id)}`);
+        const data = await res.json();
 
-        if (sessionError) throw sessionError;
-        setSessionData(session);
+        if (!res.ok || !data.success) {
+          throw new Error('Obrolan tidak ditemukan');
+        }
 
-        // Fetch messages
-        const { data: msgs, error: msgsError } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('session_id', resolvedParams.id)
-          .order('created_at', { ascending: true });
+        setSessionData({
+          title: 'Obrolan Dibagikan',
+          created_at: new Date().toISOString(),
+        });
 
-        if (msgsError) throw msgsError;
-
-        // Map messages and strip user files for privacy
+        const msgs = data.data || [];
         const mappedMsgs: Message[] = msgs.map((m: any) => ({
           id: m.id,
           role: m.role as 'user' | 'ai',
           content: m.content,
           timestamp: new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-          // Explicitly set files to undefined to hide user-uploaded files on read-only view
           files: undefined 
         }));
 
@@ -63,7 +54,6 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
   }, [resolvedParams.id]);
 
   const handleClone = () => {
-    // Redirect to main page with clone parameter
     router.push(`/?clone=${resolvedParams.id}`);
   };
 

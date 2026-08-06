@@ -1,14 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { queryMysql } from '@/lib/db/mysqlClient';
 
 export const runtime = 'nodejs';
-
-function adminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Supabase service-role configuration is missing');
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
 
 function authorized(req: NextRequest) {
   const expected = process.env.WHATSAPP_INTERNAL_TOKEN;
@@ -39,14 +32,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { data, error } = await adminClient()
-      .from('whatsapp_allowed_groups')
-      .select('group_jid, group_lid, group_name, is_active, allowed_senders, allowed_commands')
-      .eq('group_jid', groupJid)
-      .eq('is_active', true)
-      .maybeSingle();
-    if (error) throw error;
-    return NextResponse.json({ allowed: Boolean(data), group: data || null });
+    const rows = await queryMysql<any>(
+      'SELECT group_jid, group_lid, group_name, is_active, allowed_senders, allowed_commands FROM whatsapp_allowed_groups WHERE group_jid = ? AND is_active = 1 LIMIT 1',
+      [groupJid]
+    );
+    const data = rows[0] || null;
+    return NextResponse.json({ allowed: Boolean(data), group: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Whitelist lookup failed' }, { status: 500 });
   }
@@ -59,11 +50,39 @@ export async function POST(req: NextRequest) {
     if (payload?.group_jid && localAllowedGroups().has(payload.group_jid)) {
       return NextResponse.json({ ok: true, stored: false, source: 'env' });
     }
-    const { error } = await adminClient().from('whatsapp_tifa_requests').upsert(payload, { onConflict: 'message_id' });
-    if (error) throw error;
+
+    const { message_id, group_jid, group_lid, sender_id, sender_lid, prompt, response_text, report_title, status, error_message } = payload || {};
+    if (message_id && group_jid) {
+      const sql = `
+        INSERT INTO whatsapp_tifa_requests
+        (message_id, group_jid, group_lid, sender_id, sender_lid, prompt, response_text, report_title, status, error_message, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+          status = VALUES(status),
+          response_text = VALUES(response_text),
+          error_message = VALUES(error_message),
+          completed_at = NOW()
+      `;
+      const validStatuses = ['received', 'processing', 'sent', 'ignored', 'failed'];
+      let safeStatus = status || 'received';
+      if (safeStatus === 'completed') safeStatus = 'sent';
+      if (!validStatuses.includes(safeStatus)) safeStatus = 'received';
+
+      await queryMysql(sql, [
+        message_id,
+        group_jid,
+        group_lid || null,
+        sender_id || '',
+        sender_lid || null,
+        prompt || '',
+        response_text || null,
+        report_title || null,
+        safeStatus,
+        error_message || null,
+      ]);
+    }
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Audit write failed' }, { status: 500 });
   }
 }
-

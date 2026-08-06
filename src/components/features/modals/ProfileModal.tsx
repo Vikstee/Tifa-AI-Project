@@ -12,7 +12,6 @@ import {
   BriefcaseIcon,
   EnvelopeIcon 
 } from '@heroicons/react/24/outline';
-import { supabase } from '@/lib/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProfileModalProps {
@@ -60,14 +59,17 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
     setSavedSuccess(false);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          full_name: name,
-          wa_number: waNumber,
-        }
+      const res = await fetch('/api/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          name,
+          waNumber,
+        }),
       });
 
-      if (error) throw error;
+      if (!res.ok) throw new Error('Gagal menyimpan profil');
 
       if (onUserUpdate) {
         onUserUpdate({
@@ -99,36 +101,24 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `avatars/${user.id}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('chat_attachments')
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from('chat_attachments')
-        .getPublicUrl(fileName);
-
-      const avatar_url = publicUrlData.publicUrl;
-
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url }
-      });
-
-      if (updateError) throw updateError;
-
-      if (onUserUpdate) {
-        onUserUpdate({ ...user, avatar_url });
-      }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const avatar_url = reader.result as string;
+        await fetch('/api/auth/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id || user.user_uuid, avatarUrl: avatar_url })
+        });
+        if (onUserUpdate) {
+          onUserUpdate({ ...user, avatar_url });
+        }
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
     } catch (error: any) {
       console.error('Error uploading avatar:', error);
       alert('Gagal mengunggah foto profil');
-    } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -138,14 +128,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onLo
 
     setIsUploading(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: null }
+      await fetch('/api/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id || user.user_uuid, avatarUrl: '' })
       });
-
-      if (updateError) throw updateError;
-
       if (onUserUpdate) {
-        onUserUpdate({ ...user, avatar_url: null });
+        onUserUpdate({ ...user, avatar_url: '' });
       }
     } catch (error: any) {
       console.error('Error deleting avatar:', error);

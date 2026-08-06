@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { supabase } from '@/lib/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SettingsModalProps {
@@ -32,15 +31,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userProf
     
     setIsSaving(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          full_name: fullName,
-          wa_number: waNumber,
-          llm_model: llmModel
-        }
+      const res = await fetch('/api/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id || userProfile.user_uuid,
+          name: fullName,
+          waNumber,
+          llmModel
+        })
       });
       
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Gagal menyimpan pengaturan.');
+      }
       
       onUserUpdate?.({ ...userProfile, name: fullName, wa_number: waNumber, llm_model: llmModel });
       onClose();

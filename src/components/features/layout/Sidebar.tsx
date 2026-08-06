@@ -32,27 +32,6 @@ interface SidebarProps {
   isProfileOpen?: boolean;
 }
 
-const sampleToday = [
-  { id: 'sample-1', title: 'Reviewing and approving p...' },
-  { id: 'sample-2', title: 'Matching invoices against...' },
-  { id: 'sample-3', title: 'Planning outgoing payment...' },
-];
-
-const sampleYesterday = [
-  { id: 'sample-4', title: 'Following up on overdue cu...' },
-  { id: 'sample-5', title: 'Discussion on material purc...' },
-  { id: 'sample-6', title: 'Finance approval for suppli...' },
-];
-
-const sampleOlder = [
-  { id: 'sample-7', title: 'Finance approval for suppli...' },
-  { id: 'sample-8', title: 'Updating quantities and pri...' },
-  { id: 'sample-9', title: 'Preparing invoice for compl...' },
-  { id: 'sample-10', title: 'Reviewing expected cash in...' },
-  { id: 'sample-11', title: 'Request for project advanc...' },
-  { id: 'sample-12', title: 'Tracking outstanding custo...' },
-];
-
 export default function Sidebar({
   isOpen,
   onToggle,
@@ -86,9 +65,9 @@ export default function Sidebar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const todayItems: any[] = [];
-  const yesterdayItems: any[] = [];
-  const olderItems: any[] = [];
+  const todayItems: ConversationItem[] = [];
+  const yesterdayItems: ConversationItem[] = [];
+  const olderItems: ConversationItem[] = [];
 
   if (history && history.length > 0) {
     const now = new Date();
@@ -107,10 +86,9 @@ export default function Sidebar({
     });
   }
 
-  const hasRealHistory = history && history.length > 0;
-  const displayToday = hasRealHistory ? todayItems : sampleToday;
-  const displayYesterday = hasRealHistory ? yesterdayItems : sampleYesterday;
-  const displayOlder = hasRealHistory ? olderItems : sampleOlder;
+  const displayToday = todayItems;
+  const displayYesterday = yesterdayItems;
+  const displayOlder = olderItems;
 
   const renderHistoryItem = (item: ConversationItem) => {
     const isMenuOpen = menuOpenId === item.id;
@@ -318,6 +296,13 @@ export default function Sidebar({
                     <div className="space-y-0.5">
                       {displayOlder.map(renderHistoryItem)}
                     </div>
+                  </div>
+                )}
+                {displayToday.length === 0 && displayYesterday.length === 0 && displayOlder.length === 0 && (
+                  <div className="my-auto py-8 text-center flex flex-col items-center justify-center mx-2">
+                    <p className="text-xs text-gray-400 dark:text-zinc-500 font-medium">
+                      Belum ada riwayat obrolan
+                    </p>
                   </div>
                 )}
               </>

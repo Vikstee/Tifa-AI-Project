@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { queryMysql } from '@/lib/db/mysqlClient';
 import { dbToolsDefinitions } from '@/lib/ai/geminiTools';
-import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory, deleteUserMemoryItem, clearUserMemory, enrichWithProjectNames } from '@/lib/db/supabaseQueries';
+import { lookupRecord, filterRecords, aggregateRecords, getUserMemory, updateUserMemory, deleteUserMemoryItem, clearUserMemory, enrichWithProjectNames } from '@/lib/db/mysqlQueries';
 import { aggregateChartPython, predictCashflowPython, detectAnomalyPython, askSqlPython, searchVectorPython } from '@/lib/api/pythonClient';
 import { getCachedResponseAsync, setCachedResponseAsync } from '@/lib/cache/responseCache';
 import { getTifaTimeContext } from '@/lib/timezone';
@@ -402,12 +402,10 @@ export async function POST(req: NextRequest) {
         sortCol = 'cash_in';
       }
 
-      const { data: metricsData } = await supabase
-        .from('data_po-cashin')
-        .select('period, rkap, outlook_amount, revenue, cash_in, bast_amount, invoice, pinalty, project_name, portfolio, customer')
-        .gt(sortCol, 0)
-        .order(sortCol, { ascending: false })
-        .limit(15);
+      const cleanSort = sortCol === 'rkap' ? 'rkap' : (sortCol === 'cash_in' ? 'cash_in' : 'revenue');
+      const metricsData = await queryMysql<any>(
+        `SELECT period, rkap, outlook_amount, revenue, cash_in, bast_amount, invoice, pinalty, project_name, portfolio, customer FROM \`data_po-cashin\` WHERE \`${cleanSort}\` > 0 ORDER BY \`${cleanSort}\` DESC LIMIT 15`
+      );
 
       if (metricsData && metricsData.length > 0) {
         const dbRows = metricsData.map((m: any, idx: number) => ({
@@ -425,11 +423,11 @@ export async function POST(req: NextRequest) {
           "Denda Pinalty (Rp)": m.pinalty || 0
         }));
 
-        dynamicSystem += `\n\n[DATABASE DATA REAL-TIME RESMI SUPABASE TELKOMINFRA ('data_po-cashin')]:\n${JSON.stringify(dbRows, null, 2)}\n\nPERINGATAN (ANTI HALUSINASI & AKURASI DATA):
+        dynamicSystem += `\n\n[DATABASE DATA REAL-TIME RESMI MYSQL TELKOMINFRA ('data_po-cashin')]:\n${JSON.stringify(dbRows, null, 2)}\n\nPERINGATAN (ANTI HALUSINASI & AKURASI DATA):
 1. DILARANG KERAS mengarang nama proyek fiktif atau angka estimasi buatan sendiri.
-2. Nama proyek HANYA DAN WAJIB 100% diambil dari list 'nama_proyek' pada data resmi Supabase di atas atau hasil pemanggilan tool.
+2. Nama proyek HANYA DAN WAJIB 100% diambil dari list 'nama_proyek' pada data resmi MySQL di atas atau hasil pemanggilan tool.
 3. Angka nominal Revenue, RKAP, Outlook, dan Cash In WAJIB 100% menggunakan angka asli dari database di atas.
-4. Data proyek dan keuangan tahun 2026 TERSEDIA 100% di tabel database Supabase ('data_po-cashin'). DILARANG KERAS membalas data 2026 tidak ada atau hanya memuat data hingga 2025!`;
+4. Data proyek dan keuangan tahun 2026 TERSEDIA 100% di tabel database MySQL ('data_po-cashin'). DILARANG KERAS membalas data 2026 tidak ada atau hanya memuat data hingga 2025!`;
       }
     } catch (err) {
       console.warn('[Tifa DB prefetch warning]:', err);
